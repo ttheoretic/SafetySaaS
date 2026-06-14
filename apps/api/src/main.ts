@@ -1,4 +1,9 @@
 import 'reflect-metadata';
+import { startTracing } from './observability/tracing';
+
+// Start tracing before anything else so instrumentation can patch modules.
+startTracing('failsafe-api');
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';

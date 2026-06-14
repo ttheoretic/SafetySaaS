@@ -1,0 +1,18 @@
+# Pre-deploy database migration. Run as a Job (or Helm pre-upgrade hook) before
+# rolling out new api/worker images so the schema is ready.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: failsafe
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: ghcr.io/ttheoretic/failsafe-api:latest
+          command: ['npx', 'prisma', 'migrate', 'deploy']
+          envFrom:
+            - secretRef: { name: failsafe-secrets }

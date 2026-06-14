@@ -1,0 +1,43 @@
+# BullMQ workers consuming the scan/report/predict queues. Scale on queue depth
+# via a custom/external metric (KEDA recommended); CPU fallback shown here.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: failsafe
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: worker }
+  template:
+    metadata:
+      labels: { app: worker }
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/ttheoretic/failsafe-api:latest
+          command: ['node', 'apps/api/dist/worker.js']
+          envFrom:
+            - configMapRef: { name: failsafe-config }
+            - secretRef: { name: failsafe-secrets }
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { cpu: '2', memory: 1Gi }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  namespace: failsafe
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 1
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 75 }

@@ -1,4 +1,5 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { exampleGraph, SystemGraph } from '@failsafe/shared';
 import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
@@ -40,7 +41,26 @@ export class ScanProcessor implements OnModuleInit {
     return this.queue.enqueue('scan', job);
   }
 
-  private async handle(job: ScanJob): Promise<void> {
+  private handle(job: ScanJob): Promise<void> {
+    // Custom span — links the scan work to the request trace when tracing is on,
+    // and is a no-op otherwise.
+    return trace
+      .getTracer('failsafe')
+      .startActiveSpan('scan.run', async (span) => {
+        span.setAttribute('scan.id', job.scanId);
+        span.setAttribute('project.id', job.projectId);
+        try {
+          await this.runScan(job);
+          span.setStatus({ code: SpanStatusCode.OK });
+        } catch (err) {
+          span.setStatus({ code: SpanStatusCode.ERROR, message: (err as Error).message });
+        } finally {
+          span.end();
+        }
+      });
+  }
+
+  private async runScan(job: ScanJob): Promise<void> {
     this.store.updateScan(job.scanId, { status: 'running' });
     try {
       let graph = job.graph;
