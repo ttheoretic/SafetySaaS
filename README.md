@@ -77,6 +77,11 @@ Beyond the eight analytical modules, the API implements:
 - **Auth + multi-tenancy + RBAC** — Supabase-JWT (HS256) verification with a
   dev-token fallback, just-in-time org provisioning, per-tenant data isolation,
   a role/permission matrix and audit logging. See [`docs/AUTH.md`](docs/AUTH.md).
+- **Billing + plan limits** — Starter/Growth/Pro/Enterprise tiers with enforced
+  limits, a Stripe provider (Checkout + webhooks) and a local fallback. See
+  [`docs/BILLING.md`](docs/BILLING.md).
+- **Reports** — Executive/CTO/Security/Full reports as JSON, HTML or PDF
+  (dependency-free PDF writer).
 
 ## Documentation
 

@@ -9,5 +9,6 @@ export * from './recommendations';
 export * from './prediction';
 export * from './scenario';
 export * from './report';
+export * from './plans';
 export * from './scanner';
 export * from './fixtures';

@@ -8,10 +8,12 @@ import { ConnectionsModule } from './connections/connections.module';
 import { ScansModule } from './scans/scans.module';
 import { ScenariosModule } from './scenarios/scenarios.module';
 import { ReportsModule } from './reports/reports.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
     AuthModule,
+    BillingModule,
     HealthModule,
     AnalyzeModule,
     OrgsModule,

@@ -9,6 +9,7 @@ import { devToken } from './auth/jwt';
 // Two distinct tenants (each provisioned a personal org on first request).
 const ALICE = `Bearer ${devToken({ sub: 'alice-1', email: 'alice@acme.io', name: 'Alice' })}`;
 const BOB = `Bearer ${devToken({ sub: 'bob-1', email: 'bob@globex.io', name: 'Bob' })}`;
+const CAROL = `Bearer ${devToken({ sub: 'carol-1', email: 'carol@initech.io', name: 'Carol' })}`;
 
 describe('FailSafe API (e2e)', () => {
   let app: INestApplication;
@@ -20,6 +21,16 @@ describe('FailSafe API (e2e)', () => {
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
+
+    // Provision Alice & Bob and upgrade them to enterprise (no project limit)
+    // via the dev billing webhook, so the multi-project tests below aren't
+    // constrained by the starter plan.
+    for (const token of [ALICE, BOB]) {
+      const me = await request(app.getHttpServer()).get('/me').set('Authorization', token);
+      await request(app.getHttpServer())
+        .post('/billing/webhook')
+        .send({ orgId: me.body.activeOrg.id, plan: 'enterprise' });
+    }
   });
 
   afterAll(async () => {
@@ -169,6 +180,50 @@ describe('FailSafe API (e2e)', () => {
     expect(run.body.steps).toHaveLength(2);
     expect(run.body.worstImpact).toBeDefined();
     expect(run.body.totalRevenueImpact).toBeGreaterThanOrEqual(0);
+  });
+
+  it('enforces plan limits and lifts them on upgrade', async () => {
+    // Carol starts on the starter plan (1 project).
+    const summary = await request(app.getHttpServer())
+      .get('/billing')
+      .set('Authorization', CAROL);
+    expect(summary.status).toBe(200);
+    expect(summary.body.plan).toBe('starter');
+    expect(summary.body.limits.maxProjects).toBe(1);
+
+    const first = await request(app.getHttpServer())
+      .post('/projects')
+      .set('Authorization', CAROL)
+      .send({ name: 'Carol Project 1' });
+    expect(first.status).toBe(201);
+
+    // Second project exceeds the starter limit.
+    const second = await request(app.getHttpServer())
+      .post('/projects')
+      .set('Authorization', CAROL)
+      .send({ name: 'Carol Project 2' });
+    expect(second.status).toBe(403);
+
+    // Upgrade via the webhook, then it's allowed.
+    const me = await request(app.getHttpServer()).get('/me').set('Authorization', CAROL);
+    await request(app.getHttpServer())
+      .post('/billing/webhook')
+      .send({ orgId: me.body.activeOrg.id, plan: 'pro' });
+
+    const afterUpgrade = await request(app.getHttpServer())
+      .post('/projects')
+      .set('Authorization', CAROL)
+      .send({ name: 'Carol Project 2' });
+    expect(afterUpgrade.status).toBe(201);
+  });
+
+  it('checkout requires billing:manage and returns a URL', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/billing/checkout')
+      .set('Authorization', ALICE)
+      .send({ plan: 'pro' });
+    expect(res.status).toBe(201);
+    expect(typeof res.body.url).toBe('string');
   });
 
   it('generates reports as JSON, HTML and PDF', async () => {

@@ -5,6 +5,7 @@ import { IsIn, IsOptional, IsString } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
+import { BillingService } from '../billing/billing.service';
 
 class CreateProjectDto {
   @IsString() name!: string;
@@ -18,6 +19,7 @@ class ProjectsController {
   constructor(
     private readonly store: Store,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
   ) {}
 
   @Get()
@@ -29,6 +31,7 @@ class ProjectsController {
   @Post()
   @RequirePermission('project:write')
   create(@Auth() auth: AuthContext, @Body() dto: CreateProjectDto) {
+    this.billing.assertCanCreateProject(auth.org);
     const slug = dto.slug ?? slugify(dto.name);
     const project = this.store.createProject({
       orgId: auth.org.id,

@@ -1,3 +1,4 @@
+import { PLAN_ORDER, PLAN_LIMITS } from '@failsafe/shared';
 import { PageHeader, Card } from '@/components/ui';
 
 const PROVIDERS = [
@@ -5,12 +6,19 @@ const PROVIDERS = [
   'Vercel', 'Railway', 'Render', 'Supabase', 'Neon', 'Stripe',
 ];
 
-const PLANS = [
-  { name: 'Starter', price: '29 €/mo' },
-  { name: 'Growth', price: '99 €/mo' },
-  { name: 'Pro', price: '299 €/mo' },
-  { name: 'Enterprise', price: 'Custom' },
-];
+const PLANS = PLAN_ORDER.map((p) => {
+  const l = PLAN_LIMITS[p];
+  return {
+    name: p[0].toUpperCase() + p.slice(1),
+    price: l.priceEur === null ? 'Custom' : `${l.priceEur} €/mo`,
+    features: [
+      l.maxProjects === Infinity ? 'Unlimited projects' : `${l.maxProjects} project(s)`,
+      l.aiPredictions ? 'AI predictions' : 'Heuristic predictions',
+      l.pdfReports ? 'PDF reports' : 'No PDF export',
+      l.maxMembers === Infinity ? 'Unlimited members' : `${l.maxMembers} members`,
+    ],
+  };
+});
 
 export default function SettingsPage() {
   return (
@@ -33,10 +41,15 @@ export default function SettingsPage() {
           {PLANS.map((plan) => (
             <div
               key={plan.name}
-              className="rounded-lg border border-border bg-panel2 p-4 text-center"
+              className="rounded-lg border border-border bg-panel2 p-4"
             >
               <div className="font-semibold text-white">{plan.name}</div>
               <div className="mt-1 text-sm text-muted">{plan.price}</div>
+              <ul className="mt-3 space-y-1 text-xs text-slate-300">
+                {plan.features.map((f) => (
+                  <li key={f}>· {f}</li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>

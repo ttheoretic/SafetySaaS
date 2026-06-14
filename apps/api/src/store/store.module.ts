@@ -59,6 +59,15 @@ export interface OrganizationRecord {
   createdAt: string;
 }
 
+export interface SubscriptionRecord {
+  orgId: string;
+  plan: OrganizationRecord['plan'];
+  status: string;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  currentPeriodEnd?: string;
+}
+
 export interface MembershipRecord {
   id: string;
   orgId: string;
@@ -99,6 +108,7 @@ export class Store {
   private memberships = new Map<string, MembershipRecord>();
   private auditLogs = new Map<string, AuditLogRecord>();
   private scenarios = new Map<string, ScenarioRecord>();
+  private subscriptions = new Map<string, SubscriptionRecord>();
 
   createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): ProjectRecord {
     const record: ProjectRecord = {
@@ -198,6 +208,26 @@ export class Store {
 
   getOrganization(id: string): OrganizationRecord | undefined {
     return this.organizations.get(id);
+  }
+
+  updateOrganization(
+    id: string,
+    patch: Partial<OrganizationRecord>,
+  ): OrganizationRecord | undefined {
+    const existing = this.organizations.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...patch };
+    this.organizations.set(id, updated);
+    return updated;
+  }
+
+  upsertSubscription(sub: SubscriptionRecord): SubscriptionRecord {
+    this.subscriptions.set(sub.orgId, sub);
+    return sub;
+  }
+
+  getSubscription(orgId: string): SubscriptionRecord | undefined {
+    return this.subscriptions.get(orgId);
   }
 
   addMembership(input: Omit<MembershipRecord, 'id' | 'createdAt'>): MembershipRecord {
