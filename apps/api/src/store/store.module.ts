@@ -30,10 +30,22 @@ export interface ScanRecord {
   finishedAt?: string;
 }
 
+export interface ConnectionRecord {
+  id: string;
+  orgId: string;
+  projectId: string;
+  provider: string;
+  status: 'active' | 'error' | 'revoked';
+  /** Non-secret provider config: repos to scan, regions, etc. */
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
 @Injectable()
 export class Store {
   private projects = new Map<string, ProjectRecord>();
   private scans = new Map<string, ScanRecord>();
+  private connections = new Map<string, ConnectionRecord>();
 
   createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): ProjectRecord {
     const record: ProjectRecord = {
@@ -79,6 +91,24 @@ export class Store {
     return [...this.scans.values()]
       .filter((s) => s.projectId === projectId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  createConnection(
+    input: Omit<ConnectionRecord, 'id' | 'createdAt'>,
+  ): ConnectionRecord {
+    const record: ConnectionRecord = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    this.connections.set(record.id, record);
+    return record;
+  }
+
+  listConnections(projectId: string): ConnectionRecord[] {
+    return [...this.connections.values()].filter(
+      (c) => c.projectId === projectId,
+    );
   }
 }
 

@@ -6,10 +6,11 @@ import { exampleGraph, SystemGraph } from '@failsafe/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { AnalyzeModule } from '../analyze/analyze.module';
 import { AnalyzeService } from '../analyze/analyze.service';
+import { ScannerModule } from '../scanner/scanner.module';
+import { ScannerService } from '../scanner/scanner.service';
 
 class StartScanDto {
-  /** Optional pre-built graph. If absent, the scanner would build one from the
-   *  project's connections; the scaffold falls back to the example graph. */
+  /** Optional pre-built graph (skips the scanner entirely). */
   @IsOptional() @IsObject()
   graph?: SystemGraph;
 }
@@ -19,6 +20,7 @@ class ScansController {
   constructor(
     private readonly store: Store,
     private readonly analyze: AnalyzeService,
+    private readonly scanner: ScannerService,
   ) {}
 
   @Get()
@@ -27,28 +29,47 @@ class ScansController {
   }
 
   @Post()
-  start(@Param('projectId') projectId: string, @Body() dto: StartScanDto) {
+  async start(
+    @Param('projectId') projectId: string,
+    @Body() dto: StartScanDto,
+  ) {
     const project = this.store.getProject(projectId);
     if (!project) throw new NotFoundException('Project not found');
 
-    const graph = dto.graph ?? exampleGraph;
     const scan = this.store.createScan({
       orgId: project.orgId,
       projectId,
       status: 'running',
     });
 
-    // The real pipeline enqueues a BullMQ job; the scaffold runs the pure
-    // engine synchronously since it is fast and deterministic.
-    const analysis = this.analyze.reliability(graph);
-    return this.store.updateScan(scan.id, {
-      status: 'succeeded',
-      graph,
-      reliabilityScore: analysis.score,
-      findings: analysis.findings,
-      recommendations: analysis.recommendations,
-      finishedAt: new Date().toISOString(),
-    });
+    try {
+      // Precedence: an explicit graph wins; otherwise build one from the
+      // project's connections; if there are none, fall back to the demo graph.
+      let graph = dto.graph;
+      if (!graph) {
+        const connections = this.store.listConnections(projectId);
+        graph = connections.length
+          ? await this.scanner.scan(connections)
+          : exampleGraph;
+      }
+
+      // The production pipeline enqueues a BullMQ job; the scaffold runs the
+      // deterministic engines inline.
+      const analysis = this.analyze.reliability(graph);
+      return this.store.updateScan(scan.id, {
+        status: 'succeeded',
+        graph,
+        reliabilityScore: analysis.score,
+        findings: analysis.findings,
+        recommendations: analysis.recommendations,
+        finishedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      return this.store.updateScan(scan.id, {
+        status: 'failed',
+        finishedAt: new Date().toISOString(),
+      });
+    }
   }
 
   @Get(':scanId')
@@ -60,7 +81,7 @@ class ScansController {
 }
 
 @Module({
-  imports: [StoreModule, AnalyzeModule],
+  imports: [StoreModule, AnalyzeModule, ScannerModule],
   controllers: [ScansController],
 })
 export class ScansModule {}

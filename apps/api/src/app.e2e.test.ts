@@ -72,4 +72,40 @@ describe('FailSafe API (e2e)', () => {
     expect(scan.body.status).toBe('succeeded');
     expect(scan.body.reliabilityScore).toBeGreaterThanOrEqual(0);
   });
+
+  it('scans from connected providers (no token, provided signals)', async () => {
+    const project = (
+      await request(app.getHttpServer())
+        .post('/projects')
+        .send({ name: 'Connected SaaS' })
+    ).body;
+
+    const conn = await request(app.getHttpServer())
+      .post(`/projects/${project.id}/connections`)
+      .send({
+        provider: 'github',
+        metadata: {
+          signals: [
+            {
+              provider: 'github',
+              repo: 'acme/connected',
+              frameworks: ['nextjs', 'nestjs'],
+              dependencies: ['next', '@nestjs/core', 'pg', 'stripe'],
+            },
+          ],
+        },
+      });
+    expect(conn.status).toBe(201);
+    // Secrets / tokens are never returned.
+    expect(conn.body.token).toBeUndefined();
+
+    const scan = await request(app.getHttpServer())
+      .post(`/projects/${project.id}/scans`)
+      .send({});
+    expect(scan.status).toBe(201);
+    expect(scan.body.status).toBe('succeeded');
+    const ids = (scan.body.graph.nodes as Array<{ id: string }>).map((n) => n.id);
+    expect(ids).toContain('postgres');
+    expect(ids).toContain('stripe');
+  });
 });

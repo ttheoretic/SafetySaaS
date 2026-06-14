@@ -29,7 +29,7 @@ failsafe-ai/
 
 | # | Module                    | Status      |
 |---|---------------------------|-------------|
-| 1 | Architecture Scanner      | scaffolded  |
+| 1 | Architecture Scanner      | implemented |
 | 2 | Reliability Score Engine  | implemented |
 | 3 | Failure Simulation Engine | implemented |
 | 4 | AI Failure Prediction     | scaffolded  |
@@ -38,12 +38,19 @@ failsafe-ai/
 | 7 | Scenario Laboratory       | scaffolded  |
 | 8 | Recommendations Engine    | implemented |
 
-The reliability, simulation, revenue, security and recommendations engines are
-implemented as **pure, deterministic, fully-tested domain logic** in
-`packages/shared` so they can be reused by the API, the workers and tested in
-isolation. The scanner and AI-prediction modules have working interfaces and
-heuristic implementations with clearly marked extension points for the
-provider integrations and LLM calls.
+The scanner, reliability, simulation, revenue, security and recommendations
+engines are implemented as **pure, deterministic, fully-tested domain logic**
+in `packages/shared` so they can be reused by the API, the workers and tested
+in isolation.
+
+The **Architecture Scanner** is split in two: pure graph-construction
+(adapters + merge in `packages/shared/src/scanner`, fully unit-tested) and the
+I/O **collectors** in `apps/api/src/scanner/collectors` that fetch real signals
+from each provider (e.g. the GitHub collector reads `package.json` to infer the
+frontend, API and every backing service). A scan composes all of a project's
+connections into one `SystemGraph`, then feeds it straight to the engines. The
+AI-prediction module has a working interface with clearly marked extension
+points for the LLM calls.
 
 ## Quick start
 
