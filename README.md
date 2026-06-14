@@ -70,8 +70,20 @@ docker compose up -d postgres redis
 npm run dev          # api on :4000, web on :3000
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and
-[`docs/DATABASE.md`](docs/DATABASE.md) for the full design.
+## Platform features
+
+Beyond the eight analytical modules, the API implements:
+
+- **Auth + multi-tenancy + RBAC** — Supabase-JWT (HS256) verification with a
+  dev-token fallback, just-in-time org provisioning, per-tenant data isolation,
+  a role/permission matrix and audit logging. See [`docs/AUTH.md`](docs/AUTH.md).
+
+## Documentation
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
+[`docs/DATABASE.md`](docs/DATABASE.md), [`docs/SCANNER.md`](docs/SCANNER.md),
+[`docs/AI_PREDICTION.md`](docs/AI_PREDICTION.md) and
+[`docs/AUTH.md`](docs/AUTH.md) for the full design.
 
 ## License
 

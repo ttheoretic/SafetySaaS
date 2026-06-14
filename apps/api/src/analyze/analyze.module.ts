@@ -4,7 +4,9 @@ import { AnalyzeDto, PredictDto, SimulateDto } from './dto';
 import type { SystemGraph, SimulationParams } from '@failsafe/shared';
 import { AiModule } from '../ai/ai.module';
 import { PredictionService } from '../ai/prediction.service';
+import { Public } from '../auth/auth-context';
 
+@Public()
 @Controller('analyze')
 class AnalyzeController {
   constructor(

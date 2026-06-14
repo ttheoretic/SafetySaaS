@@ -4,6 +4,11 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { exampleGraph, exampleBusiness } from '@failsafe/shared';
 import { AppModule } from './app.module';
+import { devToken } from './auth/jwt';
+
+// Two distinct tenants (each provisioned a personal org on first request).
+const ALICE = `Bearer ${devToken({ sub: 'alice-1', email: 'alice@acme.io', name: 'Alice' })}`;
+const BOB = `Bearer ${devToken({ sub: 'bob-1', email: 'bob@globex.io', name: 'Bob' })}`;
 
 describe('FailSafe API (e2e)', () => {
   let app: INestApplication;
@@ -72,30 +77,79 @@ describe('FailSafe API (e2e)', () => {
     expect(res.status).toBe(400);
   });
 
+  it('requires authentication for tenant routes', async () => {
+    const res = await request(app.getHttpServer()).get('/projects');
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /me provisions a personal org on first login', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/me')
+      .set('Authorization', ALICE);
+    expect(res.status).toBe(200);
+    expect(res.body.user.email).toBe('alice@acme.io');
+    expect(res.body.role).toBe('owner');
+    expect(res.body.activeOrg).toBeDefined();
+  });
+
   it('runs a project scan end-to-end', async () => {
     const create = await request(app.getHttpServer())
       .post('/projects')
+      .set('Authorization', ALICE)
       .send({ name: 'Acme SaaS' });
     expect(create.status).toBe(201);
     const projectId = create.body.id;
 
     const scan = await request(app.getHttpServer())
       .post(`/projects/${projectId}/scans`)
+      .set('Authorization', ALICE)
       .send({});
     expect(scan.status).toBe(201);
     expect(scan.body.status).toBe('succeeded');
     expect(scan.body.reliabilityScore).toBeGreaterThanOrEqual(0);
   });
 
+  it('isolates tenants: Bob cannot see Alice\'s project', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/projects')
+      .set('Authorization', ALICE)
+      .send({ name: 'Alice Secret Project' });
+    const projectId = created.body.id;
+
+    const asBob = await request(app.getHttpServer())
+      .get(`/projects/${projectId}`)
+      .set('Authorization', BOB);
+    expect(asBob.status).toBe(404);
+
+    const bobList = await request(app.getHttpServer())
+      .get('/projects')
+      .set('Authorization', BOB);
+    expect(bobList.body.find((p: { id: string }) => p.id === projectId)).toBeUndefined();
+  });
+
+  it('records an audit log for mutating actions', async () => {
+    await request(app.getHttpServer())
+      .post('/projects')
+      .set('Authorization', ALICE)
+      .send({ name: 'Audited Project' });
+    const logs = await request(app.getHttpServer())
+      .get('/orgs/audit-logs')
+      .set('Authorization', ALICE);
+    expect(logs.status).toBe(200);
+    expect(logs.body.some((l: { action: string }) => l.action === 'project.create')).toBe(true);
+  });
+
   it('scans from connected providers (no token, provided signals)', async () => {
     const project = (
       await request(app.getHttpServer())
         .post('/projects')
+        .set('Authorization', ALICE)
         .send({ name: 'Connected SaaS' })
     ).body;
 
     const conn = await request(app.getHttpServer())
       .post(`/projects/${project.id}/connections`)
+      .set('Authorization', ALICE)
       .send({
         provider: 'github',
         metadata: {
@@ -115,6 +169,7 @@ describe('FailSafe API (e2e)', () => {
 
     const scan = await request(app.getHttpServer())
       .post(`/projects/${project.id}/scans`)
+      .set('Authorization', ALICE)
       .send({});
     expect(scan.status).toBe(201);
     expect(scan.body.status).toBe('succeeded');

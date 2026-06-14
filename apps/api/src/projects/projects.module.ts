@@ -3,6 +3,8 @@ import {
 } from '@nestjs/common';
 import { IsIn, IsOptional, IsString } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
+import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { AuditService } from '../auth/audit.service';
 
 class CreateProjectDto {
   @IsString() name!: string;
@@ -11,33 +13,40 @@ class CreateProjectDto {
   environment?: string;
 }
 
-/** Demo org id for the scaffold; real requests resolve org from the JWT. */
-const DEMO_ORG = 'demo-org';
-
 @Controller('projects')
 class ProjectsController {
-  constructor(private readonly store: Store) {}
+  constructor(
+    private readonly store: Store,
+    private readonly audit: AuditService,
+  ) {}
 
   @Get()
-  list() {
-    return this.store.listProjects(DEMO_ORG);
+  @RequirePermission('project:read')
+  list(@Auth() auth: AuthContext) {
+    return this.store.listProjects(auth.org.id);
   }
 
   @Post()
-  create(@Body() dto: CreateProjectDto) {
+  @RequirePermission('project:write')
+  create(@Auth() auth: AuthContext, @Body() dto: CreateProjectDto) {
     const slug = dto.slug ?? slugify(dto.name);
-    return this.store.createProject({
-      orgId: DEMO_ORG,
+    const project = this.store.createProject({
+      orgId: auth.org.id,
       name: dto.name,
       slug,
       environment: dto.environment ?? 'production',
     });
+    this.audit.record(auth, 'project.create', { type: 'project', id: project.id }, { name: project.name });
+    return project;
   }
 
   @Get(':id')
-  get(@Param('id') id: string) {
+  @RequirePermission('project:read')
+  get(@Auth() auth: AuthContext, @Param('id') id: string) {
     const project = this.store.getProject(id);
-    if (!project) throw new NotFoundException('Project not found');
+    if (!project || project.orgId !== auth.org.id) {
+      throw new NotFoundException('Project not found');
+    }
     return project;
   }
 }

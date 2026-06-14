@@ -8,6 +8,8 @@ import { AnalyzeModule } from '../analyze/analyze.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerModule } from '../scanner/scanner.module';
 import { ScannerService } from '../scanner/scanner.service';
+import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { AuditService } from '../auth/audit.service';
 
 class StartScanDto {
   /** Optional pre-built graph (skips the scanner entirely). */
@@ -21,20 +23,24 @@ class ScansController {
     private readonly store: Store,
     private readonly analyze: AnalyzeService,
     private readonly scanner: ScannerService,
+    private readonly audit: AuditService,
   ) {}
 
   @Get()
-  list(@Param('projectId') projectId: string) {
+  @RequirePermission('project:read')
+  list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
+    this.requireProject(auth, projectId);
     return this.store.listScans(projectId);
   }
 
   @Post()
+  @RequirePermission('scan:run')
   async start(
+    @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
     @Body() dto: StartScanDto,
   ) {
-    const project = this.store.getProject(projectId);
-    if (!project) throw new NotFoundException('Project not found');
+    const project = this.requireProject(auth, projectId);
 
     const scan = this.store.createScan({
       orgId: project.orgId,
@@ -56,7 +62,7 @@ class ScansController {
       // The production pipeline enqueues a BullMQ job; the scaffold runs the
       // deterministic engines inline.
       const analysis = this.analyze.reliability(graph);
-      return this.store.updateScan(scan.id, {
+      const updated = this.store.updateScan(scan.id, {
         status: 'succeeded',
         graph,
         reliabilityScore: analysis.score,
@@ -64,6 +70,11 @@ class ScansController {
         recommendations: analysis.recommendations,
         finishedAt: new Date().toISOString(),
       });
+      this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, {
+        projectId,
+        reliabilityScore: analysis.score,
+      });
+      return updated;
     } catch (err) {
       return this.store.updateScan(scan.id, {
         status: 'failed',
@@ -73,10 +84,22 @@ class ScansController {
   }
 
   @Get(':scanId')
-  get(@Param('scanId') scanId: string) {
+  @RequirePermission('project:read')
+  get(@Auth() auth: AuthContext, @Param('scanId') scanId: string) {
     const scan = this.store.getScan(scanId);
-    if (!scan) throw new NotFoundException('Scan not found');
+    if (!scan || scan.orgId !== auth.org.id) {
+      throw new NotFoundException('Scan not found');
+    }
     return scan;
+  }
+
+  /** Ensure the project exists and belongs to the caller's org. */
+  private requireProject(auth: AuthContext, projectId: string) {
+    const project = this.store.getProject(projectId);
+    if (!project || project.orgId !== auth.org.id) {
+      throw new NotFoundException('Project not found');
+    }
+    return project;
   }
 }
 

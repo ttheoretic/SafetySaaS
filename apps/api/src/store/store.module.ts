@@ -41,11 +41,52 @@ export interface ConnectionRecord {
   createdAt: string;
 }
 
+export type Role = 'owner' | 'admin' | 'member' | 'viewer';
+
+export interface UserRecord {
+  id: string;
+  supabaseId: string;
+  email: string;
+  name?: string;
+  createdAt: string;
+}
+
+export interface OrganizationRecord {
+  id: string;
+  name: string;
+  slug: string;
+  plan: 'starter' | 'growth' | 'pro' | 'enterprise';
+  createdAt: string;
+}
+
+export interface MembershipRecord {
+  id: string;
+  orgId: string;
+  userId: string;
+  role: Role;
+  createdAt: string;
+}
+
+export interface AuditLogRecord {
+  id: string;
+  orgId: string;
+  actorUserId?: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
 @Injectable()
 export class Store {
   private projects = new Map<string, ProjectRecord>();
   private scans = new Map<string, ScanRecord>();
   private connections = new Map<string, ConnectionRecord>();
+  private users = new Map<string, UserRecord>();
+  private organizations = new Map<string, OrganizationRecord>();
+  private memberships = new Map<string, MembershipRecord>();
+  private auditLogs = new Map<string, AuditLogRecord>();
 
   createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): ProjectRecord {
     const record: ProjectRecord = {
@@ -109,6 +150,82 @@ export class Store {
     return [...this.connections.values()].filter(
       (c) => c.projectId === projectId,
     );
+  }
+
+  // --- Identity & tenancy ---
+
+  createUser(input: Omit<UserRecord, 'id' | 'createdAt'>): UserRecord {
+    const record: UserRecord = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    this.users.set(record.id, record);
+    return record;
+  }
+
+  getUserBySupabaseId(supabaseId: string): UserRecord | undefined {
+    return [...this.users.values()].find((u) => u.supabaseId === supabaseId);
+  }
+
+  getUser(id: string): UserRecord | undefined {
+    return this.users.get(id);
+  }
+
+  createOrganization(
+    input: Omit<OrganizationRecord, 'id' | 'createdAt'>,
+  ): OrganizationRecord {
+    const record: OrganizationRecord = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    this.organizations.set(record.id, record);
+    return record;
+  }
+
+  getOrganization(id: string): OrganizationRecord | undefined {
+    return this.organizations.get(id);
+  }
+
+  addMembership(input: Omit<MembershipRecord, 'id' | 'createdAt'>): MembershipRecord {
+    const record: MembershipRecord = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    this.memberships.set(record.id, record);
+    return record;
+  }
+
+  getMembership(orgId: string, userId: string): MembershipRecord | undefined {
+    return [...this.memberships.values()].find(
+      (m) => m.orgId === orgId && m.userId === userId,
+    );
+  }
+
+  listMembershipsForUser(userId: string): MembershipRecord[] {
+    return [...this.memberships.values()].filter((m) => m.userId === userId);
+  }
+
+  listMembershipsForOrg(orgId: string): MembershipRecord[] {
+    return [...this.memberships.values()].filter((m) => m.orgId === orgId);
+  }
+
+  addAuditLog(input: Omit<AuditLogRecord, 'id' | 'createdAt'>): AuditLogRecord {
+    const record: AuditLogRecord = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    this.auditLogs.set(record.id, record);
+    return record;
+  }
+
+  listAuditLogs(orgId: string): AuditLogRecord[] {
+    return [...this.auditLogs.values()]
+      .filter((a) => a.orgId === orgId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 }
 
