@@ -82,6 +82,9 @@ Beyond the eight analytical modules, the API implements:
   [`docs/BILLING.md`](docs/BILLING.md).
 - **Reports** — Executive/CTO/Security/Full reports as JSON, HTML or PDF
   (dependency-free PDF writer).
+- **Background jobs** — scans run through a job queue: BullMQ (Redis) in
+  production, an in-process inline driver in dev/tests. See
+  [`docs/JOBS.md`](docs/JOBS.md).
 
 ## Documentation
 

@@ -2,14 +2,13 @@ import {
   Body, Controller, Get, Module, NotFoundException, Param, Post,
 } from '@nestjs/common';
 import { IsOptional, IsObject } from 'class-validator';
-import { exampleGraph, SystemGraph } from '@failsafe/shared';
+import { SystemGraph } from '@failsafe/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { AnalyzeModule } from '../analyze/analyze.module';
-import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerModule } from '../scanner/scanner.module';
-import { ScannerService } from '../scanner/scanner.service';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
+import { ScanProcessor } from './scan.processor';
 
 class StartScanDto {
   /** Optional pre-built graph (skips the scanner entirely). */
@@ -21,8 +20,7 @@ class StartScanDto {
 class ScansController {
   constructor(
     private readonly store: Store,
-    private readonly analyze: AnalyzeService,
-    private readonly scanner: ScannerService,
+    private readonly processor: ScanProcessor,
     private readonly audit: AuditService,
   ) {}
 
@@ -40,47 +38,20 @@ class ScansController {
     @Param('projectId') projectId: string,
     @Body() dto: StartScanDto,
   ) {
-    const project = this.requireProject(auth, projectId);
+    this.requireProject(auth, projectId);
 
     const scan = this.store.createScan({
-      orgId: project.orgId,
+      orgId: auth.org.id,
       projectId,
-      status: 'running',
+      status: 'queued',
     });
 
-    try {
-      // Precedence: an explicit graph wins; otherwise build one from the
-      // project's connections; if there are none, fall back to the demo graph.
-      let graph = dto.graph;
-      if (!graph) {
-        const connections = this.store.listConnections(projectId);
-        graph = connections.length
-          ? await this.scanner.scan(connections)
-          : exampleGraph;
-      }
+    // Enqueue the work. With the inline queue this completes synchronously;
+    // with BullMQ it is processed out of band and the client polls for status.
+    await this.processor.enqueue({ scanId: scan.id, projectId, graph: dto.graph });
+    this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, { projectId });
 
-      // The production pipeline enqueues a BullMQ job; the scaffold runs the
-      // deterministic engines inline.
-      const analysis = this.analyze.reliability(graph);
-      const updated = this.store.updateScan(scan.id, {
-        status: 'succeeded',
-        graph,
-        reliabilityScore: analysis.score,
-        findings: analysis.findings,
-        recommendations: analysis.recommendations,
-        finishedAt: new Date().toISOString(),
-      });
-      this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, {
-        projectId,
-        reliabilityScore: analysis.score,
-      });
-      return updated;
-    } catch (err) {
-      return this.store.updateScan(scan.id, {
-        status: 'failed',
-        finishedAt: new Date().toISOString(),
-      });
-    }
+    return this.store.getScan(scan.id);
   }
 
   @Get(':scanId')
@@ -93,7 +64,6 @@ class ScansController {
     return scan;
   }
 
-  /** Ensure the project exists and belongs to the caller's org. */
   private requireProject(auth: AuthContext, projectId: string) {
     const project = this.store.getProject(projectId);
     if (!project || project.orgId !== auth.org.id) {
@@ -106,5 +76,6 @@ class ScansController {
 @Module({
   imports: [StoreModule, AnalyzeModule, ScannerModule],
   controllers: [ScansController],
+  providers: [ScanProcessor],
 })
 export class ScansModule {}
