@@ -7,5 +7,6 @@ export * from './revenue';
 export * from './security';
 export * from './recommendations';
 export * from './prediction';
+export * from './scenario';
 export * from './scanner';
 export * from './fixtures';

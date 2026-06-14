@@ -67,6 +67,17 @@ export interface MembershipRecord {
   createdAt: string;
 }
 
+export interface ScenarioRecord {
+  id: string;
+  orgId: string;
+  projectId: string;
+  name: string;
+  prompt: string;
+  definition: Record<string, unknown>;
+  lastResult?: unknown;
+  createdAt: string;
+}
+
 export interface AuditLogRecord {
   id: string;
   orgId: string;
@@ -87,6 +98,7 @@ export class Store {
   private organizations = new Map<string, OrganizationRecord>();
   private memberships = new Map<string, MembershipRecord>();
   private auditLogs = new Map<string, AuditLogRecord>();
+  private scenarios = new Map<string, ScenarioRecord>();
 
   createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): ProjectRecord {
     const record: ProjectRecord = {
@@ -225,6 +237,34 @@ export class Store {
   listAuditLogs(orgId: string): AuditLogRecord[] {
     return [...this.auditLogs.values()]
       .filter((a) => a.orgId === orgId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  createScenario(input: Omit<ScenarioRecord, 'id' | 'createdAt'>): ScenarioRecord {
+    const record: ScenarioRecord = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...input,
+    };
+    this.scenarios.set(record.id, record);
+    return record;
+  }
+
+  getScenario(id: string): ScenarioRecord | undefined {
+    return this.scenarios.get(id);
+  }
+
+  updateScenario(id: string, patch: Partial<ScenarioRecord>): ScenarioRecord | undefined {
+    const existing = this.scenarios.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...patch };
+    this.scenarios.set(id, updated);
+    return updated;
+  }
+
+  listScenarios(projectId: string): ScenarioRecord[] {
+    return [...this.scenarios.values()]
+      .filter((s) => s.projectId === projectId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 }

@@ -139,6 +139,38 @@ describe('FailSafe API (e2e)', () => {
     expect(logs.body.some((l: { action: string }) => l.action === 'project.create')).toBe(true);
   });
 
+  it('creates and runs a custom scenario (Scenario Laboratory)', async () => {
+    const project = (
+      await request(app.getHttpServer())
+        .post('/projects')
+        .set('Authorization', ALICE)
+        .send({ name: 'Scenario Project' })
+    ).body;
+
+    const created = await request(app.getHttpServer())
+      .post(`/projects/${project.id}/scenarios`)
+      .set('Authorization', ALICE)
+      .send({
+        name: 'AWS outage during a traffic spike',
+        prompt: 'What if AWS us-east-1 fails while we get 100x traffic?',
+        steps: [
+          { type: 'aws_down', durationHours: 3 },
+          { type: 'traffic_100x' },
+        ],
+        business: exampleBusiness,
+      });
+    expect(created.status).toBe(201);
+
+    const run = await request(app.getHttpServer())
+      .post(`/projects/${project.id}/scenarios/${created.body.id}/run`)
+      .set('Authorization', ALICE)
+      .send({});
+    expect(run.status).toBe(201);
+    expect(run.body.steps).toHaveLength(2);
+    expect(run.body.worstImpact).toBeDefined();
+    expect(run.body.totalRevenueImpact).toBeGreaterThanOrEqual(0);
+  });
+
   it('scans from connected providers (no token, provided signals)', async () => {
     const project = (
       await request(app.getHttpServer())

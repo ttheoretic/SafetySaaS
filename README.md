@@ -35,7 +35,7 @@ failsafe-ai/
 | 4 | AI Failure Prediction     | implemented |
 | 5 | Revenue Impact Engine     | implemented |
 | 6 | Security Simulation       | implemented |
-| 7 | Scenario Laboratory       | scaffolded  |
+| 7 | Scenario Laboratory       | implemented |
 | 8 | Recommendations Engine    | implemented |
 
 The scanner, reliability, simulation, revenue, security and recommendations
