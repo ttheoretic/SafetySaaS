@@ -8,6 +8,7 @@ const NAV = [
   { href: '/projects', label: 'Projects' },
   { href: '/reliability', label: 'Reliability Score' },
   { href: '/simulations', label: 'Simulations' },
+  { href: '/predictions', label: 'AI Predictions' },
   { href: '/security', label: 'Security' },
   { href: '/revenue', label: 'Revenue Risk' },
   { href: '/reports', label: 'Reports' },

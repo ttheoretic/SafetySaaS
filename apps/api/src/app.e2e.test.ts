@@ -51,6 +51,20 @@ describe('FailSafe API (e2e)', () => {
     expect(res.body.revenue.totalImpact).toBeGreaterThan(0);
   });
 
+  it('POST /analyze/predict returns failure predictions (heuristics)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/analyze/predict')
+      .send({ graph: exampleGraph, currentUsers: 4000 });
+    expect(res.status).toBe(201);
+    // No ANTHROPIC_API_KEY in tests → heuristics only, gracefully degraded.
+    expect(res.body.aiEnabled).toBe(false);
+    expect(Array.isArray(res.body.predictions)).toBe(true);
+    expect(res.body.predictions.length).toBeGreaterThan(0);
+    expect(
+      res.body.predictions.some((p: { category: string }) => p.category === 'bottleneck'),
+    ).toBe(true);
+  });
+
   it('rejects an unknown simulation type', async () => {
     const res = await request(app.getHttpServer())
       .post('/analyze/simulate')

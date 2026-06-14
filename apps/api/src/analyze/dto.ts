@@ -43,6 +43,15 @@ export class BusinessDto {
   @IsOptional() @IsString() currency?: string;
 }
 
+export class PredictDto {
+  @ValidateNested()
+  @Type(() => GraphDto)
+  graph!: GraphDto;
+
+  @IsOptional() @IsNumber()
+  currentUsers?: number;
+}
+
 export class SimulateDto {
   @ValidateNested()
   @Type(() => GraphDto)

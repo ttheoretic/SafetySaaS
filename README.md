@@ -32,7 +32,7 @@ failsafe-ai/
 | 1 | Architecture Scanner      | implemented |
 | 2 | Reliability Score Engine  | implemented |
 | 3 | Failure Simulation Engine | implemented |
-| 4 | AI Failure Prediction     | scaffolded  |
+| 4 | AI Failure Prediction     | implemented |
 | 5 | Revenue Impact Engine     | implemented |
 | 6 | Security Simulation       | implemented |
 | 7 | Scenario Laboratory       | scaffolded  |
@@ -49,8 +49,12 @@ I/O **collectors** in `apps/api/src/scanner/collectors` that fetch real signals
 from each provider (e.g. the GitHub collector reads `package.json` to infer the
 frontend, API and every backing service). A scan composes all of a project's
 connections into one `SystemGraph`, then feeds it straight to the engines. The
-AI-prediction module has a working interface with clearly marked extension
-points for the LLM calls.
+**AI Failure Prediction** runs in two layers: a deterministic heuristic
+predictor in `packages/shared` (always on, fully tested) and an `AiProvider`
+abstraction in the API whose Anthropic implementation (`claude-opus-4-8`,
+adaptive thinking, schema-constrained output) augments it with non-obvious
+predictions. With no `ANTHROPIC_API_KEY` it degrades gracefully to the
+heuristics — the feature always works.
 
 ## Quick start
 

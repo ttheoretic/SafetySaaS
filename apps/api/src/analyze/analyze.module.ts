@@ -1,11 +1,23 @@
 import { Body, Controller, Module, Post } from '@nestjs/common';
 import { AnalyzeService } from './analyze.service';
-import { AnalyzeDto, SimulateDto } from './dto';
+import { AnalyzeDto, PredictDto, SimulateDto } from './dto';
 import type { SystemGraph, SimulationParams } from '@failsafe/shared';
+import { AiModule } from '../ai/ai.module';
+import { PredictionService } from '../ai/prediction.service';
 
 @Controller('analyze')
 class AnalyzeController {
-  constructor(private readonly analyze: AnalyzeService) {}
+  constructor(
+    private readonly analyze: AnalyzeService,
+    private readonly prediction: PredictionService,
+  ) {}
+
+  @Post('predict')
+  predict(@Body() dto: PredictDto) {
+    return this.prediction.predict(dto.graph as unknown as SystemGraph, {
+      currentUsers: dto.currentUsers,
+    });
+  }
 
   @Post('reliability')
   reliability(@Body() dto: AnalyzeDto) {
@@ -38,6 +50,7 @@ class AnalyzeController {
 }
 
 @Module({
+  imports: [AiModule],
   controllers: [AnalyzeController],
   providers: [AnalyzeService],
   exports: [AnalyzeService],

@@ -6,5 +6,6 @@ export * from './simulation';
 export * from './revenue';
 export * from './security';
 export * from './recommendations';
+export * from './prediction';
 export * from './scanner';
 export * from './fixtures';

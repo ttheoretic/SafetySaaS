@@ -54,4 +54,9 @@ export const api = {
   ) => post('/analyze/simulate', { graph, type, business, durationHours }),
   report: (graph: SystemGraph, business?: BusinessContext) =>
     post('/analyze/report', { graph, business }),
+  predict: (graph: SystemGraph, currentUsers?: number) =>
+    post<{ aiEnabled: boolean; provider: string; predictions: unknown[] }>(
+      '/analyze/predict',
+      { graph, currentUsers },
+    ),
 };
