@@ -171,6 +171,56 @@ describe('FailSafe API (e2e)', () => {
     expect(run.body.totalRevenueImpact).toBeGreaterThanOrEqual(0);
   });
 
+  it('generates reports as JSON, HTML and PDF', async () => {
+    const project = (
+      await request(app.getHttpServer())
+        .post('/projects')
+        .set('Authorization', ALICE)
+        .send({ name: 'Report Project' })
+    ).body;
+    const base = `/projects/${project.id}/reports`;
+
+    const json = await request(app.getHttpServer())
+      .get(`${base}/executive`)
+      .set('Authorization', ALICE);
+    expect(json.status).toBe(200);
+    expect(json.body.title).toContain('Executive');
+    expect(json.body.reliabilityScore).toBeGreaterThanOrEqual(0);
+
+    const html = await request(app.getHttpServer())
+      .get(`${base}/security?format=html`)
+      .set('Authorization', ALICE);
+    expect(html.status).toBe(200);
+    expect(html.headers['content-type']).toContain('text/html');
+    expect(html.text).toContain('<h1>');
+
+    const pdf = await request(app.getHttpServer())
+      .get(`${base}/full?format=pdf`)
+      .set('Authorization', ALICE)
+      .buffer()
+      .parse((res, cb) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => cb(null, Buffer.concat(chunks)));
+      });
+    expect(pdf.status).toBe(200);
+    expect(pdf.headers['content-type']).toContain('application/pdf');
+    expect((pdf.body as Buffer).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  });
+
+  it('rejects an unknown report type', async () => {
+    const project = (
+      await request(app.getHttpServer())
+        .post('/projects')
+        .set('Authorization', ALICE)
+        .send({ name: 'Report Project 2' })
+    ).body;
+    const res = await request(app.getHttpServer())
+      .get(`/projects/${project.id}/reports/bogus`)
+      .set('Authorization', ALICE);
+    expect(res.status).toBe(400);
+  });
+
   it('scans from connected providers (no token, provided signals)', async () => {
     const project = (
       await request(app.getHttpServer())

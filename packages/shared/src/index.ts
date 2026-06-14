@@ -8,5 +8,6 @@ export * from './security';
 export * from './recommendations';
 export * from './prediction';
 export * from './scenario';
+export * from './report';
 export * from './scanner';
 export * from './fixtures';
