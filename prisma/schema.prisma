@@ -1,0 +1,387 @@
+// FailSafe AI — multi-tenant PostgreSQL schema.
+// See docs/DATABASE.md for the design rationale.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------------------
+
+enum Plan {
+  starter
+  growth
+  pro
+  enterprise
+}
+
+enum Role {
+  owner
+  admin
+  member
+  viewer
+}
+
+enum Environment {
+  production
+  staging
+  development
+}
+
+enum Provider {
+  github
+  gitlab
+  bitbucket
+  aws
+  azure
+  gcp
+  vercel
+  railway
+  render
+  supabase
+  neon
+  stripe
+}
+
+enum ConnectionStatus {
+  active
+  error
+  revoked
+}
+
+enum JobStatus {
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum Severity {
+  low
+  medium
+  high
+  critical
+}
+
+enum FindingCategory {
+  spof
+  database
+  api
+  backup
+  rate_limit
+  redundancy
+  security
+  vendor_lock_in
+}
+
+enum SimulationType {
+  infra_server
+  infra_region
+  dns
+  db_lock
+  cache
+  queue
+  stripe_down
+  openai_down
+  aws_down
+  cloudflare_down
+  traffic_10x
+  traffic_100x
+  viral_peak
+  churn_wave
+  payment_failure
+  refund_spike
+}
+
+enum Priority {
+  low
+  medium
+  high
+  critical
+}
+
+enum RecommendationStatus {
+  open
+  planned
+  done
+  dismissed
+}
+
+enum ReportType {
+  executive
+  cto
+  security
+  full
+}
+
+enum ReportFormat {
+  pdf
+  json
+}
+
+// ----------------------------------------------------------------------------
+// Identity & tenancy
+// ----------------------------------------------------------------------------
+
+model User {
+  id          String       @id @default(uuid())
+  supabaseId  String       @unique
+  email       String       @unique
+  name        String?
+  avatarUrl   String?
+  createdAt   DateTime     @default(now())
+
+  memberships Membership[]
+  auditLogs   AuditLog[]
+  invitations Invitation[] @relation("InvitedBy")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  plan      Plan     @default(starter)
+  createdAt DateTime @default(now())
+
+  memberships   Membership[]
+  projects      Project[]
+  invitations   Invitation[]
+  auditLogs     AuditLog[]
+  subscription  Subscription?
+
+  @@index([slug])
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String
+  role      Role     @default(member)
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([orgId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String    @id @default(uuid())
+  orgId       String
+  email       String
+  role        Role      @default(member)
+  token       String    @unique
+  invitedById String
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([orgId])
+  @@index([email])
+}
+
+// ----------------------------------------------------------------------------
+// Projects & connections
+// ----------------------------------------------------------------------------
+
+model Project {
+  id          String      @id @default(uuid())
+  orgId       String
+  name        String
+  slug        String
+  environment Environment @default(production)
+  createdAt   DateTime    @default(now())
+
+  organization    Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  connections     Connection[]
+  scans           Scan[]
+  findings        Finding[]
+  simulations     Simulation[]
+  scenarios       Scenario[]
+  recommendations Recommendation[]
+  reports         Report[]
+
+  @@unique([orgId, slug])
+  @@index([orgId, createdAt])
+}
+
+model Connection {
+  id                String           @id @default(uuid())
+  orgId             String
+  projectId         String
+  provider          Provider
+  status            ConnectionStatus @default(active)
+  encryptedToken    String // envelope-encrypted; never returned to clients
+  externalAccountId String?
+  metadata          Json             @default("{}")
+  createdAt         DateTime         @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, provider])
+  @@index([orgId])
+}
+
+// ----------------------------------------------------------------------------
+// Scans, findings, recommendations
+// ----------------------------------------------------------------------------
+
+model Scan {
+  id               String    @id @default(uuid())
+  orgId            String
+  projectId        String
+  status           JobStatus @default(queued)
+  graph            Json? // normalized SystemGraph
+  reliabilityScore Int? // 0–100, derived from findings
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  error            String?
+  createdAt        DateTime  @default(now())
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  findings        Finding[]
+  simulations     Simulation[]
+
+  @@index([orgId])
+  @@index([projectId, createdAt])
+}
+
+model Finding {
+  id          String          @id @default(uuid())
+  orgId       String
+  projectId   String
+  scanId      String
+  category    FindingCategory
+  severity    Severity
+  title       String
+  description String
+  nodeId      String?
+  weight      Float           @default(0)
+  createdAt   DateTime        @default(now())
+
+  scan            Scan             @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  recommendations Recommendation[]
+
+  @@index([orgId])
+  @@index([scanId])
+}
+
+model Recommendation {
+  id              String               @id @default(uuid())
+  orgId           String
+  projectId       String
+  findingId       String?
+  title           String
+  description     String
+  priority        Priority
+  probability     Float                @default(0) // 0..1
+  businessImpact  String
+  fix             String
+  riskReductionPct Int                 @default(0)
+  status          RecommendationStatus @default(open)
+  createdAt       DateTime             @default(now())
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  finding Finding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([projectId])
+}
+
+// ----------------------------------------------------------------------------
+// Simulations & scenarios
+// ----------------------------------------------------------------------------
+
+model Simulation {
+  id            String         @id @default(uuid())
+  orgId         String
+  projectId     String
+  scanId        String
+  type          SimulationType
+  params        Json           @default("{}")
+  status        JobStatus      @default(queued)
+  result        Json? // SimulationResult
+  revenueImpact Json? // RevenueImpactResult
+  createdAt     DateTime       @default(now())
+
+  scan    Scan    @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([scanId])
+}
+
+model Scenario {
+  id         String   @id @default(uuid())
+  orgId      String
+  projectId  String
+  name       String
+  prompt     String // natural-language "what-if"
+  definition Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([projectId])
+}
+
+// ----------------------------------------------------------------------------
+// Reports, billing, audit
+// ----------------------------------------------------------------------------
+
+model Report {
+  id            String       @id @default(uuid())
+  orgId         String
+  projectId     String
+  type          ReportType
+  format        ReportFormat @default(pdf)
+  storageKey    String
+  generatedById String?
+  createdAt     DateTime     @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([projectId])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  orgId                String   @unique
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  plan                 Plan     @default(starter)
+  status               String   @default("active")
+  currentPeriodEnd     DateTime?
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  orgId       String
+  actorUserId String?
+  action      String
+  targetType  String?
+  targetId    String?
+  ip          String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
+}
