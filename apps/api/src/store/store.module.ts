@@ -38,6 +38,8 @@ export interface ConnectionRecord {
   status: 'active' | 'error' | 'revoked';
   /** Non-secret provider config: repos to scan, regions, etc. */
   metadata: Record<string, unknown>;
+  /** Envelope-encrypted access token (AES-256-GCM); never returned to clients. */
+  encryptedToken?: string;
   createdAt: string;
 }
 

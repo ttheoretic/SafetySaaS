@@ -5,6 +5,7 @@ import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 import { Store, StoreModule, ProjectRecord } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
+import { SecretBox } from '../crypto/secret-box';
 
 const PROVIDERS = [
   'github', 'gitlab', 'bitbucket', 'aws', 'azure', 'gcp',
@@ -24,6 +25,7 @@ class ConnectionsController {
   constructor(
     private readonly store: Store,
     private readonly audit: AuditService,
+    private readonly secrets: SecretBox,
   ) {}
 
   @Get()
@@ -54,6 +56,8 @@ class ConnectionsController {
       provider: dto.provider,
       status: 'active',
       metadata: dto.metadata ?? {},
+      // Token is encrypted at rest and never returned in any response.
+      encryptedToken: dto.token ? this.secrets.encrypt(dto.token) : undefined,
     });
     this.audit.record(auth, 'connection.create', { type: 'connection', id: conn.id }, {
       provider: dto.provider,

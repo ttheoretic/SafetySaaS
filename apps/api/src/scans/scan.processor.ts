@@ -4,6 +4,7 @@ import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
 import { JOB_QUEUE, JobQueue } from '../jobs/job-queue';
+import { SecretBox } from '../crypto/secret-box';
 
 export interface ScanJob {
   scanId: string;
@@ -27,6 +28,7 @@ export class ScanProcessor implements OnModuleInit {
     private readonly store: Store,
     private readonly analyze: AnalyzeService,
     private readonly scanner: ScannerService,
+    private readonly secrets: SecretBox,
     @Inject(JOB_QUEUE) private readonly queue: JobQueue,
   ) {}
 
@@ -44,8 +46,15 @@ export class ScanProcessor implements OnModuleInit {
       let graph = job.graph;
       if (!graph) {
         const connections = this.store.listConnections(job.projectId);
+        // Decrypt the code-host token (if any) just-in-time for the scan.
+        const tokenConn = connections.find(
+          (c) => c.provider === 'github' && c.encryptedToken,
+        );
+        const token = tokenConn?.encryptedToken
+          ? this.secrets.decrypt(tokenConn.encryptedToken)
+          : undefined;
         graph = connections.length
-          ? await this.scanner.scan(connections)
+          ? await this.scanner.scan(connections, { token })
           : exampleGraph;
       }
       const analysis = this.analyze.reliability(graph);
