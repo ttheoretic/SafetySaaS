@@ -226,6 +226,41 @@ describe('FailSafe API (e2e)', () => {
     expect(typeof res.body.url).toBe('string');
   });
 
+  it('invites a member who then joins the org (Team)', async () => {
+    // Alice (enterprise, owner) invites a brand-new user as a member.
+    const invite = await request(app.getHttpServer())
+      .post('/orgs/invitations')
+      .set('Authorization', ALICE)
+      .send({ email: 'dave@acme.io', role: 'member' });
+    expect(invite.status).toBe(201);
+    expect(invite.body.token).toBeDefined();
+
+    const DAVE = `Bearer ${devToken({ sub: 'dave-1', email: 'dave@acme.io', name: 'Dave' })}`;
+    // Dave provisions his own org on first login...
+    const before = await request(app.getHttpServer()).get('/me').set('Authorization', DAVE);
+    expect(before.body.organizations).toHaveLength(1);
+
+    // ...then accepts the invitation and joins Alice's org as a member.
+    const accept = await request(app.getHttpServer())
+      .post('/invitations/accept')
+      .set('Authorization', DAVE)
+      .send({ token: invite.body.token });
+    expect(accept.status).toBe(201);
+    expect(accept.body.role).toBe('member');
+
+    const after = await request(app.getHttpServer()).get('/me').set('Authorization', DAVE);
+    expect(after.body.organizations).toHaveLength(2);
+  });
+
+  it('rejects an invalid invitation token', async () => {
+    const DAVE = `Bearer ${devToken({ sub: 'dave-1', email: 'dave@acme.io' })}`;
+    const res = await request(app.getHttpServer())
+      .post('/invitations/accept')
+      .set('Authorization', DAVE)
+      .send({ token: 'nope' });
+    expect(res.status).toBe(400);
+  });
+
   it('generates reports as JSON, HTML and PDF', async () => {
     const project = (
       await request(app.getHttpServer())

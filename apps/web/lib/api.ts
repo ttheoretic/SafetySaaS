@@ -100,4 +100,10 @@ export const api = {
     ),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
+  orgMembers: () =>
+    get<Array<{ userId: string; email?: string; name?: string; role: string }>>('/orgs/members'),
+  listInvitations: () =>
+    get<Array<{ id: string; email: string; role: string }>>('/orgs/invitations'),
+  invite: (email: string, role: string) =>
+    post<{ id: string; email: string; role: string; token: string }>('/orgs/invitations', { email, role }),
 };

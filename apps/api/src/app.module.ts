@@ -5,6 +5,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { HealthModule } from './health/health.module';
 import { AnalyzeModule } from './analyze/analyze.module';
 import { OrgsModule } from './orgs/orgs.module';
+import { InvitationsModule } from './invitations/invitations.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ConnectionsModule } from './connections/connections.module';
 import { ScansModule } from './scans/scans.module';
@@ -22,6 +23,7 @@ import { BillingModule } from './billing/billing.module';
     HealthModule,
     AnalyzeModule,
     OrgsModule,
+    InvitationsModule,
     ProjectsModule,
     ConnectionsModule,
     ScansModule,

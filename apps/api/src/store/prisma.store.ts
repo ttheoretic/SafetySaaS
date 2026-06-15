@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import {
   Store, ProjectRecord, ScanRecord, ConnectionRecord, UserRecord,
   OrganizationRecord, SubscriptionRecord, MembershipRecord, AuditLogRecord,
-  ScenarioRecord,
+  ScenarioRecord, InvitationRecord,
 } from './store.module';
 
 /**
@@ -300,6 +300,45 @@ export class PrismaStore extends Store {
       id: r.id, orgId: r.orgId, projectId: r.projectId, name: r.name,
       prompt: r.prompt, definition: r.definition ?? {},
       lastResult: r.lastResult ?? undefined,
+      createdAt: r.createdAt.toISOString(),
+    };
+  }
+
+  // --- Invitations ---
+  async createInvitation(input: Omit<InvitationRecord, 'id' | 'createdAt'>) {
+    const row = await this.prisma.invitation.create({
+      data: {
+        orgId: input.orgId, email: input.email, role: input.role as any,
+        token: input.token, invitedById: input.invitedById,
+      },
+    });
+    return this.toInvitation(row);
+  }
+  async getInvitationByToken(token: string) {
+    const row = await this.prisma.invitation.findUnique({ where: { token } });
+    return row ? this.toInvitation(row) : undefined;
+  }
+  async listInvitations(orgId: string) {
+    const rows = await this.prisma.invitation.findMany({
+      where: { orgId, acceptedAt: null }, orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((r) => this.toInvitation(r));
+  }
+  async markInvitationAccepted(id: string) {
+    try {
+      const row = await this.prisma.invitation.update({
+        where: { id }, data: { acceptedAt: new Date() },
+      });
+      return this.toInvitation(row);
+    } catch {
+      return undefined;
+    }
+  }
+  private toInvitation(r: any): InvitationRecord {
+    return {
+      id: r.id, orgId: r.orgId, email: r.email, role: r.role, token: r.token,
+      invitedById: r.invitedById,
+      acceptedAt: this.iso(r.acceptedAt),
       createdAt: r.createdAt.toISOString(),
     };
   }

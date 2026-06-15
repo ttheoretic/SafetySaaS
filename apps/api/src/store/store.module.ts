@@ -92,6 +92,17 @@ export interface ScenarioRecord {
   createdAt: string;
 }
 
+export interface InvitationRecord {
+  id: string;
+  orgId: string;
+  email: string;
+  role: Role;
+  token: string;
+  invitedById: string;
+  acceptedAt?: string;
+  createdAt: string;
+}
+
 export interface AuditLogRecord {
   id: string;
   orgId: string;
@@ -140,6 +151,11 @@ export abstract class Store {
   abstract getScenario(id: string): Promise<ScenarioRecord | undefined>;
   abstract updateScenario(id: string, patch: Partial<ScenarioRecord>): Promise<ScenarioRecord | undefined>;
   abstract listScenarios(projectId: string): Promise<ScenarioRecord[]>;
+
+  abstract createInvitation(input: Omit<InvitationRecord, 'id' | 'createdAt'>): Promise<InvitationRecord>;
+  abstract getInvitationByToken(token: string): Promise<InvitationRecord | undefined>;
+  abstract listInvitations(orgId: string): Promise<InvitationRecord[]>;
+  abstract markInvitationAccepted(id: string): Promise<InvitationRecord | undefined>;
 }
 
 @Injectable()
@@ -153,6 +169,7 @@ export class InMemoryStore extends Store {
   private auditLogs = new Map<string, AuditLogRecord>();
   private scenarios = new Map<string, ScenarioRecord>();
   private subscriptions = new Map<string, SubscriptionRecord>();
+  private invitations = new Map<string, InvitationRecord>();
 
   private stamp<T>(input: T): T & { id: string; createdAt: string } {
     return { id: randomUUID(), createdAt: new Date().toISOString(), ...input };
@@ -283,6 +300,27 @@ export class InMemoryStore extends Store {
     return [...this.scenarios.values()]
       .filter((s) => s.projectId === projectId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async createInvitation(input: Omit<InvitationRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
+    this.invitations.set(record.id, record);
+    return record;
+  }
+  async getInvitationByToken(token: string) {
+    return [...this.invitations.values()].find((i) => i.token === token);
+  }
+  async listInvitations(orgId: string) {
+    return [...this.invitations.values()]
+      .filter((i) => i.orgId === orgId && !i.acceptedAt)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async markInvitationAccepted(id: string) {
+    const existing = this.invitations.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, acceptedAt: new Date().toISOString() };
+    this.invitations.set(id, updated);
+    return updated;
   }
 }
 
