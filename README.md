@@ -90,6 +90,9 @@ Beyond the eight analytical modules, the API implements:
   initial Prisma migration ships in `prisma/migrations`.
 - **Observability** — OpenTelemetry tracing across API → queue → worker
   (no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set).
+- **Provider OAuth** — real GitHub authorization-code flow with a signed,
+  encrypted `state`; tokens stored encrypted and used by the scanner. See
+  [`docs/OAUTH.md`](docs/OAUTH.md).
 
 ## Documentation
 

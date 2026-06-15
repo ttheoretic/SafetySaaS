@@ -98,4 +98,6 @@ export const api = {
       `/projects/${projectId}/scans`,
       {},
     ),
+  oauthAuthorizeUrl: (provider: string, projectId: string) =>
+    get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
 };

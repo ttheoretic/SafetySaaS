@@ -1,10 +1,6 @@
 import { PLAN_ORDER, PLAN_LIMITS } from '@failsafe/shared';
 import { PageHeader, Card } from '@/components/ui';
-
-const PROVIDERS = [
-  'GitHub', 'GitLab', 'Bitbucket', 'AWS', 'Azure', 'GCP',
-  'Vercel', 'Railway', 'Render', 'Supabase', 'Neon', 'Stripe',
-];
+import { ConnectProviders } from '@/components/ConnectProviders';
 
 const PLANS = PLAN_ORDER.map((p) => {
   const l = PLAN_LIMITS[p];
@@ -25,16 +21,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" subtitle="Connections, billing and organization." />
       <Card title="Connect providers" className="mb-4">
-        <div className="flex flex-wrap gap-2">
-          {PROVIDERS.map((p) => (
-            <button
-              key={p}
-              className="rounded-md border border-border bg-panel2 px-3 py-1.5 text-sm hover:border-accent"
-            >
-              + {p}
-            </button>
-          ))}
-        </div>
+        <ConnectProviders />
       </Card>
       <Card title="Plan">
         <div className="grid grid-cols-4 gap-3">
