@@ -4,17 +4,43 @@ import type {
   BusinessContext,
 } from '@failsafe/shared';
 
+import { currentAuth } from './auth-store';
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
+function authHeaders(): Record<string, string> {
+  const { token, orgId } = currentAuth();
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (token) headers['authorization'] = `Bearer ${token}`;
+  if (orgId) headers['x-org-id'] = orgId;
+  return headers;
+}
 
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}/api${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: authHeaders(),
     body: JSON.stringify(body),
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
   return res.json() as Promise<T>;
+}
+
+async function get<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE}/api${path}`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  return res.json() as Promise<T>;
+}
+
+export interface MeResponse {
+  user: { id: string; email: string; name?: string };
+  activeOrg: { id: string; name: string; plan: string };
+  role: string;
+  organizations: { id: string; name?: string; role: string }[];
 }
 
 export interface ReliabilityResponse {
@@ -58,5 +84,18 @@ export const api = {
     post<{ aiEnabled: boolean; provider: string; predictions: unknown[] }>(
       '/analyze/predict',
       { graph, currentUsers },
+    ),
+
+  // --- Authenticated (tenant) endpoints ---
+  me: () => get<MeResponse>('/me'),
+  billing: () => get<{ plan: string; limits: Record<string, unknown>; usage: Record<string, number> }>('/billing'),
+  listProjects: () =>
+    get<Array<{ id: string; name: string; environment: string }>>('/projects'),
+  createProject: (name: string) =>
+    post<{ id: string; name: string }>('/projects', { name }),
+  startScan: (projectId: string) =>
+    post<{ id: string; status: string; reliabilityScore?: number }>(
+      `/projects/${projectId}/scans`,
+      {},
     ),
 };

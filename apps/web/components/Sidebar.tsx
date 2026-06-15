@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { AccountBadge } from './AccountBadge';
 
 const NAV = [
   { href: '/', label: 'Overview' },
@@ -20,7 +21,7 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   return (
-    <aside className="w-60 shrink-0 border-r border-border bg-panel px-4 py-6">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-panel px-4 py-6">
       <div className="mb-8 px-2">
         <div className="text-lg font-semibold text-white">FailSafe AI</div>
         <div className="text-xs text-muted">Find problems before they happen.</div>
@@ -46,6 +47,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+      <div className="mt-auto pt-6">
+        <AccountBadge />
+      </div>
     </aside>
   );
 }
