@@ -85,6 +85,11 @@ Beyond the eight analytical modules, the API implements:
 - **Background jobs** — scans run through a job queue: BullMQ (Redis) in
   production, an in-process inline driver in dev/tests. See
   [`docs/JOBS.md`](docs/JOBS.md).
+- **Persistence** — an async `Store` interface with two backends: `PrismaStore`
+  (PostgreSQL, when `DATABASE_URL` is set) and `InMemoryStore` (dev/tests). An
+  initial Prisma migration ships in `prisma/migrations`.
+- **Observability** — OpenTelemetry tracing across API → queue → worker
+  (no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set).
 
 ## Documentation
 

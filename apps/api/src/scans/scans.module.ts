@@ -26,8 +26,8 @@ class ScansController {
 
   @Get()
   @RequirePermission('project:read')
-  list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
-    this.requireProject(auth, projectId);
+  async list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
+    await this.requireProject(auth, projectId);
     return this.store.listScans(projectId);
   }
 
@@ -38,9 +38,9 @@ class ScansController {
     @Param('projectId') projectId: string,
     @Body() dto: StartScanDto,
   ) {
-    this.requireProject(auth, projectId);
+    await this.requireProject(auth, projectId);
 
-    const scan = this.store.createScan({
+    const scan = await this.store.createScan({
       orgId: auth.org.id,
       projectId,
       status: 'queued',
@@ -49,23 +49,23 @@ class ScansController {
     // Enqueue the work. With the inline queue this completes synchronously;
     // with BullMQ it is processed out of band and the client polls for status.
     await this.processor.enqueue({ scanId: scan.id, projectId, graph: dto.graph });
-    this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, { projectId });
+    void this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, { projectId });
 
     return this.store.getScan(scan.id);
   }
 
   @Get(':scanId')
   @RequirePermission('project:read')
-  get(@Auth() auth: AuthContext, @Param('scanId') scanId: string) {
-    const scan = this.store.getScan(scanId);
+  async get(@Auth() auth: AuthContext, @Param('scanId') scanId: string) {
+    const scan = await this.store.getScan(scanId);
     if (!scan || scan.orgId !== auth.org.id) {
       throw new NotFoundException('Scan not found');
     }
     return scan;
   }
 
-  private requireProject(auth: AuthContext, projectId: string) {
-    const project = this.store.getProject(projectId);
+  private async requireProject(auth: AuthContext, projectId: string) {
+    const project = await this.store.getProject(projectId);
     if (!project || project.orgId !== auth.org.id) {
       throw new NotFoundException('Project not found');
     }

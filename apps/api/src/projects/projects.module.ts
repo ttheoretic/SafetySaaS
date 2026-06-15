@@ -30,23 +30,23 @@ class ProjectsController {
 
   @Post()
   @RequirePermission('project:write')
-  create(@Auth() auth: AuthContext, @Body() dto: CreateProjectDto) {
-    this.billing.assertCanCreateProject(auth.org);
+  async create(@Auth() auth: AuthContext, @Body() dto: CreateProjectDto) {
+    await this.billing.assertCanCreateProject(auth.org);
     const slug = dto.slug ?? slugify(dto.name);
-    const project = this.store.createProject({
+    const project = await this.store.createProject({
       orgId: auth.org.id,
       name: dto.name,
       slug,
       environment: dto.environment ?? 'production',
     });
-    this.audit.record(auth, 'project.create', { type: 'project', id: project.id }, { name: project.name });
+    void this.audit.record(auth, 'project.create', { type: 'project', id: project.id }, { name: project.name });
     return project;
   }
 
   @Get(':id')
   @RequirePermission('project:read')
-  get(@Auth() auth: AuthContext, @Param('id') id: string) {
-    const project = this.store.getProject(id);
+  async get(@Auth() auth: AuthContext, @Param('id') id: string) {
+    const project = await this.store.getProject(id);
     if (!project || project.orgId !== auth.org.id) {
       throw new NotFoundException('Project not found');
     }

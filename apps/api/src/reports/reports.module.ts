@@ -31,14 +31,14 @@ class ReportsController {
    */
   @Get(':type')
   @RequirePermission('project:read')
-  generate(
+  async generate(
     @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
     @Param('type') type: string,
     @Query('format') format = 'json',
     @Res() res: Response,
   ) {
-    const project = this.store.getProject(projectId);
+    const project = await this.store.getProject(projectId);
     if (!project || project.orgId !== auth.org.id) {
       throw new NotFoundException('Project not found');
     }
@@ -46,9 +46,9 @@ class ReportsController {
       throw new BadRequestException(`Unknown report type: ${type}`);
     }
 
-    const graph = this.latestGraph(projectId);
+    const graph = await this.latestGraph(projectId);
     const report = buildReport(graph, exampleBusiness, type as ReportType);
-    this.audit.record(auth, 'report.generate', { type: 'report', id: projectId }, {
+    void this.audit.record(auth, 'report.generate', { type: 'report', id: projectId }, {
       reportType: type,
       format,
     });
@@ -71,10 +71,9 @@ class ReportsController {
     }
   }
 
-  private latestGraph(projectId: string): SystemGraph {
-    const latest = this.store
-      .listScans(projectId)
-      .find((s) => s.status === 'succeeded' && s.graph);
+  private async latestGraph(projectId: string): Promise<SystemGraph> {
+    const scans = await this.store.listScans(projectId);
+    const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
     return (latest?.graph as SystemGraph) ?? exampleGraph;
   }
 }

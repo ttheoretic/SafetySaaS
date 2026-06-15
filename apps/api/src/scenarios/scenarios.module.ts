@@ -40,27 +40,27 @@ class ScenariosController {
 
   @Get()
   @RequirePermission('project:read')
-  list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
-    this.requireProject(auth, projectId);
+  async list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
+    await this.requireProject(auth, projectId);
     return this.store.listScenarios(projectId);
   }
 
   @Post()
   @RequirePermission('project:write')
-  create(
+  async create(
     @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
     @Body() dto: CreateScenarioDto,
   ) {
-    this.requireProject(auth, projectId);
-    const scenario = this.store.createScenario({
+    await this.requireProject(auth, projectId);
+    const scenario = await this.store.createScenario({
       orgId: auth.org.id,
       projectId,
       name: dto.name,
       prompt: dto.prompt ?? '',
       definition: { steps: dto.steps, business: dto.business } as Record<string, unknown>,
     });
-    this.audit.record(auth, 'scenario.create', { type: 'scenario', id: scenario.id }, {
+    void this.audit.record(auth, 'scenario.create', { type: 'scenario', id: scenario.id }, {
       name: scenario.name,
     });
     return scenario;
@@ -69,31 +69,31 @@ class ScenariosController {
   /** Run a saved scenario against the project's latest scan graph. */
   @Post(':id/run')
   @RequirePermission('project:read')
-  run(
+  async run(
     @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
     @Param('id') id: string,
   ) {
-    this.requireProject(auth, projectId);
-    const scenario = this.store.getScenario(id);
+    await this.requireProject(auth, projectId);
+    const scenario = await this.store.getScenario(id);
     if (!scenario || scenario.orgId !== auth.org.id || scenario.projectId !== projectId) {
       throw new NotFoundException('Scenario not found');
     }
 
-    const graph = this.latestGraph(projectId);
+    const graph = await this.latestGraph(projectId);
     const def = scenario.definition as unknown as {
       steps: ScenarioDefinition['steps'];
       business?: BusinessContext;
     };
     const result = runScenario(graph, { steps: def.steps }, def.business);
-    this.store.updateScenario(id, { lastResult: result });
+    await this.store.updateScenario(id, { lastResult: result });
     return result;
   }
 
   @Get(':id')
   @RequirePermission('project:read')
-  get(@Auth() auth: AuthContext, @Param('projectId') projectId: string, @Param('id') id: string) {
-    const scenario = this.store.getScenario(id);
+  async get(@Auth() auth: AuthContext, @Param('projectId') projectId: string, @Param('id') id: string) {
+    const scenario = await this.store.getScenario(id);
     if (!scenario || scenario.orgId !== auth.org.id || scenario.projectId !== projectId) {
       throw new NotFoundException('Scenario not found');
     }
@@ -101,15 +101,14 @@ class ScenariosController {
   }
 
   /** Use the most recent successful scan's graph, else the demo graph. */
-  private latestGraph(projectId: string): SystemGraph {
-    const latest = this.store
-      .listScans(projectId)
-      .find((s) => s.status === 'succeeded' && s.graph);
+  private async latestGraph(projectId: string): Promise<SystemGraph> {
+    const scans = await this.store.listScans(projectId);
+    const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
     return (latest?.graph as SystemGraph) ?? exampleGraph;
   }
 
-  private requireProject(auth: AuthContext, projectId: string): ProjectRecord {
-    const project = this.store.getProject(projectId);
+  private async requireProject(auth: AuthContext, projectId: string): Promise<ProjectRecord> {
+    const project = await this.store.getProject(projectId);
     if (!project || project.orgId !== auth.org.id) {
       throw new NotFoundException('Project not found');
     }

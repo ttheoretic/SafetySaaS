@@ -7,13 +7,13 @@ import type { AuthContext } from './auth-context';
 export class AuditService {
   constructor(private readonly store: Store) {}
 
-  record(
+  async record(
     auth: AuthContext,
     action: string,
     target?: { type: string; id: string },
     metadata: Record<string, unknown> = {},
   ) {
-    this.store.addAuditLog({
+    await this.store.addAuditLog({
       orgId: auth.org.id,
       actorUserId: auth.user.id,
       action,

@@ -1,13 +1,16 @@
-import { Global, Injectable, Module } from '@nestjs/common';
+import { Global, Injectable, Module, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 /**
- * In-memory data store for the runnable scaffold.
+ * Persistence layer.
  *
- * In production this is replaced by the Prisma/PostgreSQL repository layer
- * described in prisma/schema.prisma and docs/DATABASE.md. The interface is
- * intentionally narrow so swapping the implementation is mechanical.
+ * `Store` is an async abstract interface with two implementations:
+ *   - InMemoryStore — default; used in dev/tests, no database required.
+ *   - PrismaStore   — PostgreSQL via Prisma; used when DATABASE_URL is set.
+ *
+ * All methods are async so the same controllers work against either backend.
  */
+
 export interface ProjectRecord {
   id: string;
   orgId: string;
@@ -100,8 +103,47 @@ export interface AuditLogRecord {
   createdAt: string;
 }
 
+/** The repository contract every backend implements. */
+export abstract class Store {
+  abstract createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): Promise<ProjectRecord>;
+  abstract listProjects(orgId: string): Promise<ProjectRecord[]>;
+  abstract getProject(id: string): Promise<ProjectRecord | undefined>;
+
+  abstract createScan(input: Omit<ScanRecord, 'id' | 'createdAt'>): Promise<ScanRecord>;
+  abstract updateScan(id: string, patch: Partial<ScanRecord>): Promise<ScanRecord | undefined>;
+  abstract getScan(id: string): Promise<ScanRecord | undefined>;
+  abstract listScans(projectId: string): Promise<ScanRecord[]>;
+
+  abstract createConnection(input: Omit<ConnectionRecord, 'id' | 'createdAt'>): Promise<ConnectionRecord>;
+  abstract listConnections(projectId: string): Promise<ConnectionRecord[]>;
+
+  abstract createUser(input: Omit<UserRecord, 'id' | 'createdAt'>): Promise<UserRecord>;
+  abstract getUserBySupabaseId(supabaseId: string): Promise<UserRecord | undefined>;
+  abstract getUser(id: string): Promise<UserRecord | undefined>;
+
+  abstract createOrganization(input: Omit<OrganizationRecord, 'id' | 'createdAt'>): Promise<OrganizationRecord>;
+  abstract getOrganization(id: string): Promise<OrganizationRecord | undefined>;
+  abstract updateOrganization(id: string, patch: Partial<OrganizationRecord>): Promise<OrganizationRecord | undefined>;
+
+  abstract upsertSubscription(sub: SubscriptionRecord): Promise<SubscriptionRecord>;
+  abstract getSubscription(orgId: string): Promise<SubscriptionRecord | undefined>;
+
+  abstract addMembership(input: Omit<MembershipRecord, 'id' | 'createdAt'>): Promise<MembershipRecord>;
+  abstract getMembership(orgId: string, userId: string): Promise<MembershipRecord | undefined>;
+  abstract listMembershipsForUser(userId: string): Promise<MembershipRecord[]>;
+  abstract listMembershipsForOrg(orgId: string): Promise<MembershipRecord[]>;
+
+  abstract addAuditLog(input: Omit<AuditLogRecord, 'id' | 'createdAt'>): Promise<AuditLogRecord>;
+  abstract listAuditLogs(orgId: string): Promise<AuditLogRecord[]>;
+
+  abstract createScenario(input: Omit<ScenarioRecord, 'id' | 'createdAt'>): Promise<ScenarioRecord>;
+  abstract getScenario(id: string): Promise<ScenarioRecord | undefined>;
+  abstract updateScenario(id: string, patch: Partial<ScenarioRecord>): Promise<ScenarioRecord | undefined>;
+  abstract listScenarios(projectId: string): Promise<ScenarioRecord[]>;
+}
+
 @Injectable()
-export class Store {
+export class InMemoryStore extends Store {
   private projects = new Map<string, ProjectRecord>();
   private scans = new Map<string, ScanRecord>();
   private connections = new Map<string, ConnectionRecord>();
@@ -112,110 +154,73 @@ export class Store {
   private scenarios = new Map<string, ScenarioRecord>();
   private subscriptions = new Map<string, SubscriptionRecord>();
 
-  createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): ProjectRecord {
-    const record: ProjectRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  private stamp<T>(input: T): T & { id: string; createdAt: string } {
+    return { id: randomUUID(), createdAt: new Date().toISOString(), ...input };
+  }
+
+  async createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.projects.set(record.id, record);
     return record;
   }
-
-  listProjects(orgId: string): ProjectRecord[] {
+  async listProjects(orgId: string) {
     return [...this.projects.values()].filter((p) => p.orgId === orgId);
   }
-
-  getProject(id: string): ProjectRecord | undefined {
+  async getProject(id: string) {
     return this.projects.get(id);
   }
 
-  createScan(input: Omit<ScanRecord, 'id' | 'createdAt'>): ScanRecord {
-    const record: ScanRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async createScan(input: Omit<ScanRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.scans.set(record.id, record);
     return record;
   }
-
-  updateScan(id: string, patch: Partial<ScanRecord>): ScanRecord | undefined {
+  async updateScan(id: string, patch: Partial<ScanRecord>) {
     const existing = this.scans.get(id);
     if (!existing) return undefined;
     const updated = { ...existing, ...patch };
     this.scans.set(id, updated);
     return updated;
   }
-
-  getScan(id: string): ScanRecord | undefined {
+  async getScan(id: string) {
     return this.scans.get(id);
   }
-
-  listScans(projectId: string): ScanRecord[] {
+  async listScans(projectId: string) {
     return [...this.scans.values()]
       .filter((s) => s.projectId === projectId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  createConnection(
-    input: Omit<ConnectionRecord, 'id' | 'createdAt'>,
-  ): ConnectionRecord {
-    const record: ConnectionRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async createConnection(input: Omit<ConnectionRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.connections.set(record.id, record);
     return record;
   }
-
-  listConnections(projectId: string): ConnectionRecord[] {
-    return [...this.connections.values()].filter(
-      (c) => c.projectId === projectId,
-    );
+  async listConnections(projectId: string) {
+    return [...this.connections.values()].filter((c) => c.projectId === projectId);
   }
 
-  // --- Identity & tenancy ---
-
-  createUser(input: Omit<UserRecord, 'id' | 'createdAt'>): UserRecord {
-    const record: UserRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async createUser(input: Omit<UserRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.users.set(record.id, record);
     return record;
   }
-
-  getUserBySupabaseId(supabaseId: string): UserRecord | undefined {
+  async getUserBySupabaseId(supabaseId: string) {
     return [...this.users.values()].find((u) => u.supabaseId === supabaseId);
   }
-
-  getUser(id: string): UserRecord | undefined {
+  async getUser(id: string) {
     return this.users.get(id);
   }
 
-  createOrganization(
-    input: Omit<OrganizationRecord, 'id' | 'createdAt'>,
-  ): OrganizationRecord {
-    const record: OrganizationRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async createOrganization(input: Omit<OrganizationRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.organizations.set(record.id, record);
     return record;
   }
-
-  getOrganization(id: string): OrganizationRecord | undefined {
+  async getOrganization(id: string) {
     return this.organizations.get(id);
   }
-
-  updateOrganization(
-    id: string,
-    patch: Partial<OrganizationRecord>,
-  ): OrganizationRecord | undefined {
+  async updateOrganization(id: string, patch: Partial<OrganizationRecord>) {
     const existing = this.organizations.get(id);
     if (!existing) return undefined;
     const updated = { ...existing, ...patch };
@@ -223,78 +228,58 @@ export class Store {
     return updated;
   }
 
-  upsertSubscription(sub: SubscriptionRecord): SubscriptionRecord {
+  async upsertSubscription(sub: SubscriptionRecord) {
     this.subscriptions.set(sub.orgId, sub);
     return sub;
   }
-
-  getSubscription(orgId: string): SubscriptionRecord | undefined {
+  async getSubscription(orgId: string) {
     return this.subscriptions.get(orgId);
   }
 
-  addMembership(input: Omit<MembershipRecord, 'id' | 'createdAt'>): MembershipRecord {
-    const record: MembershipRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async addMembership(input: Omit<MembershipRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.memberships.set(record.id, record);
     return record;
   }
-
-  getMembership(orgId: string, userId: string): MembershipRecord | undefined {
+  async getMembership(orgId: string, userId: string) {
     return [...this.memberships.values()].find(
       (m) => m.orgId === orgId && m.userId === userId,
     );
   }
-
-  listMembershipsForUser(userId: string): MembershipRecord[] {
+  async listMembershipsForUser(userId: string) {
     return [...this.memberships.values()].filter((m) => m.userId === userId);
   }
-
-  listMembershipsForOrg(orgId: string): MembershipRecord[] {
+  async listMembershipsForOrg(orgId: string) {
     return [...this.memberships.values()].filter((m) => m.orgId === orgId);
   }
 
-  addAuditLog(input: Omit<AuditLogRecord, 'id' | 'createdAt'>): AuditLogRecord {
-    const record: AuditLogRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async addAuditLog(input: Omit<AuditLogRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.auditLogs.set(record.id, record);
     return record;
   }
-
-  listAuditLogs(orgId: string): AuditLogRecord[] {
+  async listAuditLogs(orgId: string) {
     return [...this.auditLogs.values()]
       .filter((a) => a.orgId === orgId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  createScenario(input: Omit<ScenarioRecord, 'id' | 'createdAt'>): ScenarioRecord {
-    const record: ScenarioRecord = {
-      id: randomUUID(),
-      createdAt: new Date().toISOString(),
-      ...input,
-    };
+  async createScenario(input: Omit<ScenarioRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
     this.scenarios.set(record.id, record);
     return record;
   }
-
-  getScenario(id: string): ScenarioRecord | undefined {
+  async getScenario(id: string) {
     return this.scenarios.get(id);
   }
-
-  updateScenario(id: string, patch: Partial<ScenarioRecord>): ScenarioRecord | undefined {
+  async updateScenario(id: string, patch: Partial<ScenarioRecord>) {
     const existing = this.scenarios.get(id);
     if (!existing) return undefined;
     const updated = { ...existing, ...patch };
     this.scenarios.set(id, updated);
     return updated;
   }
-
-  listScenarios(projectId: string): ScenarioRecord[] {
+  async listScenarios(projectId: string) {
     return [...this.scenarios.values()]
       .filter((s) => s.projectId === projectId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -302,5 +287,22 @@ export class Store {
 }
 
 @Global()
-@Module({ providers: [Store], exports: [Store] })
+@Module({
+  providers: [
+    {
+      provide: Store,
+      useFactory: (): Store => {
+        if (process.env.DATABASE_URL) {
+          // Loaded lazily so @prisma/client is only required in production.
+          const { PrismaStore } = require('./prisma.store');
+          Logger.log('Persistence: PostgreSQL (Prisma).', 'StoreModule');
+          return new PrismaStore();
+        }
+        Logger.log('Persistence: in-memory store.', 'StoreModule');
+        return new InMemoryStore();
+      },
+    },
+  ],
+  exports: [Store],
+})
 export class StoreModule {}

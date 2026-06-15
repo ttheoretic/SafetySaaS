@@ -17,15 +17,16 @@ export class BillingService {
     @Inject(BILLING_PROVIDER) private readonly provider: BillingProvider,
   ) {}
 
-  summary(org: OrganizationRecord): BillingSummary {
+  async summary(org: OrganizationRecord): Promise<BillingSummary> {
+    const [projects, members] = await Promise.all([
+      this.store.listProjects(org.id),
+      this.store.listMembershipsForOrg(org.id),
+    ]);
     return {
       plan: org.plan,
       provider: this.provider.name,
       limits: planLimits(org.plan),
-      usage: {
-        projects: this.store.listProjects(org.id).length,
-        members: this.store.listMembershipsForOrg(org.id).length,
-      },
+      usage: { projects: projects.length, members: members.length },
     };
   }
 
@@ -37,9 +38,9 @@ export class BillingService {
     return this.provider.parseWebhook(rawBody, signature);
   }
 
-  applyEvent(event: BillingEvent) {
-    this.store.updateOrganization(event.orgId, { plan: event.plan });
-    this.store.upsertSubscription({
+  async applyEvent(event: BillingEvent) {
+    await this.store.updateOrganization(event.orgId, { plan: event.plan });
+    await this.store.upsertSubscription({
       orgId: event.orgId,
       plan: event.plan,
       status: 'active',
@@ -49,9 +50,9 @@ export class BillingService {
   }
 
   /** Enforce the project-count limit for the org's plan. */
-  assertCanCreateProject(org: OrganizationRecord) {
+  async assertCanCreateProject(org: OrganizationRecord) {
     const limit = planLimits(org.plan).maxProjects;
-    const count = this.store.listProjects(org.id).length;
+    const count = (await this.store.listProjects(org.id)).length;
     if (count >= limit) {
       throw new ForbiddenException(
         `Plan limit reached: ${org.plan} allows ${limit} project(s). Upgrade to add more.`,

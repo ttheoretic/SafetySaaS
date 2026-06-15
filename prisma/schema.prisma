@@ -243,6 +243,10 @@ model Scan {
   status           JobStatus @default(queued)
   graph            Json? // normalized SystemGraph
   reliabilityScore Int? // 0–100, derived from findings
+  // Denormalized result cache (the normalized Finding/Recommendation tables
+  // below remain the queryable source of truth).
+  findingsJson        Json?
+  recommendationsJson Json?
   startedAt        DateTime?
   finishedAt       DateTime?
   error            String?
@@ -329,6 +333,7 @@ model Scenario {
   name       String
   prompt     String // natural-language "what-if"
   definition Json     @default("{}")
+  lastResult Json?
   createdAt  DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)

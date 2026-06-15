@@ -30,10 +30,11 @@ class ConnectionsController {
 
   @Get()
   @RequirePermission('project:read')
-  list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
-    this.requireProject(auth, projectId);
+  async list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
+    await this.requireProject(auth, projectId);
     // Secrets are never exposed; only safe fields are returned.
-    return this.store.listConnections(projectId).map((c) => ({
+    const connections = await this.store.listConnections(projectId);
+    return connections.map((c) => ({
       id: c.id,
       provider: c.provider,
       status: c.status,
@@ -44,13 +45,13 @@ class ConnectionsController {
 
   @Post()
   @RequirePermission('connection:write')
-  create(
+  async create(
     @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
     @Body() dto: CreateConnectionDto,
   ) {
-    this.requireProject(auth, projectId);
-    const conn = this.store.createConnection({
+    await this.requireProject(auth, projectId);
+    const conn = await this.store.createConnection({
       orgId: auth.org.id,
       projectId,
       provider: dto.provider,
@@ -59,14 +60,14 @@ class ConnectionsController {
       // Token is encrypted at rest and never returned in any response.
       encryptedToken: dto.token ? this.secrets.encrypt(dto.token) : undefined,
     });
-    this.audit.record(auth, 'connection.create', { type: 'connection', id: conn.id }, {
+    void this.audit.record(auth, 'connection.create', { type: 'connection', id: conn.id }, {
       provider: dto.provider,
     });
     return { id: conn.id, provider: conn.provider, status: conn.status };
   }
 
-  private requireProject(auth: AuthContext, projectId: string): ProjectRecord {
-    const project = this.store.getProject(projectId);
+  private async requireProject(auth: AuthContext, projectId: string): Promise<ProjectRecord> {
+    const project = await this.store.getProject(projectId);
     if (!project || project.orgId !== auth.org.id) {
       throw new NotFoundException('Project not found');
     }

@@ -145,6 +145,20 @@ request transaction. Migrations to enable RLS live alongside the Prisma schema.
 
 ## 7. Migrations
 
-Prisma Migrate produces SQL migrations checked into `prisma/migrations`. RLS
-policies and partial indexes that Prisma can't express are added as raw-SQL
-migration steps. Migrations run as a pre-deploy Kubernetes Job.
+Prisma Migrate produces SQL migrations checked into `prisma/migrations` (the
+initial `0001_init` migration is included). RLS policies and partial indexes
+that Prisma can't express are added as raw-SQL migration steps. Migrations run
+as a pre-deploy Kubernetes Job (`deploy/k8s/migrate-job.yaml`).
+
+## 8. Repository layer
+
+The API talks to an async `Store` interface (`apps/api/src/store`) with two
+implementations selected by `DATABASE_URL`:
+
+- **`PrismaStore`** — PostgreSQL via the generated Prisma client. Maps domain
+  records (ISO-string timestamps, JSON result caches on `Scan`/`Scenario`) to
+  the rows above.
+- **`InMemoryStore`** — used in dev/tests, no database required.
+
+Because both implement the same async contract, controllers are backend-
+agnostic and the test suite runs hermetically against the in-memory store.

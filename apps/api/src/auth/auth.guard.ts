@@ -22,7 +22,7 @@ export class AuthGuard implements CanActivate {
     private readonly auth: AuthService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -38,9 +38,9 @@ export class AuthGuard implements CanActivate {
     const claims = verifyToken(token, process.env.SUPABASE_JWT_SECRET);
     if (!claims) throw new UnauthorizedException('Invalid or expired token');
 
-    const user = this.auth.resolveUser(claims);
+    const user = await this.auth.resolveUser(claims);
     const requestedOrgId = req.headers['x-org-id'] as string | undefined;
-    const resolved = this.auth.resolveOrg(user, requestedOrgId);
+    const resolved = await this.auth.resolveOrg(user, requestedOrgId);
     if (!resolved) {
       throw new ForbiddenException('No access to the requested organization');
     }

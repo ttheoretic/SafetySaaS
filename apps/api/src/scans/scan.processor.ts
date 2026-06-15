@@ -61,11 +61,11 @@ export class ScanProcessor implements OnModuleInit {
   }
 
   private async runScan(job: ScanJob): Promise<void> {
-    this.store.updateScan(job.scanId, { status: 'running' });
+    await this.store.updateScan(job.scanId, { status: 'running' });
     try {
       let graph = job.graph;
       if (!graph) {
-        const connections = this.store.listConnections(job.projectId);
+        const connections = await this.store.listConnections(job.projectId);
         // Decrypt the code-host token (if any) just-in-time for the scan.
         const tokenConn = connections.find(
           (c) => c.provider === 'github' && c.encryptedToken,
@@ -78,7 +78,7 @@ export class ScanProcessor implements OnModuleInit {
           : exampleGraph;
       }
       const analysis = this.analyze.reliability(graph);
-      this.store.updateScan(job.scanId, {
+      await this.store.updateScan(job.scanId, {
         status: 'succeeded',
         graph,
         reliabilityScore: analysis.score,
@@ -88,7 +88,7 @@ export class ScanProcessor implements OnModuleInit {
       });
     } catch (err) {
       this.logger.error(`Scan ${job.scanId} failed: ${(err as Error).message}`);
-      this.store.updateScan(job.scanId, {
+      await this.store.updateScan(job.scanId, {
         status: 'failed',
         finishedAt: new Date().toISOString(),
       });
