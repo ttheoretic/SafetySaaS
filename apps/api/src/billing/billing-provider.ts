@@ -11,6 +11,8 @@ export interface BillingEvent {
   type: 'plan_changed';
   orgId: string;
   plan: Plan;
+  /** Provider event id, used for idempotent processing. */
+  eventId?: string;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
 }

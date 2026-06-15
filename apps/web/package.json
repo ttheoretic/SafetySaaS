@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@failsafe/shared": "*",
+    "@supabase/supabase-js": "^2.47.0",
     "@tanstack/react-query": "^5.62.7",
     "geist": "^1.3.1",
     "lucide-react": "^0.460.0",

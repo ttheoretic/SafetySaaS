@@ -40,6 +40,7 @@ export class StripeBillingProvider implements BillingProvider {
     // We only read a few fields, so a minimal shape keeps us decoupled from the
     // SDK's deep generic event types.
     type CheckoutEvent = {
+      id?: string;
       type: string;
       data: {
         object: {
@@ -73,6 +74,7 @@ export class StripeBillingProvider implements BillingProvider {
         type: 'plan_changed',
         orgId,
         plan,
+        eventId: event.id,
         stripeCustomerId: session.customer,
         stripeSubscriptionId: session.subscription,
       };

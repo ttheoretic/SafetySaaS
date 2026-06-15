@@ -98,8 +98,9 @@ Beyond the eight analytical modules, the API implements:
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
 [`docs/DATABASE.md`](docs/DATABASE.md), [`docs/SCANNER.md`](docs/SCANNER.md),
-[`docs/AI_PREDICTION.md`](docs/AI_PREDICTION.md) and
-[`docs/AUTH.md`](docs/AUTH.md) for the full design.
+[`docs/AI_PREDICTION.md`](docs/AI_PREDICTION.md), [`docs/AUTH.md`](docs/AUTH.md),
+[`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) (credentials/env) and
+[`docs/PRODUCTION.md`](docs/PRODUCTION.md) (go-live checklist) for the full design.
 
 ## License
 

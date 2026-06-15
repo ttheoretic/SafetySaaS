@@ -16,9 +16,9 @@ export class NullBillingProvider implements BillingProvider {
 
   parseWebhook(rawBody: string): BillingEvent | null {
     try {
-      const body = JSON.parse(rawBody) as { orgId?: string; plan?: Plan };
+      const body = JSON.parse(rawBody) as { orgId?: string; plan?: Plan; eventId?: string };
       if (!body.orgId || !body.plan) return null;
-      return { type: 'plan_changed', orgId: body.orgId, plan: body.plan };
+      return { type: 'plan_changed', orgId: body.orgId, plan: body.plan, eventId: body.eventId };
     } catch {
       return null;
     }

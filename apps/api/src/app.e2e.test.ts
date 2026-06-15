@@ -217,6 +217,16 @@ describe('FailSafe API (e2e)', () => {
     expect(afterUpgrade.status).toBe(201);
   });
 
+  it('processes a billing webhook idempotently', async () => {
+    const me = await request(app.getHttpServer()).get('/me').set('Authorization', ALICE);
+    const orgId = me.body.activeOrg.id;
+    const payload = { orgId, plan: 'pro', eventId: 'evt_dupe_1' };
+    const first = await request(app.getHttpServer()).post('/billing/webhook').send(payload);
+    expect(first.body.applied).toBe(true);
+    const second = await request(app.getHttpServer()).post('/billing/webhook').send(payload);
+    expect(second.body.applied).toBe(false); // duplicate ignored
+  });
+
   it('checkout requires billing:manage and returns a URL', async () => {
     const res = await request(app.getHttpServer())
       .post('/billing/checkout')

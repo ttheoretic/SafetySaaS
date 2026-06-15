@@ -51,9 +51,9 @@ class BillingController {
     const raw = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(body);
     const event = this.billing.parseWebhook(raw, signature);
     if (!event) return { received: true, applied: false };
-    await this.billing.applyEvent(event);
-    this.logger.log(`Plan changed for org ${event.orgId} -> ${event.plan}`);
-    return { received: true, applied: true };
+    const applied = await this.billing.applyEvent(event);
+    if (applied) this.logger.log(`Plan changed for org ${event.orgId} -> ${event.plan}`);
+    return { received: true, applied };
   }
 }
 

@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight, Github, Check, Loader2, Boxes, ScanSearch, Sparkles, ServerCog,
 } from 'lucide-react';
-import { mintDevToken } from '@/lib/dev-token';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
+import { signInUser, supabaseEnabled } from '@/lib/sign-in';
 
 type Step = 'signin' | 'workspace' | 'connect' | 'scan' | 'result';
 
@@ -45,6 +45,7 @@ export default function GetStartedPage() {
   const signIn = useAuth((s) => s.signIn);
   const [step, setStep] = useState<Step>('signin');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [workspace, setWorkspace] = useState('');
   const [projectName, setProjectName] = useState('My SaaS');
   const [projectId, setProjectId] = useState('');
@@ -62,7 +63,7 @@ export default function GetStartedPage() {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const token = mintDevToken({ sub: email, email, name: email.split('@')[0] });
+      const { token } = await signInUser(email, password);
       signIn(token, { id: '', email }, '');
       const me = await api.me();
       signIn(token, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
@@ -153,6 +154,10 @@ export default function GetStartedPage() {
           <form onSubmit={doSignin} className="space-y-3">
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com"
               className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+            {supabaseEnabled && (
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password"
+                className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+            )}
             <Primary busy={busy} label="Continue" />
           </form>
         </Card>

@@ -38,7 +38,14 @@ export class BillingService {
     return this.provider.parseWebhook(rawBody, signature);
   }
 
-  async applyEvent(event: BillingEvent) {
+  private readonly processedEvents = new Set<string>();
+
+  /** Apply a plan change, idempotently (Stripe may retry the same event). */
+  async applyEvent(event: BillingEvent): Promise<boolean> {
+    if (event.eventId) {
+      if (this.processedEvents.has(event.eventId)) return false;
+      this.processedEvents.add(event.eventId);
+    }
     await this.store.updateOrganization(event.orgId, { plan: event.plan });
     await this.store.upsertSubscription({
       orgId: event.orgId,
@@ -47,6 +54,7 @@ export class BillingService {
       stripeCustomerId: event.stripeCustomerId,
       stripeSubscriptionId: event.stripeSubscriptionId,
     });
+    return true;
   }
 
   /** Enforce the project-count limit for the org's plan. */

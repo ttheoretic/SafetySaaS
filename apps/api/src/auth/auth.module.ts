@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuditService } from './audit.service';
 import { AuthGuard } from './auth.guard';
 import { PermissionsGuard } from './permissions.guard';
+import { RateLimitGuard } from '../common/rate-limit.guard';
 
 /**
  * Registers authentication + RBAC globally. AuthGuard runs first (resolves the
@@ -17,6 +18,7 @@ import { PermissionsGuard } from './permissions.guard';
   providers: [
     AuthService,
     AuditService,
+    { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],

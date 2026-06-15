@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Body, Controller, ForbiddenException, Get, Module, Post,
+  BadRequestException, Body, Controller, ForbiddenException, Get, Inject, Module, Post,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { IsEmail, IsIn, IsString } from 'class-validator';
@@ -7,6 +7,7 @@ import { canAddMember, Plan } from '@failsafe/shared';
 import { Store, StoreModule, Role } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
+import { EMAIL_PROVIDER, EmailProvider } from '../email/email.module';
 
 const ROLES: Role[] = ['admin', 'member', 'viewer']; // owners aren't invited
 
@@ -24,6 +25,7 @@ class InvitationsController {
   constructor(
     private readonly store: Store,
     private readonly audit: AuditService,
+    @Inject(EMAIL_PROVIDER) private readonly email: EmailProvider,
   ) {}
 
   /** Invite a user to the active org. Admins+ only; enforces the plan's member cap. */
@@ -47,7 +49,18 @@ class InvitationsController {
       email: dto.email,
       role: dto.role,
     });
-    // In production the token is emailed; here it's returned for the dev flow.
+
+    // Send the invitation email (logged in dev).
+    const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+    const link = `${appUrl}/accept-invite?token=${invitation.token}`;
+    void this.email.send({
+      to: dto.email,
+      subject: `You're invited to ${auth.org.name} on FailSafe AI`,
+      html: `<p>${auth.user.name ?? auth.user.email} invited you to join <b>${auth.org.name}</b> as ${dto.role}.</p>` +
+        `<p><a href="${link}">Accept the invitation</a></p>`,
+    });
+
+    // The token is returned for the dev flow; in production users click the email.
     return { id: invitation.id, email: invitation.email, role: invitation.role, token: invitation.token };
   }
 
