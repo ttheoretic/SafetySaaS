@@ -29,7 +29,7 @@ export default function LoginPage() {
       signIn(token, { id: '', email }, '');
       const me = await api.me();
       signIn(token, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
-      router.push('/');
+      router.push('/dashboard');
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
@@ -37,9 +37,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto mt-24 max-w-sm">
-      <h1 className="text-2xl font-semibold text-white">Sign in to FailSafe AI</h1>
-      <p className="mt-1 text-sm text-muted">
+    <div className="w-full max-w-sm">
+      <h1 className="text-2xl font-semibold text-foreground">Sign in to FailSafe AI</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
         Dev sign-in. In production this is a Supabase login.
       </p>
       <form onSubmit={onSubmit} className="mt-6 space-y-3">
