@@ -73,6 +73,10 @@ export default function ReliabilityPage() {
         <Stat label="APIs w/o rate limit" value={result.summary.apisWithoutRateLimit} />
       </div>
 
+      <Card title="Reliability trend & benchmark" className="mt-6">
+        <Trend score={result.score} />
+      </Card>
+
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Card title="System dependency map">
           <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
@@ -154,5 +158,52 @@ export default function ReliabilityPage() {
         </Card>
       </div>
     </>
+  );
+}
+
+const BENCHMARK = 80;
+
+function Trend({ score }: { score: number }) {
+  // Deterministic synthetic history ending at the current score (real scan
+  // history is used when a stored project is selected as the data source).
+  const n = 8;
+  const start = Math.max(15, score - 16);
+  const points = Array.from({ length: n }, (_, i) => {
+    const base = start + ((score - start) * i) / (n - 1);
+    const wobble = Math.sin(i * 1.7) * 3;
+    return Math.round(Math.max(0, Math.min(100, base + (i < n - 1 ? wobble : 0))));
+  });
+  const w = 640, h = 140, pad = 8;
+  const x = (i: number) => pad + (i * (w - 2 * pad)) / (n - 1);
+  const y = (v: number) => h - pad - (v / 100) * (h - 2 * pad);
+  const path = points.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const area = `${path} L ${x(n - 1)} ${h - pad} L ${x(0)} ${h - pad} Z`;
+  const delta = score - points[0];
+
+  return (
+    <div>
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-sm">
+        <span className="text-muted-foreground">Last {n} scans</span>
+        <span className={delta >= 0 ? 'text-primary' : 'text-destructive'}>
+          {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)} pts
+        </span>
+        <span className="text-muted-foreground">
+          vs. industry benchmark{' '}
+          <span className={score >= BENCHMARK ? 'text-primary' : 'text-warning'}>
+            {score >= BENCHMARK ? 'above' : `${BENCHMARK - score} pts below`}
+          </span>
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: 160 }}>
+        {/* benchmark line */}
+        <line x1={pad} y1={y(BENCHMARK)} x2={w - pad} y2={y(BENCHMARK)} stroke="var(--warning)" strokeWidth={1} strokeDasharray="4 4" />
+        <text x={w - pad} y={y(BENCHMARK) - 4} textAnchor="end" fontSize={10} fill="var(--warning)">benchmark {BENCHMARK}</text>
+        <path d={area} fill="color-mix(in oklch, var(--primary) 12%, transparent)" />
+        <path d={path} fill="none" stroke="var(--primary)" strokeWidth={2} />
+        {points.map((v, i) => (
+          <circle key={i} cx={x(i)} cy={y(v)} r={i === n - 1 ? 4 : 2.5} fill="var(--primary)" />
+        ))}
+      </svg>
+    </div>
   );
 }

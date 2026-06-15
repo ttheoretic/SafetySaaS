@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ShieldAlert, Activity, Lock, Sparkles, Network,
   FlaskConical, Beaker, TrendingDown, FileText, FolderGit2, Users, Settings,
-  ShieldCheck, Crosshair,
+  ShieldCheck, Crosshair, Clock, Gauge, UserMinus,
 } from 'lucide-react';
 import { AccountBadge } from '@/components/AccountBadge';
 
@@ -40,6 +40,9 @@ const NAV: Group[] = [
     label: 'Business Impact',
     items: [
       { href: '/revenue', label: 'Revenue Risk', icon: TrendingDown },
+      { href: '/downtime', label: 'Downtime Cost', icon: Clock },
+      { href: '/sla', label: 'SLA Impact', icon: Gauge },
+      { href: '/churn', label: 'Churn Risk', icon: UserMinus },
     ],
   },
   {
