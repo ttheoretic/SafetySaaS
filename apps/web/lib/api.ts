@@ -100,6 +100,19 @@ export const api = {
     ),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
+  listScenarios: (projectId: string) =>
+    get<Array<{ id: string; name: string; prompt: string; createdAt: string; lastResult?: unknown }>>(
+      `/projects/${projectId}/scenarios`,
+    ),
+  createScenario: (
+    projectId: string,
+    body: { name: string; prompt?: string; steps: unknown[]; business?: unknown },
+  ) => post<{ id: string; name: string }>(`/projects/${projectId}/scenarios`, body),
+  runScenario: (projectId: string, scenarioId: string) =>
+    post<{ worstImpact: string; totalRevenueImpact: number; currency: string; steps: unknown[] }>(
+      `/projects/${projectId}/scenarios/${scenarioId}/run`,
+      {},
+    ),
   orgMembers: () =>
     get<Array<{ userId: string; email?: string; name?: string; role: string }>>('/orgs/members'),
   listInvitations: () =>
