@@ -9,7 +9,9 @@ import { useAuth } from '@/lib/auth-store';
 import { useDashboardStore } from '@/lib/dashboard-store';
 
 const TITLES: Record<string, string> = {
-  '/dashboard': 'Overview',
+  '/dashboard': 'Business Health',
+  '/risk-center': 'Risk Center',
+  '/architecture': 'System Architecture',
   '/projects': 'Projects',
   '/reliability': 'Reliability Score',
   '/simulations': 'Failure Simulations',

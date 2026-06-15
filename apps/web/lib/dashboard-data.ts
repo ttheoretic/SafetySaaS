@@ -49,13 +49,6 @@ export function computeDashboard(graph: SystemGraph, business: BusinessContext =
     ],
   };
 
-  const stats = [
-    { label: 'Reliability', value: String(rel.score), unit: '/100', tone: rel.score >= 75 ? ('good' as const) : ('warn' as const) },
-    { label: 'Security', value: String(sec.score), unit: '/100', tone: sec.score >= 75 ? ('good' as const) : ('warn' as const) },
-    { label: 'Open risks', value: String(rel.findings.length + sec.findings.length), unit: 'findings', tone: 'warn' as const },
-    { label: 'SPOFs', value: String(rel.summary.spofCount), unit: 'critical', tone: 'bad' as const },
-  ];
-
   const aiInsights = preds.slice(0, 4).map((p) => ({
     title: p.title,
     impact: p.severity.toUpperCase(),
@@ -78,6 +71,59 @@ export function computeDashboard(graph: SystemGraph, business: BusinessContext =
   const revenue = revScenarios
     .map((s) => ({ label: s.label, hours: s.hours, amount: revenueImpact(simulateFailure(graph, s.type), business, s.hours).totalImpact }))
     .sort((a, b) => b.amount - a.amount);
+  const worstRevenue = revenue[0]?.amount ?? 0;
+
+  // --- Business KPIs ---
+  const allFindings = [...rel.findings, ...sec.findings];
+  const criticalRisks = allFindings.filter((f) => f.severity === 'critical' || f.severity === 'high').length;
+  const failureProbability = preds.length
+    ? Math.round(Math.max(...preds.map((p) => p.likelihood)) * 100)
+    : Math.round(100 - rel.score);
+  const monthlyDowntimeCost = Math.round(worstRevenue * 2.5);
+
+  const stats = [
+    { label: 'Reliability', value: String(rel.score), unit: '/100', tone: rel.score >= 75 ? ('good' as const) : ('warn' as const) },
+    { label: 'Revenue at risk', value: money(worstRevenue, currency), unit: 'worst event', tone: 'bad' as const },
+    { label: 'Critical risks', value: String(criticalRisks), unit: 'high + critical', tone: 'bad' as const },
+    { label: 'Failure probability', value: `${failureProbability}%`, unit: 'next bottleneck', tone: 'warn' as const },
+    { label: 'Security', value: String(sec.score), unit: '/100', tone: sec.score >= 75 ? ('good' as const) : ('warn' as const) },
+    { label: 'Downtime cost', value: money(monthlyDowntimeCost, currency), unit: '/mo est.', tone: 'bad' as const },
+  ];
+
+  // --- Risk Center: structured risks grouped by domain ---
+  const SEV_FACTOR: Record<string, number> = { critical: 0.2, high: 0.1, medium: 0.04, low: 0.01 };
+  const fin = (sev: string) => Math.round(business.monthlyRevenue * (SEV_FACTOR[sev] ?? 0.02));
+  const relRecs = buildRecommendations(rel.findings);
+  const secRecs = buildRecommendations(sec.findings);
+  const recFor = (title: string) =>
+    relRecs.find((r) => r.findingTitle === title) ?? secRecs.find((r) => r.findingTitle === title);
+
+  type Risk = {
+    group: 'Reliability' | 'Security' | 'Architecture' | 'Dependencies' | 'AI Forecast';
+    title: string; severity: string; probability: number; financialImpact: number;
+    fix: string; improvementPct: number; category: string; horizon?: string;
+  };
+  const fromFinding = (group: Risk['group'], f: typeof rel.findings[number]): Risk => {
+    const rec = recFor(f.title);
+    return {
+      group, title: f.title, severity: f.severity,
+      probability: rec?.probability ?? 0.3, financialImpact: fin(f.severity),
+      fix: rec?.fix ?? '—', improvementPct: rec?.riskReductionPct ?? 0, category: f.category,
+    };
+  };
+  const risks: Risk[] = [
+    ...rel.findings
+      .filter((f) => !['spof', 'redundancy', 'vendor_lock_in'].includes(f.category))
+      .map((f) => fromFinding('Reliability', f)),
+    ...sec.findings.map((f) => fromFinding('Security', f)),
+    ...rel.findings.filter((f) => ['spof', 'redundancy'].includes(f.category)).map((f) => fromFinding('Architecture', f)),
+    ...rel.findings.filter((f) => f.category === 'vendor_lock_in').map((f) => fromFinding('Dependencies', f)),
+    ...preds.map((p): Risk => ({
+      group: 'AI Forecast', title: p.title, severity: p.severity, probability: p.likelihood,
+      financialImpact: fin(p.severity), fix: p.recommendation, improvementPct: 0,
+      category: p.category, horizon: p.horizon,
+    })),
+  ];
 
   const scenarios = [
     { name: 'AWS us-east-1 fails during a viral peak', steps: ['aws_down', 'traffic_100x'] as SimulationType[] },
@@ -96,7 +142,11 @@ export function computeDashboard(graph: SystemGraph, business: BusinessContext =
     aiInsights,
     vulnerabilities,
     revenue,
-    worstRevenue: revenue[0]?.amount ?? 0,
+    worstRevenue,
+    monthlyDowntimeCost,
+    criticalRisks,
+    failureProbability,
+    risks,
     scenarios,
     systemGraph: graph,
     topFindings: rel.findings,
