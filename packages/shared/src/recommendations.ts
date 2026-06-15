@@ -7,6 +7,7 @@
  */
 
 import { Finding, FindingCategory, SEVERITY_ORDER, Severity } from './findings';
+import { KnowledgeRef, referencesFor } from './knowledge';
 
 export type Priority = 'low' | 'medium' | 'high' | 'critical';
 
@@ -21,6 +22,8 @@ export interface Recommendation {
   fix: string;
   riskReductionPct: number;
   nodeId?: string;
+  /** Cited best-practice references grounding the recommendation. */
+  references: KnowledgeRef[];
 }
 
 const PLAYBOOK: Record<
@@ -99,6 +102,7 @@ export function buildRecommendations(findings: Finding[]): Recommendation[] {
         fix: play.fix,
         riskReductionPct: play.reduction,
         nodeId: f.nodeId,
+        references: referencesFor(f.category),
       };
     })
     .sort(

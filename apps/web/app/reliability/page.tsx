@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Network, Wrench } from 'lucide-react';
+import { Network, Wrench, BookMarked } from 'lucide-react';
 import {
   reliabilityScore,
   buildRecommendations,
@@ -128,10 +128,23 @@ export default function ReliabilityPage() {
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{f.description}</p>
                     {rec && (
-                      <p className="mt-2 flex items-start gap-1.5 text-xs text-foreground">
-                        <Wrench className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        <span>{rec.fix} <span className="text-primary">−{rec.riskReductionPct}% risk</span></span>
-                      </p>
+                      <>
+                        <p className="mt-2 flex items-start gap-1.5 text-xs text-foreground">
+                          <Wrench className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                          <span>{rec.fix} <span className="text-primary">−{rec.riskReductionPct}% risk</span></span>
+                        </p>
+                        {rec.references.length > 0 && (
+                          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 pl-5 text-[11px] text-muted-foreground">
+                            <BookMarked className="size-3" />
+                            {rec.references.map((ref) => (
+                              <a key={ref.url} href={ref.url} target="_blank" rel="noreferrer"
+                                className="underline decoration-dotted hover:text-foreground">
+                                {ref.source}
+                              </a>
+                            ))}
+                          </p>
+                        )}
+                      </>
                     )}
                   </li>
                 );
