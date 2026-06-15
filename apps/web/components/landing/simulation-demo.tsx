@@ -46,7 +46,7 @@ export function SimulationDemo() {
             Break things on purpose. Safely.
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-            Pick a failure scenario and watch FailSafe AI trace the blast radius across your stack in
+            Pick a failure scenario and watch Riscly trace the blast radius across your stack in
             seconds — no production traffic harmed. This demo runs the real engine.
           </p>
         </div>

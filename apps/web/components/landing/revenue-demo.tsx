@@ -37,7 +37,7 @@ export function RevenueDemo() {
               Every risk, priced in euros.
             </h2>
             <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-              FailSafe AI translates each failure mode into direct revenue loss, lost conversions, SLA
+              Riscly translates each failure mode into direct revenue loss, lost conversions, SLA
               credits and churn — so you fix the expensive risks first, not the loudest ones.
             </p>
             <div className="mt-8 rounded-xl border border-border/60 bg-card p-5">

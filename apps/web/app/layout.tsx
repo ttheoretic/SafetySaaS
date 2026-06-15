@@ -5,9 +5,9 @@ import { GeistMono } from 'geist/font/mono';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'FailSafe AI — Prevent outages before your customers find them',
+  title: 'Riscly — Prevent outages before your customers find them',
   description:
-    'FailSafe AI predicts failures, security risks, and revenue loss before they impact your business.',
+    'Riscly predicts failures, security risks, and revenue loss before they impact your business.',
 };
 
 export const viewport: Viewport = {

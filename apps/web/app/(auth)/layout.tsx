@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
             <ShieldCheck className="size-4 text-primary" />
           </div>
-          <span className="text-sm font-semibold text-foreground">FailSafe AI</span>
+          <span className="text-sm font-semibold text-foreground">Riscly</span>
         </Link>
       </header>
       <div className="flex flex-1 items-center justify-center px-4 pb-16">{children}</div>

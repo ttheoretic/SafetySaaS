@@ -16,29 +16,39 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
+/** Fetch wrapper that turns network/CORS failures into a clear message. */
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${BASE}/api${path}`, { ...init, cache: 'no-store' });
+  } catch {
+    throw new Error(`Cannot reach the API at ${BASE}. Is the backend running?`);
+  }
+}
+
+async function readError(res: Response, path: string): Promise<never> {
+  let detail = `${res.status}`;
+  try {
+    const body = await res.json();
+    if (body?.message) detail = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+  } catch { /* ignore */ }
+  throw new Error(`${path}: ${detail}`);
+}
+
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BASE}/api${path}`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  const res = await apiFetch(path, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) await readError(res, path);
   return res.json() as Promise<T>;
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}/api${path}`, {
-    headers: authHeaders(),
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  const res = await apiFetch(path, { headers: authHeaders() });
+  if (!res.ok) await readError(res, path);
   return res.json() as Promise<T>;
 }
 
 async function getBlob(path: string): Promise<Blob> {
-  const res = await fetch(`${BASE}/api${path}`, { headers: authHeaders(), cache: 'no-store' });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  const res = await apiFetch(path, { headers: authHeaders() });
+  if (!res.ok) await readError(res, path);
   return res.blob();
 }
 

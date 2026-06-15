@@ -68,7 +68,7 @@ export function Sidebar() {
           <ShieldCheck className="size-4 text-primary" />
         </div>
         <div className="leading-tight">
-          <div className="text-sm font-semibold text-sidebar-foreground">FailSafe AI</div>
+          <div className="text-sm font-semibold text-sidebar-foreground">Riscly</div>
           <div className="text-[10px] text-muted-foreground">Business risk intelligence</div>
         </div>
       </Link>

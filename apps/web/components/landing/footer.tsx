@@ -22,7 +22,7 @@ export function Footer() {
             <div className="flex size-7 items-center justify-center rounded-lg bg-primary/15">
               <ShieldCheck className="size-4 text-primary" />
             </div>
-            <span className="text-sm font-semibold text-foreground">FailSafe AI</span>
+            <span className="text-sm font-semibold text-foreground">Riscly</span>
             <span className="text-sm text-muted-foreground">— Find problems before they happen.</span>
           </div>
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
@@ -31,7 +31,7 @@ export function Footer() {
             <a href="#faq" className="hover:text-foreground">FAQ</a>
             <Link href="/login" className="hover:text-foreground">Sign in</Link>
           </nav>
-          <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} FailSafe AI</div>
+          <div className="text-xs text-muted-foreground">© {new Date().getFullYear()} Riscly</div>
         </div>
       </div>
     </footer>

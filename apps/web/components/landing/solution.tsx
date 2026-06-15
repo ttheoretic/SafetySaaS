@@ -17,7 +17,7 @@ export function Solution() {
             Find problems before they happen.
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-            FailSafe AI builds a model of your system and stress-tests the future — so you fix the
+            Riscly builds a model of your system and stress-tests the future — so you fix the
             risk while it's still cheap.
           </p>
         </div>

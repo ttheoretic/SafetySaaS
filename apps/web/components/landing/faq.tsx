@@ -1,5 +1,5 @@
 const faqs = [
-  { q: 'Does FailSafe AI touch my production traffic?', a: 'No. We build a model of your system from code and infrastructure metadata, and run every simulation against that model — never against your live system.' },
+  { q: 'Does Riscly touch my production traffic?', a: 'No. We build a model of your system from code and infrastructure metadata, and run every simulation against that model — never against your live system.' },
   { q: 'What do I need to connect?', a: 'Start with GitHub to map your services and dependencies. Add your cloud, database and billing providers (AWS, GCP, Stripe, Supabase, Neon and more) for deeper analysis.' },
   { q: 'How fast is the first result?', a: 'Connect a repo and you get a reliability score and prioritized risks within minutes — the onboarding is designed to deliver an immediate "wow".' },
   { q: 'How do you price revenue impact?', a: 'Each simulated failure is translated into direct revenue loss, lost conversions, SLA credits and churn risk, based on your MRR and traffic — so you fix the costly risks first.' },

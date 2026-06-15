@@ -12,7 +12,7 @@ export function Architecture() {
             See your whole system as a graph.
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-            FailSafe AI maps every dependency — frontend, APIs, databases, caches, queues and third
+            Riscly maps every dependency — frontend, APIs, databases, caches, queues and third
             parties — and keeps it current as your code changes.
           </p>
         </div>

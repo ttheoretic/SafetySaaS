@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
-import { signInUser, supabaseEnabled } from '@/lib/sign-in';
+import { signUpUser } from '@/lib/sign-in';
 
 type Step = 'signin' | 'workspace' | 'connect' | 'scan' | 'result';
 
@@ -42,8 +42,10 @@ function Gauge({ score }: { score: number }) {
 
 export default function GetStartedPage() {
   const router = useRouter();
-  const signIn = useAuth((s) => s.signIn);
+  const { signIn, token, hydrated } = useAuth();
   const [step, setStep] = useState<Step>('signin');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [workspace, setWorkspace] = useState('');
@@ -59,14 +61,26 @@ export default function GetStartedPage() {
 
   const stepIdx = STEP_ORDER.indexOf(step);
 
+  // If the user already signed up (e.g. via /login), skip straight to setup.
+  useEffect(() => {
+    if (!hydrated || !token || step !== 'signin') return;
+    (async () => {
+      try {
+        const me = await api.me();
+        setWorkspace(me.activeOrg.name);
+        setStep('workspace');
+      } catch { /* stay on sign-up */ }
+    })();
+  }, [hydrated, token, step]);
+
   async function doSignin(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setError(null);
     try {
-      const { token } = await signInUser(email, password);
-      signIn(token, { id: '', email }, '');
+      const { token: t } = await signUpUser({ firstName, lastName, email, password });
+      signIn(t, { id: '', email }, '');
       const me = await api.me();
-      signIn(token, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
+      signIn(t, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
       setWorkspace(me.activeOrg.name);
       setStep('workspace');
     } catch (err) { setError((err as Error).message); }
@@ -150,15 +164,19 @@ export default function GetStartedPage() {
       </ol>
 
       {step === 'signin' && (
-        <Card icon={<Boxes className="size-5 text-primary" />} title="Create your workspace" subtitle="Sign up to start analyzing your architecture.">
+        <Card icon={<Boxes className="size-5 text-primary" />} title="Create your account" subtitle="Sign up to start analyzing your architecture.">
           <form onSubmit={doSignin} className="space-y-3">
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com"
-              className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
-            {supabaseEnabled && (
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password"
+            <div className="flex gap-3">
+              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" autoComplete="given-name"
                 className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
-            )}
-            <Primary busy={busy} label="Continue" />
+              <input required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" autoComplete="family-name"
+                className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+            </div>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email"
+              className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+            <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" autoComplete="new-password"
+              className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+            <Primary busy={busy} label="Create account" />
           </form>
         </Card>
       )}

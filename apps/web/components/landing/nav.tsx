@@ -17,7 +17,7 @@ export function LandingNav() {
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
             <ShieldCheck className="size-4 text-primary" />
           </div>
-          <span className="text-sm font-semibold text-foreground">FailSafe AI</span>
+          <span className="text-sm font-semibold text-foreground">Riscly</span>
         </Link>
         <nav className="hidden items-center gap-7 md:flex">
           {LINKS.map((l) => (

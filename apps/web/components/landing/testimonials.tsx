@@ -2,7 +2,7 @@ import { Star } from 'lucide-react';
 
 const quotes = [
   {
-    quote: 'FailSafe AI flagged a database single point of failure two weeks before our Series B launch. It would have taken us down on the biggest traffic day of the year.',
+    quote: 'Riscly flagged a database single point of failure two weeks before our Series B launch. It would have taken us down on the biggest traffic day of the year.',
     name: 'Mara Lindqvist',
     role: 'VP Engineering, Northwind',
   },

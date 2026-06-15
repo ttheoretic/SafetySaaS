@@ -31,7 +31,7 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-            FailSafe AI predicts failures, security risks, and revenue loss before they impact your business.
+            Riscly predicts failures, security risks, and revenue loss before they impact your business.
           </p>
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
