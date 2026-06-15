@@ -10,7 +10,7 @@
   "scripts": {
     "build": "npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
     "dev": "concurrently -n api,web \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
-    "test": "npm run test -w packages/shared && npm run test -w apps/api",
+    "test": "npm run build -w packages/shared && npm run test -w packages/shared && npm run test -w apps/api",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "prisma:generate": "prisma generate",

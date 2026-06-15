@@ -1,47 +1,116 @@
-import { reliabilityScore, securitySimulation, exampleGraph } from '@failsafe/shared';
-import { PageHeader, Card, SeverityBadge } from '@/components/ui';
+'use client';
 
-const PROJECTS = [
-  { name: 'Acme SaaS', env: 'production', graph: exampleGraph },
-];
+import { useState } from 'react';
+import Link from 'next/link';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth-store';
+import { PageHeader, Card, ScoreGauge } from '@/components/ui';
 
 export default function ProjectsPage() {
+  const { token, hydrated } = useAuth();
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [scores, setScores] = useState<Record<string, number>>({});
+
+  const projects = useQuery({
+    queryKey: ['projects'],
+    queryFn: api.listProjects,
+    enabled: Boolean(token),
+  });
+
+  const create = useMutation({
+    mutationFn: (n: string) => api.createProject(n),
+    onSuccess: () => {
+      setName('');
+      qc.invalidateQueries({ queryKey: ['projects'] });
+    },
+  });
+
+  const scan = useMutation({
+    mutationFn: (projectId: string) => api.startScan(projectId),
+    onSuccess: (res, projectId) => {
+      if (typeof res.reliabilityScore === 'number') {
+        setScores((s) => ({ ...s, [projectId]: res.reliabilityScore! }));
+      }
+    },
+  });
+
+  if (!hydrated) return null;
+
+  if (!token) {
+    return (
+      <>
+        <PageHeader title="Projects" subtitle="Connected systems under analysis." />
+        <Card>
+          <p className="text-sm text-muted">
+            <Link href="/login" className="text-accent hover:underline">Sign in</Link>{' '}
+            to create projects and run live scans against the API.
+          </p>
+        </Card>
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader title="Projects" subtitle="Connected systems under analysis." />
+      <PageHeader title="Projects" subtitle="Create a project and run a live scan." />
+
+      <Card className="mb-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) create.mutate(name.trim());
+          }}
+          className="flex gap-2"
+        >
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="New project name"
+            className="flex-1 rounded-md border border-border bg-panel2 px-3 py-2 text-sm text-white outline-none focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={create.isPending}
+            className="rounded-md bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
+          >
+            {create.isPending ? 'Creating…' : 'Create'}
+          </button>
+        </form>
+        {create.isError && (
+          <p className="mt-2 text-sm text-bad">{(create.error as Error).message}</p>
+        )}
+      </Card>
+
+      {projects.isLoading && <p className="text-sm text-muted">Loading…</p>}
+      {projects.isError && (
+        <p className="text-sm text-bad">{(projects.error as Error).message}</p>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
-        {PROJECTS.map((p) => {
-          const reliability = reliabilityScore(p.graph);
-          const security = securitySimulation(p.graph);
-          const worst = reliability.findings[0];
-          return (
-            <Card key={p.name} title={p.name}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted">{p.env}</span>
-                <div className="flex gap-4 text-sm">
-                  <span>
-                    Reliability{' '}
-                    <span className="font-semibold text-white">
-                      {reliability.score}
-                    </span>
-                  </span>
-                  <span>
-                    Security{' '}
-                    <span className="font-semibold text-white">
-                      {security.score}
-                    </span>
-                  </span>
-                </div>
+        {projects.data?.map((p) => (
+          <Card key={p.id} title={p.name}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted">{p.environment}</span>
+              <button
+                onClick={() => scan.mutate(p.id)}
+                disabled={scan.isPending && scan.variables === p.id}
+                className="rounded-md border border-border px-3 py-1.5 text-sm hover:border-accent disabled:opacity-50"
+              >
+                {scan.isPending && scan.variables === p.id ? 'Scanning…' : 'Run scan'}
+              </button>
+            </div>
+            {scores[p.id] !== undefined && (
+              <div className="mt-4">
+                <ScoreGauge score={scores[p.id]} label="reliability" />
               </div>
-              {worst && (
-                <div className="mt-3 flex items-center justify-between gap-2 text-sm">
-                  <span className="text-slate-300">{worst.title}</span>
-                  <SeverityBadge severity={worst.severity} />
-                </div>
-              )}
-            </Card>
-          );
-        })}
+            )}
+          </Card>
+        ))}
+        {projects.data?.length === 0 && (
+          <p className="text-sm text-muted">No projects yet — create one above.</p>
+        )}
       </div>
     </>
   );
