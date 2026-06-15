@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "node --watch --require ts-node/register/transpile-only src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --watch --require ts-node/register/transpile-only src/main.ts",
     "start": "node dist/main.js",
     "worker": "node dist/worker.js",
-    "worker:dev": "node --watch --require ts-node/register/transpile-only src/worker.ts",
+    "worker:dev": "node --env-file-if-exists=../../.env --watch --require ts-node/register/transpile-only src/worker.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

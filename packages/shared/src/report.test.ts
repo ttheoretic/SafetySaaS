@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReport, renderReportText } from './report';
+import { buildReport, renderReportText, renderReportCsv, renderReportXls } from './report';
 import { exampleGraph, exampleBusiness } from './fixtures';
 
 const NOW = '2026-06-14T00:00:00.000Z';
@@ -33,6 +33,28 @@ describe('report engine', () => {
     expect(headings).toContain('Executive Summary');
     expect(headings).toContain('Architecture Overview');
     expect(headings).toContain('Security Analysis');
+  });
+
+  it('builds board and compliance reports', () => {
+    const board = buildReport(exampleGraph, exampleBusiness, 'board', { now: NOW });
+    expect(board.title).toBe('Board Report');
+    const compliance = buildReport(exampleGraph, undefined, 'compliance', { now: NOW });
+    expect(compliance.sections.some((s) => s.heading === 'Compliance Posture')).toBe(true);
+  });
+
+  it('exports CSV with a header row and quoting', () => {
+    const report = buildReport(exampleGraph, exampleBusiness, 'full', { now: NOW });
+    const csv = renderReportCsv(report);
+    expect(csv.split('\n').some((l) => l.startsWith('Section,Label,Detail'))).toBe(true);
+    // descriptions contain commas, so at least one field must be quote-wrapped
+    expect(csv).toContain('"');
+  });
+
+  it('exports valid SpreadsheetML for Excel', () => {
+    const xls = renderReportXls(buildReport(exampleGraph, exampleBusiness, 'executive', { now: NOW }));
+    expect(xls).toContain('<?mso-application progid="Excel.Sheet"?>');
+    expect(xls).toContain('<Worksheet ss:Name="Report">');
+    expect(xls).toContain('<Data ss:Type="String">');
   });
 
   it('renders deterministic plain text', () => {

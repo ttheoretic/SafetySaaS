@@ -5,6 +5,8 @@ import type { Response } from 'express';
 import {
   buildReport,
   renderReportText,
+  renderReportCsv,
+  renderReportXls,
   exampleGraph,
   exampleBusiness,
   Report,
@@ -16,7 +18,9 @@ import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { renderReportPdf } from './pdf';
 
-const REPORT_TYPES: ReportType[] = ['executive', 'cto', 'security', 'full'];
+const REPORT_TYPES: ReportType[] = [
+  'executive', 'cto', 'security', 'full', 'board', 'compliance',
+];
 
 @Controller('projects/:projectId/reports')
 class ReportsController {
@@ -65,6 +69,19 @@ class ReportsController {
       }
       case 'html':
         res.setHeader('Content-Type', 'text/html; charset=utf-8').send(renderHtml(report));
+        return;
+      case 'csv':
+        res
+          .setHeader('Content-Type', 'text/csv; charset=utf-8')
+          .setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`)
+          .send(renderReportCsv(report));
+        return;
+      case 'xls':
+      case 'excel':
+        res
+          .setHeader('Content-Type', 'application/vnd.ms-excel')
+          .setHeader('Content-Disposition', `attachment; filename="${filename}.xls"`)
+          .send(renderReportXls(report));
         return;
       default:
         res.json(report);

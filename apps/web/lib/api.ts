@@ -36,6 +36,12 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function getBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${BASE}/api${path}`, { headers: authHeaders(), cache: 'no-store' });
+  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  return res.blob();
+}
+
 export interface MeResponse {
   user: { id: string; email: string; name?: string };
   activeOrg: { id: string; name: string; plan: string };
@@ -123,4 +129,6 @@ export const api = {
     get<Array<{ id: string; email: string; role: string }>>('/orgs/invitations'),
   invite: (email: string, role: string) =>
     post<{ id: string; email: string; role: string; token: string }>('/orgs/invitations', { email, role }),
+  downloadReport: (projectId: string, type: string, format: string) =>
+    getBlob(`/projects/${projectId}/reports/${type}?format=${format}`),
 };

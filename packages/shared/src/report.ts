@@ -15,7 +15,13 @@ import { predictFailures } from './prediction';
 import { simulateFailure, SimulationType } from './simulation';
 import { revenueImpact } from './revenue';
 
-export type ReportType = 'executive' | 'cto' | 'security' | 'full';
+export type ReportType =
+  | 'executive'
+  | 'cto'
+  | 'security'
+  | 'full'
+  | 'board'
+  | 'compliance';
 
 export interface ReportLine {
   label?: string;
@@ -39,9 +45,11 @@ export interface Report {
 
 const TITLES: Record<ReportType, string> = {
   executive: 'Executive Risk Report',
-  cto: 'CTO Architecture & Reliability Report',
+  cto: 'Engineering Reliability Report',
   security: 'Security Report',
   full: 'Full System Report',
+  board: 'Board Report',
+  compliance: 'Compliance Report',
 };
 
 export interface BuildReportOptions {
@@ -60,22 +68,37 @@ export function buildReport(
   const generatedAt = opts.now ?? new Date().toISOString();
 
   const sections: ReportSection[] = [];
+  const execLike = type === 'executive' || type === 'board' || type === 'full';
+  const engLike = type === 'cto' || type === 'full';
+  const secLike = type === 'security' || type === 'compliance' || type === 'full';
 
-  if (type === 'executive' || type === 'full') {
+  if (execLike) {
     sections.push(executiveSummary(graph, business, reliability.score, security.score));
     sections.push(topRisks(reliability.findings));
     sections.push(topRecommendations(recommendations, 3));
   }
 
-  if (type === 'cto' || type === 'full') {
+  if (engLike) {
     sections.push(architectureSection(graph));
     sections.push(allFindings(reliability.findings));
     sections.push(predictionsSection(graph, business));
     if (type === 'cto') sections.push(topRecommendations(recommendations, 10));
   }
 
-  if (type === 'security' || type === 'full') {
+  if (secLike) {
     sections.push(securitySection(security));
+  }
+
+  if (type === 'compliance') {
+    sections.push({
+      heading: 'Compliance Posture',
+      lines: [
+        { label: 'Tenant isolation', text: 'Per-org scoping enforced; RLS policies available' },
+        { label: 'Secrets at rest', text: 'Provider tokens encrypted (AES-256-GCM)' },
+        { label: 'Audit logging', text: 'All mutating actions recorded' },
+        { label: 'Access control', text: 'Role-based (owner/admin/member/viewer)' },
+      ],
+    });
   }
 
   return {
@@ -203,6 +226,62 @@ function formatMoney(n: number, currency: string): string {
     currency,
     maximumFractionDigits: 0,
   }).format(n);
+}
+
+/** Flat rows shared by the CSV / Excel exporters. */
+function reportRows(report: Report): string[][] {
+  const rows: string[][] = [['Section', 'Label', 'Detail']];
+  for (const section of report.sections) {
+    for (const line of section.lines) {
+      rows.push([section.heading, line.label ?? '', line.text]);
+    }
+  }
+  return rows;
+}
+
+function csvEscape(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+/** CSV export. */
+export function renderReportCsv(report: Report): string {
+  const meta = [
+    ['Report', report.title],
+    ['Generated', report.generatedAt],
+    ['Reliability', `${report.reliabilityScore}/100`],
+    ['Security', `${report.securityScore}/100`],
+    [],
+  ];
+  return [...meta, ...reportRows(report)]
+    .map((row) => row.map((c) => csvEscape(String(c))).join(','))
+    .join('\n');
+}
+
+function xmlEscape(v: string): string {
+  return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Excel export via SpreadsheetML 2003 (.xls XML) — dependency-free, opens in Excel. */
+export function renderReportXls(report: Report): string {
+  const row = (cells: string[], bold = false) =>
+    `<Row>${cells
+      .map((c) => `<Cell${bold ? ' ss:StyleID="h"' : ''}><Data ss:Type="String">${xmlEscape(c)}</Data></Cell>`)
+      .join('')}</Row>`;
+  const rows = reportRows(report);
+  const body = [
+    row([report.title]),
+    row([`Generated: ${report.generatedAt}`]),
+    row([`Reliability ${report.reliabilityScore}/100   ·   Security ${report.securityScore}/100`]),
+    row([]),
+    row(rows[0], true),
+    ...rows.slice(1).map((r) => row(r)),
+  ].join('');
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Styles><Style ss:ID="h"><Font ss:Bold="1"/></Style></Styles>
+  <Worksheet ss:Name="Report"><Table>${body}</Table></Worksheet>
+</Workbook>`;
 }
 
 /** Plain-text rendering — used by the PDF writer and for snapshots. */
