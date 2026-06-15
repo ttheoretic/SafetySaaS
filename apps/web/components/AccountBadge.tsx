@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { LogOut, UserRound } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 
-/** Shows the signed-in user (or a sign-in link) at the foot of the sidebar. */
+/** Signed-in user (or a sign-in link) at the foot of the sidebar. */
 export function AccountBadge() {
-  const { user, activeOrgId, signOut, hydrated } = useAuth();
+  const { user, signOut, hydrated } = useAuth();
 
   if (!hydrated) return null;
 
@@ -13,22 +14,30 @@ export function AccountBadge() {
     return (
       <Link
         href="/login"
-        className="block rounded-md border border-border px-3 py-2 text-sm text-slate-300 hover:bg-panel2"
+        className="flex items-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
       >
+        <UserRound className="size-4" />
         Sign in
       </Link>
     );
   }
 
   return (
-    <div className="rounded-md border border-border bg-panel2 px-3 py-2 text-sm">
-      <div className="truncate text-white">{user.name ?? user.email}</div>
-      <div className="truncate text-xs text-muted">{user.email}</div>
+    <div className="rounded-lg border border-sidebar-border bg-sidebar-accent/50 px-3 py-2">
+      <div className="flex items-center gap-2">
+        <div className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary">
+          {(user.name ?? user.email).slice(0, 1).toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <div className="truncate text-xs font-medium text-foreground">{user.name ?? user.email}</div>
+          <div className="truncate text-[10px] text-muted-foreground">{user.email}</div>
+        </div>
+      </div>
       <button
         onClick={signOut}
-        className="mt-2 text-xs text-accent hover:underline"
-        title={activeOrgId ?? ''}
+        className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
       >
+        <LogOut className="size-3" />
         Sign out
       </button>
     </div>

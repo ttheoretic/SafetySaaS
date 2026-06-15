@@ -1,25 +1,35 @@
 import './globals.css';
-import type { Metadata } from 'next';
-import { Sidebar } from '@/components/Sidebar';
+import type { Metadata, Viewport } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import { Providers } from '@/components/Providers';
+import { Sidebar } from '@/components/dashboard/sidebar';
+import { Topbar } from '@/components/dashboard/topbar';
 
 export const metadata: Metadata = {
-  title: 'FailSafe AI',
-  description: 'Find problems before they happen.',
+  title: 'FailSafe AI — Predictive Reliability for SaaS',
+  description:
+    'FailSafe AI simulates future outages, scaling problems and business risks, scores your reliability, and quantifies the revenue impact of failure.',
+};
+
+export const viewport: Viewport = {
+  colorScheme: 'dark',
+  themeColor: '#0a0c0f',
 };
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} bg-background`}>
+      <body className="font-sans antialiased">
         <Providers>
-          <div className="flex min-h-screen">
+          <div className="flex min-h-screen bg-background">
             <Sidebar />
-            <main className="flex-1 px-8 py-6 max-w-6xl">{children}</main>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Topbar />
+              <main className="flex-1 space-y-6 p-4 md:p-6">{children}</main>
+            </div>
           </div>
         </Providers>
       </body>
