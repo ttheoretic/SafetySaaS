@@ -1,6 +1,8 @@
+'use client';
+
 import { Network } from 'lucide-react';
 import type { SystemGraph } from '@failsafe/shared';
-import { systemGraph, topFindings } from '@/lib/dashboard-data';
+import { useDashboard } from '@/lib/dashboard-store';
 
 function depths(graph: SystemGraph): Map<string, number> {
   const incoming = new Map<string, number>();
@@ -25,7 +27,7 @@ function depths(graph: SystemGraph): Map<string, number> {
 }
 
 export function SystemMap() {
-  const graph = systemGraph;
+  const { systemGraph: graph, topFindings } = useDashboard();
   const risky = new Set(topFindings.filter((f) => f.nodeId).map((f) => f.nodeId as string));
   const depth = depths(graph);
   const columns = new Map<number, string[]>();

@@ -5,11 +5,12 @@ import { FlaskConical, Play, Users, Gauge, Zap, Loader2 } from 'lucide-react';
 import {
   simulateFailure,
   revenueImpact,
-  exampleGraph,
   exampleBusiness,
   Impact,
   SimulationType,
+  SystemGraph,
 } from '@failsafe/shared';
+import { useDashboardStore } from '@/lib/dashboard-store';
 
 type Kind = 'outage' | 'traffic' | 'business';
 
@@ -51,12 +52,12 @@ function money(n: number) {
 }
 
 /** Map the intensity slider to real engine parameters and run the engine. */
-function runScenario(type: SimulationType, kind: Kind, intensity: number) {
+function runScenario(graph: SystemGraph, type: SimulationType, kind: Kind, intensity: number) {
   const scale = intensity / 100;
   const durationHours = kind === 'business' ? 1 : Math.max(1, Math.round(1 + scale * 23));
   const multiplier = kind === 'traffic' ? Math.round(10 + scale * 240) : undefined;
 
-  const sim = simulateFailure(exampleGraph, type, { durationHours, multiplier });
+  const sim = simulateFailure(graph, type, { durationHours, multiplier });
   const rev = revenueImpact(sim, exampleBusiness, durationHours);
   const severity = IMPACT_SEVERITY[sim.impact];
   const churnPct = (rev.churnRiskCost / exampleBusiness.monthlyRevenue) * 100;
@@ -79,11 +80,12 @@ export function ScenarioLab() {
   const [hasRun, setHasRun] = useState(false);
   const [running, setRunning] = useState(false);
 
+  const graph = useDashboardStore((s) => s.graph);
   const active = SCENARIOS.find((s) => s.id === activeId)!;
-  // Live result (recomputed as the slider/scenario change) once a run happened.
+  // Live result (recomputed as the slider/scenario/data-source change).
   const result = useMemo(
-    () => runScenario(active.type, active.kind, intensity),
-    [active.type, active.kind, intensity],
+    () => runScenario(graph, active.type, active.kind, intensity),
+    [graph, active.type, active.kind, intensity],
   );
 
   function run() {

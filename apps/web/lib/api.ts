@@ -98,6 +98,10 @@ export const api = {
       `/projects/${projectId}/scans`,
       {},
     ),
+  listScans: (projectId: string) =>
+    get<Array<{ id: string; status: string; graph?: unknown; reliabilityScore?: number; createdAt: string }>>(
+      `/projects/${projectId}/scans`,
+    ),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
   listScenarios: (projectId: string) =>

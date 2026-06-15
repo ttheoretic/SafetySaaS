@@ -1,7 +1,11 @@
+'use client';
+
 import { TrendingDown } from 'lucide-react';
-import { revenue, worstRevenue, money } from '@/lib/dashboard-data';
+import { money } from '@/lib/dashboard-data';
+import { useDashboard } from '@/lib/dashboard-store';
 
 export function RevenueImpact() {
+  const { revenue, worstRevenue, currency } = useDashboard();
   const max = Math.max(...revenue.map((r) => r.amount), 1);
   return (
     <section className="rounded-xl border border-border bg-card p-6">
@@ -12,7 +16,7 @@ export function RevenueImpact() {
       <p className="mt-1 text-xs text-muted-foreground">Estimated business impact per failure scenario.</p>
 
       <div className="mt-4">
-        <span className="font-mono text-3xl font-semibold tabular-nums text-destructive">{money(worstRevenue)}</span>
+        <span className="font-mono text-3xl font-semibold tabular-nums text-destructive">{money(worstRevenue, currency)}</span>
         <span className="ml-2 text-xs text-muted-foreground">worst single event</span>
       </div>
 
@@ -21,7 +25,7 @@ export function RevenueImpact() {
           <div key={r.label}>
             <div className="mb-1 flex items-center justify-between text-xs">
               <span className="text-muted-foreground">{r.label} · {r.hours}h</span>
-              <span className="font-mono tabular-nums text-foreground">{money(r.amount)}</span>
+              <span className="font-mono tabular-nums text-foreground">{money(r.amount, currency)}</span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
               <div className="h-full rounded-full bg-destructive/70" style={{ width: `${(r.amount / max) * 100}%` }} />

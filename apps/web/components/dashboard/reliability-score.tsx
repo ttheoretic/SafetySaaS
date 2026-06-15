@@ -1,5 +1,7 @@
+'use client';
+
 import { TrendingDown, Activity } from 'lucide-react';
-import { reliability } from '@/lib/dashboard-data';
+import { useDashboard } from '@/lib/dashboard-store';
 
 function Gauge({ score }: { score: number }) {
   const radius = 70;
@@ -25,6 +27,7 @@ function Gauge({ score }: { score: number }) {
 }
 
 export function ReliabilityScore() {
+  const { reliability } = useDashboard();
   return (
     <section className="rounded-xl border border-border bg-card p-6">
       <div className="flex items-center justify-between">

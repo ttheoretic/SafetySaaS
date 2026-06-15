@@ -1,5 +1,7 @@
+'use client';
+
 import { ShieldAlert } from 'lucide-react';
-import { vulnerabilities } from '@/lib/dashboard-data';
+import { useDashboard } from '@/lib/dashboard-store';
 
 const SEV: Record<string, string> = {
   critical: 'bg-destructive/15 text-destructive border-destructive/30',
@@ -9,6 +11,7 @@ const SEV: Record<string, string> = {
 };
 
 export function Vulnerabilities() {
+  const { vulnerabilities } = useDashboard();
   return (
     <section className="rounded-xl border border-border bg-card p-6">
       <div className="flex items-center gap-2 text-sm font-medium text-foreground">

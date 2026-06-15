@@ -1,5 +1,7 @@
+'use client';
+
 import { Activity, ShieldAlert, AlertTriangle, ServerCrash } from 'lucide-react';
-import { stats } from '@/lib/dashboard-data';
+import { useDashboard } from '@/lib/dashboard-store';
 
 const ICONS = [Activity, ShieldAlert, AlertTriangle, ServerCrash];
 const TONE: Record<string, string> = {
@@ -9,6 +11,7 @@ const TONE: Record<string, string> = {
 };
 
 export function StatCards() {
+  const { stats } = useDashboard();
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((s, i) => {
