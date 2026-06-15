@@ -134,7 +134,17 @@ CREATE POLICY tenant_isolation ON "Project"
 ```
 
 The API sets `SET LOCAL app.current_org = '<orgId>'` at the start of each
-request transaction. Migrations to enable RLS live alongside the Prisma schema.
+request transaction. The policies ship in `prisma/rls/enable-rls.sql` (an
+`app_current_org()` helper + `ENABLE ROW LEVEL SECURITY` + a `tenant_isolation`
+policy per tenant table).
+
+**They are intentionally not auto-applied**: enabling RLS before the
+per-request GUC is wired would deny all rows. Enablement order is therefore:
+(1) wrap each request's DB work in a transaction that runs
+`SET LOCAL app.current_org = '<orgId>'` (a request-scoped Prisma client /
+interactive transaction in `PrismaStore`), then (2) apply `enable-rls.sql`.
+Until then, the application-layer `orgId` scoping (enforced in every controller
+and covered by the tenant-isolation e2e test) is the active guarantee.
 
 ## 6. Retention & lifecycle
 
