@@ -52,7 +52,7 @@ export function SystemGraphView({
             y1={a.y + 18}
             x2={b.x}
             y2={b.y + 18}
-            stroke={hit ? '#ef4444' : '#3a4660'}
+            stroke={hit ? 'var(--destructive)' : 'var(--border)'}
             strokeWidth={1.5}
           />
         );
@@ -67,14 +67,17 @@ export function SystemGraphView({
               y={p.y}
               width={140}
               height={36}
-              rx={8}
-              fill={hit ? '#3a1620' : '#1a2234'}
-              stroke={hit ? '#ef4444' : '#232c40'}
+              rx={9}
+              fill="var(--secondary)"
+              stroke={hit ? 'var(--destructive)' : 'var(--border)'}
+              strokeWidth={hit ? 1.5 : 1}
             />
-            <text x={p.x + 10} y={p.y + 16} fill="#fff" fontSize={12}>
-              {n.name}
+            <circle cx={p.x + 13} cy={p.y + 18} r={4}
+              fill={hit ? 'var(--destructive)' : 'var(--primary)'} />
+            <text x={p.x + 24} y={p.y + 16} fill="var(--foreground)" fontSize={11.5} fontWeight={500}>
+              {n.name.length > 15 ? n.name.slice(0, 14) + '…' : n.name}
             </text>
-            <text x={p.x + 10} y={p.y + 29} fill="#8b97ad" fontSize={10}>
+            <text x={p.x + 24} y={p.y + 29} fill="var(--muted-foreground)" fontSize={9.5}>
               {n.kind}
               {n.redundant ? ' · redundant' : ''}
             </text>
