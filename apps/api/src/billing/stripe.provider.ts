@@ -30,6 +30,9 @@ export class StripeBillingProvider implements BillingProvider {
       customer_email: email,
       client_reference_id: orgId,
       metadata: { orgId, plan },
+      // Stamp the subscription too, so later subscription.* events (renewal,
+      // past_due, canceled) can be mapped back to the org without a lookup.
+      subscription_data: { metadata: { orgId, plan } },
       success_url: `${process.env.APP_URL ?? ''}/dashboard?upgraded=1`,
       cancel_url: `${process.env.APP_URL ?? ''}/billing?canceled=1`,
     });
@@ -44,6 +47,8 @@ export class StripeBillingProvider implements BillingProvider {
       type: string;
       data: {
         object: {
+          id?: string;
+          status?: string;
           client_reference_id?: string;
           metadata?: { orgId?: string; plan?: string };
           customer?: string;
@@ -77,6 +82,29 @@ export class StripeBillingProvider implements BillingProvider {
         eventId: event.id,
         stripeCustomerId: session.customer,
         stripeSubscriptionId: session.subscription,
+      };
+    }
+
+    // Renewals, cancellations and payment failures update access. The org id
+    // travels on the subscription metadata we set at checkout.
+    if (
+      event.type === 'customer.subscription.updated' ||
+      event.type === 'customer.subscription.deleted'
+    ) {
+      const sub = event.data.object;
+      const orgId = sub.metadata?.orgId;
+      if (!orgId) return null;
+      const plan = sub.metadata?.plan as Plan | undefined;
+      // A deleted subscription is canceled regardless of the object's status.
+      const status = event.type === 'customer.subscription.deleted' ? 'canceled' : sub.status;
+      return {
+        type: 'subscription_updated',
+        orgId,
+        plan: plan && plan in PLAN_LIMITS ? plan : undefined,
+        status,
+        eventId: event.id,
+        stripeCustomerId: sub.customer,
+        stripeSubscriptionId: sub.id,
       };
     }
     return null;

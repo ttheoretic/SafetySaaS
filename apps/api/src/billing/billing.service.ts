@@ -40,19 +40,33 @@ export class BillingService {
 
   private readonly processedEvents = new Set<string>();
 
-  /** Apply a plan change, idempotently (Stripe may retry the same event). */
+  /**
+   * Apply a billing event idempotently (Stripe may retry the same event).
+   * `plan_changed` (checkout) grants access and updates the org's plan;
+   * `subscription_updated` records the new status (active/past_due/canceled),
+   * which the SubscriptionGuard uses to allow or revoke access.
+   */
   async applyEvent(event: BillingEvent): Promise<boolean> {
     if (event.eventId) {
       if (this.processedEvents.has(event.eventId)) return false;
       this.processedEvents.add(event.eventId);
     }
-    await this.store.updateOrganization(event.orgId, { plan: event.plan });
+
+    const existing = await this.store.getSubscription(event.orgId);
+    const org = await this.store.getOrganization(event.orgId);
+    const plan = event.plan ?? existing?.plan ?? org?.plan ?? 'starter';
+    const status = event.type === 'plan_changed' ? 'active' : event.status ?? 'active';
+
+    // Only a purchase changes the org's plan tier.
+    if (event.type === 'plan_changed' && event.plan) {
+      await this.store.updateOrganization(event.orgId, { plan: event.plan });
+    }
     await this.store.upsertSubscription({
       orgId: event.orgId,
-      plan: event.plan,
-      status: 'active',
-      stripeCustomerId: event.stripeCustomerId,
-      stripeSubscriptionId: event.stripeSubscriptionId,
+      plan,
+      status,
+      stripeCustomerId: event.stripeCustomerId ?? existing?.stripeCustomerId,
+      stripeSubscriptionId: event.stripeSubscriptionId ?? existing?.stripeSubscriptionId,
     });
     return true;
   }

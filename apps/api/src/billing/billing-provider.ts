@@ -6,11 +6,15 @@ export interface CheckoutResult {
   url: string;
 }
 
-/** A normalized billing event (e.g. a completed checkout / plan change). */
+/** A normalized billing event (a completed checkout or a subscription change). */
 export interface BillingEvent {
-  type: 'plan_changed';
+  /** `plan_changed`: a new/changed plan was purchased (grants access). */
+  /** `subscription_updated`: status changed (renewal, past_due, canceled). */
+  type: 'plan_changed' | 'subscription_updated';
   orgId: string;
-  plan: Plan;
+  plan?: Plan;
+  /** Raw provider status, e.g. active | trialing | past_due | canceled. */
+  status?: string;
   /** Provider event id, used for idempotent processing. */
   eventId?: string;
   stripeCustomerId?: string;

@@ -101,11 +101,14 @@ new workspaces must subscribe before they can use the app.
 
 3. **Webhook** — Stripe → Developers → Webhooks → add endpoint:
    - URL: `https://api.riscly.ai/api/billing/webhook`
-   - Event: `checkout.session.completed`
+   - Events:
+     - `checkout.session.completed` — activates access after purchase
+     - `customer.subscription.updated` — renewals / payment failures (past_due)
+     - `customer.subscription.deleted` — cancellation revokes access
    - Copy the signing secret → `STRIPE_WEBHOOK_SECRET=whsec_...`
 
-   On a completed checkout the webhook activates the subscription and the
-   dashboard unlocks.
+   A completed checkout unlocks the dashboard; a canceled or past-due
+   subscription locks it again on the next request.
 
 > Test mode first: use `sk_test_…`, test price ids, and Stripe's `4242…` card.
 
