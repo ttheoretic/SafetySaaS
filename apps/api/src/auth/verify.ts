@@ -42,14 +42,23 @@ export async function verifyAuthToken(token: string): Promise<AuthClaims | null>
   }
   if (token.startsWith('dev.')) return null; // unsigned tokens not allowed here
 
-  try {
-    if (secret) {
-      const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
-      return toClaims(payload);
-    }
-    const { payload } = await jwtVerify(token, jwks(supabaseUrl!));
-    return toClaims(payload);
-  } catch {
-    return null;
+  // Try both supported Supabase signing methods so it works whether the project
+  // uses the legacy HS256 shared secret or the newer asymmetric signing keys.
+  const attempts: Array<() => Promise<JWTPayload>> = [];
+  if (secret) {
+    const key = new TextEncoder().encode(secret);
+    attempts.push(async () => (await jwtVerify(token, key)).payload);
   }
+  if (supabaseUrl) {
+    const set = jwks(supabaseUrl);
+    attempts.push(async () => (await jwtVerify(token, set)).payload);
+  }
+  for (const attempt of attempts) {
+    try {
+      return toClaims(await attempt());
+    } catch {
+      /* try the next method */
+    }
+  }
+  return null;
 }
