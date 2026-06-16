@@ -19,6 +19,7 @@ startTracing('failsafe-api');
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 
 async function bootstrap() {
   // CORS: restrict to an allowlist when configured, otherwise allow all (dev).
@@ -46,10 +47,11 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),
   );
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   const port = Number(process.env.API_PORT ?? 4000);
   await app.listen(port);
-  Logger.log(`FailSafe AI API listening on :${port}`, 'Bootstrap');
+  Logger.log(`Riscly API listening on :${port}`, 'Bootstrap');
 }
 
 bootstrap();
