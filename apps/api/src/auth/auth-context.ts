@@ -18,6 +18,14 @@ export const PERMISSION_KEY = 'requiredPermission';
 export const RequirePermission = (permission: Permission) =>
   SetMetadata(PERMISSION_KEY, permission);
 
+export const ALLOW_NO_SUBSCRIPTION_KEY = 'allowNoSubscription';
+/**
+ * Exempt a route/controller from the paywall (SubscriptionGuard). Used for the
+ * endpoints needed to *reach* and *complete* checkout: /me, billing and OAuth.
+ */
+export const AllowWithoutSubscription = () =>
+  SetMetadata(ALLOW_NO_SUBSCRIPTION_KEY, true);
+
 /** Inject the resolved AuthContext into a handler parameter. */
 export const Auth = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthContext => {

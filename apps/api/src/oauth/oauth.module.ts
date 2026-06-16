@@ -4,10 +4,14 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { StoreModule } from '../store/store.module';
-import { Auth, AuthContext, Public, RequirePermission } from '../auth/auth-context';
+import {
+  AllowWithoutSubscription, Auth, AuthContext, Public, RequirePermission,
+} from '../auth/auth-context';
 import { OAuthService } from './oauth.service';
 import { GithubOAuthProvider } from './github-oauth';
 
+// Connecting a stack is part of onboarding, before the dashboard is unlocked.
+@AllowWithoutSubscription()
 @Controller('oauth')
 class OAuthController {
   constructor(private readonly oauth: OAuthService) {}

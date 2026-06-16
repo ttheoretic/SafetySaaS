@@ -3,17 +3,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowRight, Github, Check, Loader2, Boxes, ScanSearch, Sparkles, ServerCog,
+  ArrowRight, Github, Check, Loader2, Boxes, ScanSearch, Sparkles, ServerCog, CreditCard,
 } from 'lucide-react';
+import { PLAN_LIMITS, type Plan } from '@riscly/shared';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 import { signUpUser } from '@/lib/sign-in';
 
-type Step = 'signin' | 'workspace' | 'connect' | 'scan' | 'result';
+type Step = 'signin' | 'plan' | 'workspace' | 'connect' | 'scan' | 'result';
 
-const STEP_ORDER: Step[] = ['signin', 'workspace', 'connect', 'scan', 'result'];
+const STEP_ORDER: Step[] = ['signin', 'plan', 'workspace', 'connect', 'scan', 'result'];
 const STEP_LABELS: Record<Step, string> = {
   signin: 'Sign up',
+  plan: 'Choose plan',
   workspace: 'Workspace',
   connect: 'Connect',
   scan: 'Initial scan',
@@ -68,7 +70,7 @@ export default function GetStartedPage() {
       try {
         const me = await api.me();
         setWorkspace(me.activeOrg.name);
-        setStep('workspace');
+        setStep(me.subscription.active ? 'workspace' : 'plan');
       } catch { /* stay on sign-up */ }
     })();
   }, [hydrated, token, step]);
@@ -82,9 +84,19 @@ export default function GetStartedPage() {
       const me = await api.me();
       signIn(t, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
       setWorkspace(me.activeOrg.name);
-      setStep('workspace');
+      // With the paywall on, send the user to pick a plan first; in dev the
+      // backend reports an active subscription and we skip straight to setup.
+      setStep(me.subscription.active ? 'workspace' : 'plan');
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
+  }
+
+  async function choosePlan(plan: Plan) {
+    setBusy(true); setError(null);
+    try {
+      const { url } = await api.checkout(plan);
+      window.location.href = url; // Stripe Checkout → returns to /dashboard
+    } catch (err) { setError((err as Error).message); setBusy(false); }
   }
 
   async function createProject() {
@@ -178,6 +190,21 @@ export default function GetStartedPage() {
               className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
             <Primary busy={busy} label="Create account" />
           </form>
+        </Card>
+      )}
+
+      {step === 'plan' && (
+        <Card icon={<CreditCard className="size-5 text-primary" />} title="Choose your plan" subtitle="Riscly unlocks once your subscription is active.">
+          <div className="space-y-2">
+            {(['starter', 'growth', 'pro'] as Plan[]).map((plan) => (
+              <button key={plan} onClick={() => choosePlan(plan)} disabled={busy}
+                className={`flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm hover:bg-secondary/70 disabled:opacity-50 ${plan === 'growth' ? 'border-primary' : 'border-border'}`}>
+                <span className="font-medium capitalize text-foreground">{plan}{plan === 'growth' && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">Popular</span>}</span>
+                <span className="font-mono text-foreground">€{PLAN_LIMITS[plan].priceEur}<span className="text-xs text-muted-foreground">/mo</span></span>
+              </button>
+            ))}
+            <p className="pt-1 text-center text-xs text-muted-foreground">Secure checkout via Stripe. Cancel anytime.</p>
+          </div>
         </Card>
       )}
 

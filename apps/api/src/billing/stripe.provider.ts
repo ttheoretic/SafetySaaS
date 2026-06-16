@@ -30,8 +30,8 @@ export class StripeBillingProvider implements BillingProvider {
       customer_email: email,
       client_reference_id: orgId,
       metadata: { orgId, plan },
-      success_url: `${process.env.APP_URL ?? ''}/settings?upgraded=1`,
-      cancel_url: `${process.env.APP_URL ?? ''}/settings`,
+      success_url: `${process.env.APP_URL ?? ''}/dashboard?upgraded=1`,
+      cancel_url: `${process.env.APP_URL ?? ''}/billing?canceled=1`,
     });
     return { url: session.url ?? '' };
   }

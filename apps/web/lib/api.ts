@@ -57,6 +57,7 @@ export interface MeResponse {
   activeOrg: { id: string; name: string; plan: string };
   role: string;
   organizations: { id: string; name?: string; role: string }[];
+  subscription: { active: boolean; status: string; plan: string };
 }
 
 export interface ReliabilityResponse {
@@ -105,6 +106,7 @@ export const api = {
   // --- Authenticated (tenant) endpoints ---
   me: () => get<MeResponse>('/me'),
   billing: () => get<{ plan: string; limits: Record<string, unknown>; usage: Record<string, number> }>('/billing'),
+  checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
   listProjects: () =>
     get<Array<{ id: string; name: string; environment: string }>>('/projects'),
   createProject: (name: string) =>

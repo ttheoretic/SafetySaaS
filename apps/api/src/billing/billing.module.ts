@@ -1,14 +1,18 @@
 import {
   Body, Controller, Get, Global, Headers, Logger, Module, Post, Req,
 } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import type { Request } from 'express';
 import { IsIn } from 'class-validator';
 import { PLAN_ORDER, Plan } from '@riscly/shared';
 import { StoreModule } from '../store/store.module';
-import { Auth, AuthContext, Public, RequirePermission } from '../auth/auth-context';
+import {
+  AllowWithoutSubscription, Auth, AuthContext, Public, RequirePermission,
+} from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { BILLING_PROVIDER, BillingProvider } from './billing-provider';
 import { BillingService } from './billing.service';
+import { SubscriptionGuard } from './subscription.guard';
 import { StripeBillingProvider } from './stripe.provider';
 import { NullBillingProvider } from './null.provider';
 
@@ -16,6 +20,8 @@ class CheckoutDto {
   @IsIn(PLAN_ORDER) plan!: Plan;
 }
 
+// Reaching and completing checkout must work before a subscription exists.
+@AllowWithoutSubscription()
 @Controller('billing')
 class BillingController {
   private readonly logger = new Logger(BillingController.name);
@@ -63,6 +69,7 @@ class BillingController {
   controllers: [BillingController],
   providers: [
     BillingService,
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
     {
       provide: BILLING_PROVIDER,
       useFactory: (): BillingProvider => {
