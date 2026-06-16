@@ -1,6 +1,12 @@
 import 'reflect-metadata';
 import { startTracing } from './observability/tracing';
 
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+  if (err?.code === 'ECONNRESET' || err?.code === 'EPIPE') return;
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
+
 startTracing('failsafe-worker');
 
 import { NestFactory } from '@nestjs/core';

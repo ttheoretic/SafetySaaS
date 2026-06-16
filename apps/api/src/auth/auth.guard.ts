@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PUBLIC_KEY } from './auth-context';
-import { verifyToken } from './jwt';
+import { verifyAuthToken } from './verify';
 import { AuthService } from './auth.service';
 
 /**
@@ -35,7 +35,7 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Missing bearer token');
     }
     const token = header.slice('Bearer '.length).trim();
-    const claims = verifyToken(token, process.env.SUPABASE_JWT_SECRET);
+    const claims = await verifyAuthToken(token);
     if (!claims) throw new UnauthorizedException('Invalid or expired token');
 
     const user = await this.auth.resolveUser(claims);

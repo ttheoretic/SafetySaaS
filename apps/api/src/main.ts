@@ -1,6 +1,18 @@
 import 'reflect-metadata';
 import { startTracing } from './observability/tracing';
 
+// Never let a transient client/exporter socket reset crash the server.
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+  if (err?.code === 'ECONNRESET' || err?.code === 'EPIPE') {
+    // benign: a client disconnected or a downstream socket reset
+    return;
+  }
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
 // Start tracing before anything else so instrumentation can patch modules.
 startTracing('failsafe-api');
 
@@ -19,6 +31,7 @@ async function bootstrap() {
   });
   // Capture the raw body for Stripe webhook signature verification.
   app.use('/api/billing/webhook', (req: any, _res: any, next: any) => {
+    if (req.method !== 'POST') return next();
     let data = '';
     req.setEncoding('utf8');
     req.on('data', (c: string) => (data += c));
@@ -27,6 +40,7 @@ async function bootstrap() {
       try { req.body = data ? JSON.parse(data) : {}; } catch { req.body = {}; }
       next();
     });
+    req.on('error', () => next());
   });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
