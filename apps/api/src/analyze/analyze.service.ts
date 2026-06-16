@@ -9,10 +9,10 @@ import {
   SimulationType,
   SimulationParams,
   BusinessContext,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 
 /**
- * Stateless orchestration over the pure engines in @failsafe/shared.
+ * Stateless orchestration over the pure engines in @riscly/shared.
  * No I/O — safe to call from controllers and workers alike.
  */
 @Injectable()

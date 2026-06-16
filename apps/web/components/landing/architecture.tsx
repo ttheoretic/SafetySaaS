@@ -1,5 +1,5 @@
 import { Network } from 'lucide-react';
-import { exampleGraph } from '@failsafe/shared';
+import { exampleGraph } from '@riscly/shared';
 import { SystemGraphView } from '@/components/SystemGraphView';
 
 export function Architecture() {

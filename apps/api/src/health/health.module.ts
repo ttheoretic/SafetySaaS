@@ -6,7 +6,7 @@ import { Public } from '../auth/auth-context';
 class HealthController {
   @Get()
   liveness() {
-    return { status: 'ok', service: 'failsafe-api', ts: new Date().toISOString() };
+    return { status: 'ok', service: 'riscly-api', ts: new Date().toISOString() };
   }
 
   @Get('ready')

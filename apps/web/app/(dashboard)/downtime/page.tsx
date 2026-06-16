@@ -1,7 +1,7 @@
 'use client';
 
 import { Clock } from 'lucide-react';
-import { simulateFailure, revenueImpact, exampleBusiness, SimulationType } from '@failsafe/shared';
+import { simulateFailure, revenueImpact, exampleBusiness, SimulationType } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 import { useDashboardStore } from '@/lib/dashboard-store';
 import { money } from '@/lib/dashboard-data';

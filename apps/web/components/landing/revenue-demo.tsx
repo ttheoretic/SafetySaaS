@@ -5,7 +5,7 @@ import {
   exampleGraph,
   exampleBusiness,
   SimulationType,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 
 const SCENARIOS: { type: SimulationType; label: string; hours: number }[] = [
   { type: 'dns', label: 'Full outage (DNS)', hours: 2 },

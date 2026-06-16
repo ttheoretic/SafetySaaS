@@ -1,4 +1,4 @@
-import type { Plan } from '@failsafe/shared';
+import type { Plan } from '@riscly/shared';
 import { BillingEvent, BillingProvider, CheckoutResult } from './billing-provider';
 
 /**

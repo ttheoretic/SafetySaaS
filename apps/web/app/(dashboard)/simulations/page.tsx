@@ -4,7 +4,7 @@ import {
   exampleGraph,
   exampleBusiness,
   SimulationType,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { SystemGraphView } from '@/components/SystemGraphView';
 

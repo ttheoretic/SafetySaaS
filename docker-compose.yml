@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: failsafe
-      POSTGRES_PASSWORD: failsafe
-      POSTGRES_DB: failsafe
+      POSTGRES_USER: riscly
+      POSTGRES_PASSWORD: riscly
+      POSTGRES_DB: riscly
     ports:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U failsafe']
+      test: ['CMD-SHELL', 'pg_isready -U riscly']
       interval: 5s
       timeout: 5s
       retries: 10

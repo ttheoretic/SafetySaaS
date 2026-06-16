@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: worker
-  namespace: failsafe
+  namespace: riscly
 spec:
   replicas: 2
   selector:
@@ -15,11 +15,11 @@ spec:
     spec:
       containers:
         - name: worker
-          image: ghcr.io/ttheoretic/failsafe-api:latest
+          image: ghcr.io/ttheoretic/riscly-api:latest
           command: ['node', 'apps/api/dist/worker.js']
           envFrom:
-            - configMapRef: { name: failsafe-config }
-            - secretRef: { name: failsafe-secrets }
+            - configMapRef: { name: riscly-config }
+            - secretRef: { name: riscly-secrets }
           resources:
             requests: { cpu: 200m, memory: 256Mi }
             limits: { cpu: '2', memory: 1Gi }
@@ -28,7 +28,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: worker
-  namespace: failsafe
+  namespace: riscly
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

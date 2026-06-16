@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { IsEmail, IsIn, IsString } from 'class-validator';
-import { canAddMember, Plan } from '@failsafe/shared';
+import { canAddMember, Plan } from '@riscly/shared';
 import { Store, StoreModule, Role } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
@@ -55,7 +55,7 @@ class InvitationsController {
     const link = `${appUrl}/accept-invite?token=${invitation.token}`;
     void this.email.send({
       to: dto.email,
-      subject: `You're invited to ${auth.org.name} on FailSafe AI`,
+      subject: `You're invited to ${auth.org.name} on Riscly`,
       html: `<p>${auth.user.name ?? auth.user.email} invited you to join <b>${auth.org.name}</b> as ${dto.role}.</p>` +
         `<p><a href="${link}">Accept the invitation</a></p>`,
     });

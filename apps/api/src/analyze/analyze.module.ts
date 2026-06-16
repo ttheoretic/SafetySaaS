@@ -1,7 +1,7 @@
 import { Body, Controller, Module, Post } from '@nestjs/common';
 import { AnalyzeService } from './analyze.service';
 import { AnalyzeDto, PredictDto, SimulateDto } from './dto';
-import type { SystemGraph, SimulationParams } from '@failsafe/shared';
+import type { SystemGraph, SimulationParams } from '@riscly/shared';
 import { AiModule } from '../ai/ai.module';
 import { PredictionService } from '../ai/prediction.service';
 import { Public } from '../auth/auth-context';

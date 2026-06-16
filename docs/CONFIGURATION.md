@@ -1,6 +1,6 @@
 # Configuration & Credentials
 
-FailSafe AI is **fail-soft by design**: with no configuration it runs entirely
+Riscly is **fail-soft by design**: with no configuration it runs entirely
 locally (in-memory storage, inline job queue, heuristic AI, local billing, dev
 sign-in). Each credential you add switches that one subsystem to the real
 provider — nothing else changes.
@@ -9,7 +9,7 @@ provider — nothing else changes.
 
 | Where | What | How it's loaded |
 |-------|------|-----------------|
-| **`/.env`** (repo root) | All backend (API + worker) variables | Loaded in dev via `node --env-file-if-exists`; in Docker via `env_file: .env`; in Kubernetes via the `failsafe-secrets` Secret |
+| **`/.env`** (repo root) | All backend (API + worker) variables | Loaded in dev via `node --env-file-if-exists`; in Docker via `env_file: .env`; in Kubernetes via the `riscly-secrets` Secret |
 | **`apps/web/.env.local`** | Frontend `NEXT_PUBLIC_*` variables | Auto-loaded by Next.js |
 
 Start from the template: `cp .env.example .env`. Never commit `.env` (it's
@@ -51,7 +51,7 @@ git-ignored).
 
 ## Production
 
-In Kubernetes these live in the `failsafe-secrets` Secret (see
+In Kubernetes these live in the `riscly-secrets` Secret (see
 `deploy/k8s/config.yaml`) — provide it via sealed-secrets or external-secrets,
 never committed. The non-secret values (model, URLs, OTEL endpoint) live in the
-`failsafe-config` ConfigMap.
+`riscly-config` ConfigMap.

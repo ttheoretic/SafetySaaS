@@ -4,7 +4,7 @@ import {
   exampleGraph,
   exampleBusiness,
   SimulationType,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 
 const SCENARIOS: { type: SimulationType; label: string; hours: number }[] = [

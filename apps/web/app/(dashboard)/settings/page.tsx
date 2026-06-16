@@ -1,4 +1,4 @@
-import { PLAN_ORDER, PLAN_LIMITS } from '@failsafe/shared';
+import { PLAN_ORDER, PLAN_LIMITS } from '@riscly/shared';
 import { PageHeader, Card } from '@/components/ui';
 import { ConnectProviders } from '@/components/ConnectProviders';
 

@@ -12,7 +12,7 @@ import {
   Report,
   ReportType,
   SystemGraph,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
@@ -144,7 +144,7 @@ function renderHtml(report: Report): string {
     <div class="score">Security<b>${report.securityScore}/100</b></div>
   </div>
   ${sections}
-  <p style="color:#94a3b8;margin-top:40px">FailSafe AI — find problems before they happen.</p>
+  <p style="color:#94a3b8;margin-top:40px">Riscly — find problems before they happen.</p>
 </body></html>`;
 }
 

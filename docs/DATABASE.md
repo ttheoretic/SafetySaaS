@@ -1,4 +1,4 @@
-# FailSafe AI — Data Model & Schema Design
+# Riscly — Data Model & Schema Design
 
 PostgreSQL, multi-tenant by `org_id`. Modeled with Prisma
 (`prisma/schema.prisma`). This document explains the *why*; the schema file is

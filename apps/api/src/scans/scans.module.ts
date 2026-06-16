@@ -2,7 +2,7 @@ import {
   Body, Controller, Get, Module, NotFoundException, Param, Post,
 } from '@nestjs/common';
 import { IsOptional, IsObject } from 'class-validator';
-import { SystemGraph } from '@failsafe/shared';
+import { SystemGraph } from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { AnalyzeModule } from '../analyze/analyze.module';
 import { ScannerModule } from '../scanner/scanner.module';

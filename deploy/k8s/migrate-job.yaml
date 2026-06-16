@@ -4,7 +4,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: migrate
-  namespace: failsafe
+  namespace: riscly
 spec:
   backoffLimit: 3
   template:
@@ -12,7 +12,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: ghcr.io/ttheoretic/failsafe-api:latest
+          image: ghcr.io/ttheoretic/riscly-api:latest
           command: ['npx', 'prisma', 'migrate', 'deploy']
           envFrom:
-            - secretRef: { name: failsafe-secrets }
+            - secretRef: { name: riscly-secrets }

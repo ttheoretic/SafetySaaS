@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
-import { exampleGraph, exampleBusiness } from '@failsafe/shared';
+import { exampleGraph, exampleBusiness } from '@riscly/shared';
 import { AppModule } from './app.module';
 import { devToken } from './auth/jwt';
 
@@ -11,7 +11,7 @@ const ALICE = `Bearer ${devToken({ sub: 'alice-1', email: 'alice@acme.io', name:
 const BOB = `Bearer ${devToken({ sub: 'bob-1', email: 'bob@globex.io', name: 'Bob' })}`;
 const CAROL = `Bearer ${devToken({ sub: 'carol-1', email: 'carol@initech.io', name: 'Carol' })}`;
 
-describe('FailSafe API (e2e)', () => {
+describe('Riscly API (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {

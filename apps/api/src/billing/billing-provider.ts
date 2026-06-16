@@ -1,4 +1,4 @@
-import type { Plan } from '@failsafe/shared';
+import type { Plan } from '@riscly/shared';
 
 export const BILLING_PROVIDER = Symbol('BILLING_PROVIDER');
 

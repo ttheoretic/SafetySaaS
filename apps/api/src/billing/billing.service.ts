@@ -1,5 +1,5 @@
 import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { planLimits, Plan, PlanLimits } from '@failsafe/shared';
+import { planLimits, Plan, PlanLimits } from '@riscly/shared';
 import { Store, OrganizationRecord } from '../store/store.module';
 import { BILLING_PROVIDER, BillingProvider, BillingEvent } from './billing-provider';
 

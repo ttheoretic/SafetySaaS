@@ -11,7 +11,7 @@ import {
   SystemGraph,
   BusinessContext,
   SimulationType,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 
 export function money(n: number, currency = exampleBusiness.currency ?? 'EUR') {
   return new Intl.NumberFormat('en', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);

@@ -18,7 +18,7 @@ interface AuthState {
   hydrate: () => void;
 }
 
-const STORAGE_KEY = 'failsafe.auth';
+const STORAGE_KEY = 'riscly.auth';
 
 export const useAuth = create<AuthState>((set) => ({
   token: null,

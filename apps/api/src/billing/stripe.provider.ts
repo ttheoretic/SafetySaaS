@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import Stripe from 'stripe';
-import { PLAN_LIMITS, Plan } from '@failsafe/shared';
+import { PLAN_LIMITS, Plan } from '@riscly/shared';
 import { BillingEvent, BillingProvider, CheckoutResult } from './billing-provider';
 
 /**

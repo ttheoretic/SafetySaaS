@@ -1,26 +1,26 @@
 # Non-secret configuration. Secrets (DATABASE_URL, tokens, keys) live in the
-# `failsafe-secrets` Secret — see secrets.example.yaml. Postgres is managed
+# `riscly-secrets` Secret — see secrets.example.yaml. Postgres is managed
 # (Supabase) and Redis is a managed instance; only the apps run in-cluster.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: failsafe-config
-  namespace: failsafe
+  name: riscly-config
+  namespace: riscly
 data:
   API_PORT: '4000'
   ANTHROPIC_MODEL: claude-opus-4-8
-  NEXT_PUBLIC_API_URL: https://api.failsafe.ai
+  NEXT_PUBLIC_API_URL: https://api.riscly.ai
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability:4318
 ---
 # Template — create the real Secret out-of-band (sealed-secrets / external-secrets).
 apiVersion: v1
 kind: Secret
 metadata:
-  name: failsafe-secrets
-  namespace: failsafe
+  name: riscly-secrets
+  namespace: riscly
 type: Opaque
 stringData:
-  DATABASE_URL: 'postgresql://USER:PASS@HOST:5432/failsafe'
+  DATABASE_URL: 'postgresql://USER:PASS@HOST:5432/riscly'
   REDIS_URL: 'redis://HOST:6379'
   SUPABASE_JWT_SECRET: 'REPLACE_ME'
   ANTHROPIC_API_KEY: 'REPLACE_ME'

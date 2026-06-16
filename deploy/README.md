@@ -10,7 +10,7 @@ for your registry/cluster).
 ## Kubernetes (`deploy/k8s`)
 
 ```
-namespace.yaml     failsafe namespace
+namespace.yaml     riscly namespace
 config.yaml        ConfigMap (non-secret) + Secret template
 api.yaml           API Deployment + Service + HPA (CPU 70%) + PodDisruptionBudget
 worker.yaml        BullMQ worker Deployment + HPA (scale to 20)
@@ -19,7 +19,7 @@ migrate-job.yaml   prisma migrate deploy (pre-deploy)
 ```
 
 PostgreSQL is managed (Supabase) and Redis is a managed instance — only the
-stateless apps run in-cluster. Provide the real `failsafe-secrets` via
+stateless apps run in-cluster. Provide the real `riscly-secrets` via
 sealed-secrets or external-secrets (never commit secrets).
 
 ### Apply

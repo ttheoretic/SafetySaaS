@@ -44,7 +44,7 @@ export class GithubOAuthProvider implements OAuthProvider {
     const headers = {
       authorization: `Bearer ${accessToken}`,
       accept: 'application/vnd.github+json',
-      'user-agent': 'failsafe-ai',
+      'user-agent': 'riscly',
     };
     const login = await this.safeJson(
       () => this.fetchImpl('https://api.github.com/user', { headers }),

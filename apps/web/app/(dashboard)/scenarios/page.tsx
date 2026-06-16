@@ -10,7 +10,7 @@ import {
   exampleBusiness,
   Impact,
   SimulationType,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';

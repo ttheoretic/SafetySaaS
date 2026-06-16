@@ -7,7 +7,7 @@ import {
   buildRecommendations,
   exampleGraph,
   SystemGraph,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { PageHeader, Card, ScoreGauge, SeverityBadge, Stat } from '@/components/ui';
 
 function depths(graph: SystemGraph): Map<string, number> {

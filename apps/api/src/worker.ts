@@ -7,7 +7,7 @@ process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
 });
 process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
 
-startTracing('failsafe-worker');
+startTracing('riscly-worker');
 
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
@@ -28,7 +28,7 @@ async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   await app.init();
   Logger.log(
-    `FailSafe AI worker started (driver: ${process.env.REDIS_URL ? 'bullmq' : 'inline'})`,
+    `Riscly worker started (driver: ${process.env.REDIS_URL ? 'bullmq' : 'inline'})`,
     'Worker',
   );
 

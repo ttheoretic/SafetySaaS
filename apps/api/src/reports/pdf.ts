@@ -1,14 +1,14 @@
 /**
  * Minimal, dependency-free PDF writer for reports.
  *
- * Lays out a FailSafe AI `Report` as a paginated A4 document using the
+ * Lays out a Riscly `Report` as a paginated A4 document using the
  * standard Helvetica fonts (no embedding needed), and emits valid PDF bytes.
  * This keeps the report pipeline self-contained; a production build can swap in
  * a headless-Chrome renderer for richer styling without changing the report
  * content model.
  */
 
-import type { Report } from '@failsafe/shared';
+import type { Report } from '@riscly/shared';
 
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;

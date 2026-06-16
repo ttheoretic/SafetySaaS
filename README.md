@@ -1,8 +1,8 @@
-# FailSafe AI
+# Riscly
 
 > **"Find problems before they happen."**
 
-FailSafe AI analyzes SaaS products and simulates future outages, scaling
+Riscly analyzes SaaS products and simulates future outages, scaling
 problems, revenue loss and infrastructure risks. It connects to a team's
 code hosting, cloud and billing providers, builds a dependency graph of the
 system, scores its reliability, and runs failure / load / security / business
@@ -11,7 +11,7 @@ simulations to surface risk **before** real customers are affected.
 This repository is a **TypeScript monorepo**.
 
 ```
-failsafe-ai/
+riscly/
 ├── apps/
 │   ├── api/          # NestJS backend (REST API, engines, workers)
 │   └── web/          # Next.js 14 dashboard (App Router)
@@ -104,4 +104,4 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
 
 ## License
 
-Proprietary — © FailSafe AI.
+Proprietary — © Riscly.

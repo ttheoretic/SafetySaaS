@@ -1,4 +1,4 @@
-import type { Prediction, SystemGraph } from '@failsafe/shared';
+import type { Prediction, SystemGraph } from '@riscly/shared';
 
 /** DI token for the active AI provider. */
 export const AI_PROVIDER = Symbol('AI_PROVIDER');

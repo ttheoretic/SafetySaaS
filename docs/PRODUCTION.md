@@ -1,6 +1,6 @@
 # Going to Production
 
-What's needed to take FailSafe AI live for real customers. The application is
+What's needed to take Riscly live for real customers. The application is
 fail-soft — everything below is about **connecting services and deploying**,
 not new features.
 

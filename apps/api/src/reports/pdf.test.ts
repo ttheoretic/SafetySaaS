@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReport, exampleGraph, exampleBusiness } from '@failsafe/shared';
+import { buildReport, exampleGraph, exampleBusiness } from '@riscly/shared';
 import { renderReportPdf } from './pdf';
 
 describe('PDF writer', () => {

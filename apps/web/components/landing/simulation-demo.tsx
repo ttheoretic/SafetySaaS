@@ -9,7 +9,7 @@ import {
   exampleGraph,
   exampleBusiness,
   SimulationType,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { cn } from '@/lib/utils';
 
 const SCENARIOS: { id: string; label: string; type: SimulationType; icon: typeof Zap; hours: number }[] = [

@@ -1,4 +1,4 @@
-import type { SystemGraph } from '@failsafe/shared';
+import type { SystemGraph } from '@riscly/shared';
 
 /**
  * Lightweight layered SVG rendering of the dependency graph. Nodes are placed

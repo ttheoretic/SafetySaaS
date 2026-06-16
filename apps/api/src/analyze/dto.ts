@@ -12,7 +12,7 @@ import type {
   SystemGraph,
   SimulationType,
   BusinessContext,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 
 const SIMULATION_TYPES = [
   'infra_server', 'infra_region', 'dns', 'db_lock', 'cache', 'queue',

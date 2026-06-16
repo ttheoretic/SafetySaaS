@@ -1,4 +1,4 @@
-# FailSafe AI — System Architecture
+# Riscly — System Architecture
 
 ## 1. Goals & non-goals
 

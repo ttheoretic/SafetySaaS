@@ -3,7 +3,7 @@ import type {
   ScanCollection,
   CloudSignals,
   DatabaseSignals,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext } from './collector';
 

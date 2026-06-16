@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { exampleGraph, Prediction } from '@failsafe/shared';
+import { exampleGraph, Prediction } from '@riscly/shared';
 import { PredictionService } from './prediction.service';
 import { AiProvider, PredictRequest } from './ai-provider';
 import { NullAiProvider } from './null.provider';

@@ -1,4 +1,4 @@
-# Multi-stage build for the FailSafe AI API.
+# Multi-stage build for the Riscly API.
 FROM node:20-alpine AS base
 WORKDIR /app
 COPY package.json package-lock.json* ./

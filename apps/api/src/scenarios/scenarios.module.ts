@@ -11,7 +11,7 @@ import {
   ScenarioDefinition,
   SystemGraph,
   BusinessContext,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { Store, StoreModule, ProjectRecord } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';

@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@failsafe/shared'],
+  transpilePackages: ['@riscly/shared'],
 };
 export default nextConfig;

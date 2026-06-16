@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, Circle, ChevronDown, Database } from 'lucide-react';
-import type { SystemGraph } from '@failsafe/shared';
+import type { SystemGraph } from '@riscly/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-store';
 import { useDashboardStore } from '@/lib/dashboard-store';

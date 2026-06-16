@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, FileSpreadsheet, FileJson, Download, Loader2 } from 'lucide-react';
-import { buildReport, exampleGraph, exampleBusiness } from '@failsafe/shared';
+import { buildReport, exampleGraph, exampleBusiness } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';

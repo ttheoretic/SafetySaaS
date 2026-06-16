@@ -18,7 +18,7 @@ export class AuthService {
 
     const user = await this.store.createUser({
       supabaseId: claims.sub,
-      email: claims.email ?? `${claims.sub}@users.failsafe.ai`,
+      email: claims.email ?? `${claims.sub}@users.riscly.ai`,
       name: claims.name,
     });
     // First-login: give the user a personal org they own.

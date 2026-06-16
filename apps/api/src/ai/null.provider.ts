@@ -1,4 +1,4 @@
-import type { Prediction } from '@failsafe/shared';
+import type { Prediction } from '@riscly/shared';
 import { AiProvider } from './ai-provider';
 
 /**

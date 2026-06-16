@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { IsIn } from 'class-validator';
-import { PLAN_ORDER, Plan } from '@failsafe/shared';
+import { PLAN_ORDER, Plan } from '@riscly/shared';
 import { StoreModule } from '../store/store.module';
 import { Auth, AuthContext, Public, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';

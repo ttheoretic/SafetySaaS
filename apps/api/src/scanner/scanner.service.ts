@@ -3,7 +3,7 @@ import {
   buildSystemGraph,
   ScanCollection,
   SystemGraph,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import type { ConnectionRecord } from '../store/store.module';
 import { CollectorContext, ProviderCollector } from './collectors/collector';
 import { GithubCollector } from './collectors/github.collector';

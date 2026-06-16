@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { RepoSignals } from '@failsafe/shared';
+import type { RepoSignals } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext } from './collector';
 
@@ -116,7 +116,7 @@ export class GithubCollector implements ProviderCollector {
   private headers(ctx: CollectorContext): Record<string, string> {
     const h: Record<string, string> = {
       accept: 'application/vnd.github+json',
-      'user-agent': 'failsafe-ai-scanner',
+      'user-agent': 'riscly-scanner',
     };
     if (ctx.token) h.authorization = `Bearer ${ctx.token}`;
     return h;

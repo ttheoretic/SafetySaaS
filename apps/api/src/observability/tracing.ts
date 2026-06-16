@@ -11,7 +11,7 @@ import { Logger } from '@nestjs/common';
 
 let started = false;
 
-export function startTracing(serviceName = 'failsafe-api'): void {
+export function startTracing(serviceName = 'riscly-api'): void {
   if (started) return;
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   if (!endpoint) return;

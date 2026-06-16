@@ -2,7 +2,7 @@ import type {
   SystemGraph,
   SimulationType,
   BusinessContext,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 
 import { currentAuth } from './auth-store';
 

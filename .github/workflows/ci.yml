@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build API image
-        run: docker build -f apps/api/Dockerfile -t failsafe-api:${{ github.sha }} .
+        run: docker build -f apps/api/Dockerfile -t riscly-api:${{ github.sha }} .
       - name: Build web image
-        run: docker build -f apps/web/Dockerfile -t failsafe-web:${{ github.sha }} .
+        run: docker build -f apps/web/Dockerfile -t riscly-web:${{ github.sha }} .
       # Push + deploy steps go here (registry login, kubectl set image, ...).

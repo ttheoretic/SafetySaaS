@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
-import { exampleGraph, SystemGraph } from '@failsafe/shared';
+import { exampleGraph, SystemGraph } from '@riscly/shared';
 import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
@@ -45,7 +45,7 @@ export class ScanProcessor implements OnModuleInit {
     // Custom span — links the scan work to the request trace when tracing is on,
     // and is a no-op otherwise.
     return trace
-      .getTracer('failsafe')
+      .getTracer('riscly')
       .startActiveSpan('scan.run', async (span) => {
         span.setAttribute('scan.id', job.scanId);
         span.setAttribute('project.id', job.projectId);

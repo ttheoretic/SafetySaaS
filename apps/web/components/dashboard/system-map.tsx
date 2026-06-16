@@ -1,7 +1,7 @@
 'use client';
 
 import { Network } from 'lucide-react';
-import type { SystemGraph } from '@failsafe/shared';
+import type { SystemGraph } from '@riscly/shared';
 import { useDashboard } from '@/lib/dashboard-store';
 
 function depths(graph: SystemGraph): Map<string, number> {

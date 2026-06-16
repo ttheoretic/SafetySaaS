@@ -50,7 +50,7 @@ class ResendEmailProvider implements EmailProvider {
         const key = process.env.RESEND_API_KEY;
         if (key) {
           Logger.log('Email: Resend provider active.', 'EmailModule');
-          return new ResendEmailProvider(key, process.env.EMAIL_FROM ?? 'FailSafe AI <noreply@failsafe.ai>');
+          return new ResendEmailProvider(key, process.env.EMAIL_FROM ?? 'Riscly <noreply@riscly.ai>');
         }
         Logger.log('Email: no RESEND_API_KEY — console provider (logs only).', 'EmailModule');
         return new ConsoleEmailProvider();

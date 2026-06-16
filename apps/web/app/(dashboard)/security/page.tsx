@@ -1,4 +1,4 @@
-import { securitySimulation, exampleGraph } from '@failsafe/shared';
+import { securitySimulation, exampleGraph } from '@riscly/shared';
 import { PageHeader, Card, ScoreGauge, SeverityBadge } from '@/components/ui';
 
 export default function SecurityPage() {

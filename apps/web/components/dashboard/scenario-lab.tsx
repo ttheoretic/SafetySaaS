@@ -9,7 +9,7 @@ import {
   Impact,
   SimulationType,
   SystemGraph,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { useDashboardStore } from '@/lib/dashboard-store';
 
 type Kind = 'outage' | 'traffic' | 'business';

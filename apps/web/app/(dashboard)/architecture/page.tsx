@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ZoomIn, ZoomOut, Network, Maximize } from 'lucide-react';
-import type { SystemGraph } from '@failsafe/shared';
+import type { SystemGraph } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { useDashboard } from '@/lib/dashboard-store';
 

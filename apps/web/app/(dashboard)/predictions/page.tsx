@@ -1,4 +1,4 @@
-import { predictFailures, exampleGraph, exampleBusiness } from '@failsafe/shared';
+import { predictFailures, exampleGraph, exampleBusiness } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 
 const CATEGORY_LABEL: Record<string, string> = {

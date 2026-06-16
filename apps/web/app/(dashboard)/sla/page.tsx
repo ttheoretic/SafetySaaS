@@ -1,7 +1,7 @@
 'use client';
 
 import { Gauge } from 'lucide-react';
-import { reliabilityScore, simulateFailure, revenueImpact, exampleBusiness } from '@failsafe/shared';
+import { reliabilityScore, simulateFailure, revenueImpact, exampleBusiness } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 import { useDashboardStore } from '@/lib/dashboard-store';
 import { money } from '@/lib/dashboard-data';

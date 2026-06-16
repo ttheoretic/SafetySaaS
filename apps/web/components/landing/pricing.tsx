@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Check } from 'lucide-react';
-import { PLAN_ORDER, PLAN_LIMITS } from '@failsafe/shared';
+import { PLAN_ORDER, PLAN_LIMITS } from '@riscly/shared';
 import { cn } from '@/lib/utils';
 
 const DESCRIPTIONS: Record<string, string> = {

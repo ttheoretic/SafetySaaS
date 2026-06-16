@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import type { Prediction } from '@failsafe/shared';
+import type { Prediction } from '@riscly/shared';
 import {
   AiProvider,
   PredictRequest,

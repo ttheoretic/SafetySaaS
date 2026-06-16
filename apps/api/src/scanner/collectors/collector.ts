@@ -1,4 +1,4 @@
-import type { ScanCollection } from '@failsafe/shared';
+import type { ScanCollection } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 
 /**

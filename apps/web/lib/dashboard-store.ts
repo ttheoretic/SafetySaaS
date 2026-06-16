@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import { exampleGraph, SystemGraph } from '@failsafe/shared';
+import { exampleGraph, SystemGraph } from '@riscly/shared';
 import { computeDashboard, Dashboard } from './dashboard-data';
 
 interface DashboardState {

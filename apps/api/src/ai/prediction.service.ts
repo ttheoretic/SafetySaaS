@@ -3,7 +3,7 @@ import {
   predictFailures,
   Prediction,
   SystemGraph,
-} from '@failsafe/shared';
+} from '@riscly/shared';
 import { AI_PROVIDER, AiProvider } from './ai-provider';
 
 export interface PredictionReport {

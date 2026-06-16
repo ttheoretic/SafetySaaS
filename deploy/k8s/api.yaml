@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
-  namespace: failsafe
+  namespace: riscly
 spec:
   replicas: 2
   selector:
@@ -13,12 +13,12 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/ttheoretic/failsafe-api:latest
+          image: ghcr.io/ttheoretic/riscly-api:latest
           ports:
             - containerPort: 4000
           envFrom:
-            - configMapRef: { name: failsafe-config }
-            - secretRef: { name: failsafe-secrets }
+            - configMapRef: { name: riscly-config }
+            - secretRef: { name: riscly-secrets }
           readinessProbe:
             httpGet: { path: /api/health/ready, port: 4000 }
             initialDelaySeconds: 5
@@ -35,7 +35,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: api
-  namespace: failsafe
+  namespace: riscly
 spec:
   selector: { app: api }
   ports:
@@ -46,7 +46,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: api
-  namespace: failsafe
+  namespace: riscly
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -64,7 +64,7 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: api
-  namespace: failsafe
+  namespace: riscly
 spec:
   minAvailable: 1
   selector:

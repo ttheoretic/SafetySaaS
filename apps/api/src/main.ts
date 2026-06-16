@@ -14,7 +14,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 // Start tracing before anything else so instrumentation can patch modules.
-startTracing('failsafe-api');
+startTracing('riscly-api');
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
