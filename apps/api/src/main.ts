@@ -49,8 +49,9 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new PrismaExceptionFilter());
 
-  const port = Number(process.env.API_PORT ?? 4000);
-  await app.listen(port);
+  // Hosts like Render/Railway/Fly inject the port via $PORT; honor it first.
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
+  await app.listen(port, '0.0.0.0');
   Logger.log(`Riscly API listening on :${port}`, 'Bootstrap');
 }
 
