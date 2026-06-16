@@ -67,9 +67,9 @@ The migrate step can run as a release/pre-deploy command: `npx prisma migrate de
 
 ## 3. Web — Vercel
 
-1. Import the repo into Vercel. **Root Directory: leave as the repo root** (`.`).
-   `vercel.json` already sets the install/build commands so the shared package
-   is built before the web app.
+1. Import the repo into Vercel. Set **Root Directory: `apps/web`** (so Vercel
+   detects Next.js). `apps/web/vercel.json` overrides the build to compile the
+   shared package first; install runs at the workspace root automatically.
 2. Environment variables (Project → Settings → Environment Variables):
 
    | Variable | Value |
