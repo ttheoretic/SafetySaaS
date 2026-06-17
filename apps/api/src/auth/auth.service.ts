@@ -13,27 +13,36 @@ export class AuthService {
   constructor(private readonly store: Store) {}
 
   async resolveUser(claims: AuthClaims): Promise<UserRecord> {
-    const existing = await this.store.getUserBySupabaseId(claims.sub);
-    if (existing) return existing;
+    let user = await this.store.getUserBySupabaseId(claims.sub);
 
-    try {
-      const user = await this.store.createUser({
-        supabaseId: claims.sub,
-        email: claims.email ?? `${claims.sub}@users.riscly.ai`,
-        name: claims.name,
-      });
-      // First-login: give the user a personal org they own.
-      await this.provisionPersonalOrg(user);
-      return user;
-    } catch (err) {
-      // Concurrent first-login requests race to provision the same user; the
-      // loser hits a unique-constraint (P2002). Re-read the winner's record.
-      if ((err as { code?: string }).code === 'P2002') {
-        const created = await this.store.getUserBySupabaseId(claims.sub);
-        if (created) return created;
+    if (!user) {
+      try {
+        user = await this.store.createUser({
+          supabaseId: claims.sub,
+          email: claims.email ?? `${claims.sub}@users.riscly.ai`,
+          name: claims.name,
+        });
+      } catch (err) {
+        // Concurrent first-login requests race to create the same user; the
+        // loser hits a unique-constraint (P2002). Re-read the winner's record.
+        if ((err as { code?: string }).code !== 'P2002') throw err;
+        user = await this.store.getUserBySupabaseId(claims.sub);
       }
-      throw err;
     }
+    if (!user) throw new Error('Failed to resolve user after creation');
+
+    // Ensure the user owns a personal org (idempotent — survives the race and
+    // any earlier attempt that created the user but not the org).
+    const memberships = await this.store.listMembershipsForUser(user.id);
+    if (memberships.length === 0) {
+      try {
+        await this.provisionPersonalOrg(user);
+      } catch (err) {
+        // Another request is provisioning concurrently (unique slug clash).
+        if ((err as { code?: string }).code !== 'P2002') throw err;
+      }
+    }
+    return user;
   }
 
   private async provisionPersonalOrg(user: UserRecord): Promise<OrganizationRecord> {

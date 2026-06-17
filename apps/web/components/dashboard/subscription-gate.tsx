@@ -1,24 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 
 /**
- * Client-side paywall. Every dashboard route is wrapped by this gate: it
- * requires a signed-in user with an active subscription, otherwise it routes to
- * /login or the /billing paywall. The /billing page itself is always allowed so
- * the user can pick a plan. When the backend doesn't enforce billing (dev), it
- * reports `subscription.active = true` and the gate is a no-op.
+ * Client-side paywall for the dashboard. Requires a signed-in user with an
+ * active subscription; otherwise it routes to /login or the /billing paywall
+ * (which lives outside this layout, so it renders full-screen without the
+ * dashboard chrome). When the backend doesn't enforce billing (dev), it reports
+ * `subscription.active = true` and the gate is a no-op.
  */
 export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const [state, setState] = useState<'checking' | 'ok'>('checking');
-  const onBilling = pathname?.startsWith('/billing');
 
   useEffect(() => {
     if (!hydrated) return;
@@ -31,23 +29,16 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
       try {
         const me = await api.me();
         if (cancelled) return;
-        if (me.subscription.active || onBilling) {
-          setState('ok');
-        } else {
-          router.replace('/billing');
-        }
+        if (me.subscription.active) setState('ok');
+        else router.replace('/billing');
       } catch {
-        // Token invalid/expired or API unreachable — send to sign-in.
         if (!cancelled) router.replace('/login');
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [hydrated, token, onBilling, router]);
-
-  // The billing page renders immediately (it's the escape hatch from the gate).
-  if (onBilling && token) return <>{children}</>;
+  }, [hydrated, token, router]);
 
   if (state !== 'ok') {
     return (
