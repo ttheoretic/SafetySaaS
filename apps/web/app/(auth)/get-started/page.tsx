@@ -3,19 +3,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowRight, Github, Check, Loader2, Boxes, ScanSearch, Sparkles, ServerCog, CreditCard,
+  ArrowRight, Github, Loader2, ScanSearch, Sparkles, ServerCog,
 } from 'lucide-react';
-import { PLAN_LIMITS, type Plan } from '@riscly/shared';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
-import { signUpUser } from '@/lib/sign-in';
 
-type Step = 'signin' | 'plan' | 'workspace' | 'connect' | 'scan' | 'result';
+type Step = 'workspace' | 'connect' | 'scan' | 'result';
 
-const STEP_ORDER: Step[] = ['signin', 'plan', 'workspace', 'connect', 'scan', 'result'];
+const STEP_ORDER: Step[] = ['workspace', 'connect', 'scan', 'result'];
 const STEP_LABELS: Record<Step, string> = {
-  signin: 'Sign up',
-  plan: 'Choose plan',
   workspace: 'Workspace',
   connect: 'Connect',
   scan: 'Initial scan',
@@ -44,12 +40,9 @@ function Gauge({ score }: { score: number }) {
 
 export default function GetStartedPage() {
   const router = useRouter();
-  const { signIn, token, hydrated } = useAuth();
-  const [step, setStep] = useState<Step>('signin');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { token, hydrated } = useAuth();
+  const [ready, setReady] = useState(false);
+  const [step, setStep] = useState<Step>('workspace');
   const [workspace, setWorkspace] = useState('');
   const [projectName, setProjectName] = useState('My SaaS');
   const [projectId, setProjectId] = useState('');
@@ -63,41 +56,28 @@ export default function GetStartedPage() {
 
   const stepIdx = STEP_ORDER.indexOf(step);
 
-  // If the user already signed up (e.g. via /login), skip straight to setup.
+  // Onboarding is a post-auth, post-paywall wizard. Guard accordingly.
   useEffect(() => {
-    if (!hydrated || !token || step !== 'signin') return;
+    if (!hydrated) return;
+    if (!token) { router.replace('/login?mode=signup'); return; }
+    let cancelled = false;
     (async () => {
       try {
         const me = await api.me();
+        if (cancelled) return;
+        if (!me.subscription.active) { router.replace('/billing'); return; }
+        // Already has a project → skip the wizard.
+        const projects = await api.listProjects();
+        if (cancelled) return;
+        if (projects.length > 0) { router.replace('/dashboard'); return; }
         setWorkspace(me.activeOrg.name);
-        setStep(me.subscription.active ? 'workspace' : 'plan');
-      } catch { /* stay on sign-up */ }
+        setReady(true);
+      } catch {
+        if (!cancelled) router.replace('/login');
+      }
     })();
-  }, [hydrated, token, step]);
-
-  async function doSignin(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true); setError(null);
-    try {
-      const { token: t } = await signUpUser({ firstName, lastName, email, password });
-      signIn(t, { id: '', email }, '');
-      const me = await api.me();
-      signIn(t, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
-      setWorkspace(me.activeOrg.name);
-      // With the paywall on, send the user to pick a plan first; in dev the
-      // backend reports an active subscription and we skip straight to setup.
-      setStep(me.subscription.active ? 'workspace' : 'plan');
-    } catch (err) { setError((err as Error).message); }
-    finally { setBusy(false); }
-  }
-
-  async function choosePlan(plan: Plan) {
-    setBusy(true); setError(null);
-    try {
-      const { url } = await api.checkout(plan);
-      window.location.href = url; // Stripe Checkout → returns to /dashboard
-    } catch (err) { setError((err as Error).message); setBusy(false); }
-  }
+    return () => { cancelled = true; };
+  }, [hydrated, token, router]);
 
   async function createProject() {
     setBusy(true); setError(null);
@@ -115,7 +95,6 @@ export default function GetStartedPage() {
       const { url } = await api.oauthAuthorizeUrl('github', projectId);
       window.location.href = url;
     } catch {
-      // OAuth not configured (dev) — fall through to the demo stack.
       setError('GitHub OAuth isn’t configured here — continue with the demo stack.');
       setBusy(false);
     }
@@ -127,7 +106,6 @@ export default function GetStartedPage() {
     try {
       const scan = await api.startScan(projectId);
       const score = scan.reliabilityScore ?? 0;
-      // fetch findings for the reveal
       let f: { title: string; severity: string }[] = [];
       try {
         const scans = await api.listScans(projectId);
@@ -159,6 +137,14 @@ export default function GetStartedPage() {
     return () => { if (raf.current) cancelAnimationFrame(raf.current); };
   }, [step, targetScore]);
 
+  if (!ready) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-lg">
       {/* progress */}
@@ -168,45 +154,12 @@ export default function GetStartedPage() {
             <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${
               i < stepIdx ? 'bg-primary text-primary-foreground' : i === stepIdx ? 'border border-primary text-primary' : 'border border-border text-muted-foreground'
             }`}>
-              {i < stepIdx ? <Check className="size-3.5" /> : i + 1}
+              {i + 1}
             </span>
             {i < STEP_ORDER.length - 1 && <span className={`h-px flex-1 ${i < stepIdx ? 'bg-primary' : 'bg-border'}`} />}
           </li>
         ))}
       </ol>
-
-      {step === 'signin' && (
-        <Card icon={<Boxes className="size-5 text-primary" />} title="Create your account" subtitle="Sign up to start analyzing your architecture.">
-          <form onSubmit={doSignin} className="space-y-3">
-            <div className="flex gap-3">
-              <input required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" autoComplete="given-name"
-                className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
-              <input required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" autoComplete="family-name"
-                className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
-            </div>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email"
-              className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
-            <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" autoComplete="new-password"
-              className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
-            <Primary busy={busy} label="Create account" />
-          </form>
-        </Card>
-      )}
-
-      {step === 'plan' && (
-        <Card icon={<CreditCard className="size-5 text-primary" />} title="Choose your plan" subtitle="Riscly unlocks once your subscription is active.">
-          <div className="space-y-2">
-            {(['starter', 'growth', 'pro'] as Plan[]).map((plan) => (
-              <button key={plan} onClick={() => choosePlan(plan)} disabled={busy}
-                className={`flex w-full items-center justify-between rounded-md border px-4 py-3 text-left text-sm hover:bg-secondary/70 disabled:opacity-50 ${plan === 'growth' ? 'border-primary' : 'border-border'}`}>
-                <span className="font-medium capitalize text-foreground">{plan}{plan === 'growth' && <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">Popular</span>}</span>
-                <span className="font-mono text-foreground">€{PLAN_LIMITS[plan].priceEur}<span className="text-xs text-muted-foreground">/mo</span></span>
-              </button>
-            ))}
-            <p className="pt-1 text-center text-xs text-muted-foreground">Secure checkout via Stripe. Cancel anytime.</p>
-          </div>
-        </Card>
-      )}
 
       {step === 'workspace' && (
         <Card icon={<ServerCog className="size-5 text-primary" />} title={`Workspace ready: ${workspace}`} subtitle="Name the first project you want to analyze.">

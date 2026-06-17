@@ -30,7 +30,7 @@ export function LandingNav() {
           <Link href="/login" className="hidden rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground sm:block">
             Sign in
           </Link>
-          <Link href="/get-started" className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+          <Link href="/login?mode=signup" className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90">
             Get started
           </Link>
         </div>

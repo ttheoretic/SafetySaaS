@@ -116,7 +116,7 @@ export function SimulationDemo() {
               </div>
             </div>
 
-            <Link href="/get-started" className="mt-6 flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+            <Link href="/login?mode=signup" className="mt-6 flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
               Run a full simulation on your stack
             </Link>
           </div>

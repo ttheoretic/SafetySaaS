@@ -33,7 +33,9 @@ export class StripeBillingProvider implements BillingProvider {
       // Stamp the subscription too, so later subscription.* events (renewal,
       // past_due, canceled) can be mapped back to the org without a lookup.
       subscription_data: { metadata: { orgId, plan } },
-      success_url: `${process.env.APP_URL ?? ''}/dashboard?upgraded=1`,
+      // After paying, continue into onboarding (which sends already-onboarded
+      // users straight to the dashboard).
+      success_url: `${process.env.APP_URL ?? ''}/get-started?upgraded=1`,
       cancel_url: `${process.env.APP_URL ?? ''}/billing?canceled=1`,
     });
     return { url: session.url ?? '' };

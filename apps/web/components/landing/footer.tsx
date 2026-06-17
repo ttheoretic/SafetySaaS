@@ -12,7 +12,7 @@ export function Footer() {
           <p className="mx-auto mt-3 max-w-xl text-pretty text-muted-foreground">
             Connect your stack and get a reliability score in minutes.
           </p>
-          <Link href="/get-started" className="mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90">
+          <Link href="/login?mode=signup" className="mt-7 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90">
             Analyze My Architecture <ArrowRight className="size-4" />
           </Link>
         </div>

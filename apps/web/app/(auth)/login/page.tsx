@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
@@ -13,6 +13,13 @@ export default function LoginPage() {
   const router = useRouter();
   const signIn = useAuth((s) => s.signIn);
   const [mode, setMode] = useState<Mode>('signin');
+
+  // Landing CTAs link here with ?mode=signup to preselect the sign-up tab.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('mode') === 'signup') {
+      setMode('signup');
+    }
+  }, []);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');

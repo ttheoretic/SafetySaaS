@@ -36,7 +36,7 @@ export function Hero() {
 
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/get-started"
+              href="/login?mode=signup"
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 sm:w-auto"
             >
               Analyze My Architecture

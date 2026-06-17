@@ -66,7 +66,7 @@ export function Pricing() {
               </ul>
 
               <Link
-                href="/get-started"
+                href="/login?mode=signup"
                 className={cn(
                   'mt-7 w-full rounded-lg px-4 py-2.5 text-center text-sm font-medium',
                   t.featured ? 'bg-primary text-primary-foreground hover:opacity-90' : 'border border-border text-foreground hover:bg-secondary/50',
