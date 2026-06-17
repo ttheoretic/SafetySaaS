@@ -140,9 +140,20 @@ export class PrismaStore extends Store {
     const row = await this.prisma.user.findUnique({ where: { supabaseId } });
     return row ? this.toUser(row) : undefined;
   }
+  async getUserByEmail(email: string) {
+    const row = await this.prisma.user.findUnique({ where: { email } });
+    return row ? this.toUser(row) : undefined;
+  }
   async getUser(id: string) {
     const row = await this.prisma.user.findUnique({ where: { id } });
     return row ? this.toUser(row) : undefined;
+  }
+  async updateUser(id: string, patch: { supabaseId?: string; email?: string; name?: string }) {
+    const row = await this.prisma.user.update({
+      where: { id },
+      data: { supabaseId: patch.supabaseId, email: patch.email, name: patch.name },
+    });
+    return this.toUser(row);
   }
   private toUser(r: any): UserRecord {
     return {

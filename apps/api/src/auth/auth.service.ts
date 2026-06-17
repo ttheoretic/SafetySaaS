@@ -13,20 +13,33 @@ export class AuthService {
   constructor(private readonly store: Store) {}
 
   async resolveUser(claims: AuthClaims): Promise<UserRecord> {
+    const email = claims.email ?? `${claims.sub}@users.riscly.ai`;
     let user = await this.store.getUserBySupabaseId(claims.sub);
 
     if (!user) {
       try {
         user = await this.store.createUser({
           supabaseId: claims.sub,
-          email: claims.email ?? `${claims.sub}@users.riscly.ai`,
+          email,
           name: claims.name,
         });
       } catch (err) {
-        // Concurrent first-login requests race to create the same user; the
-        // loser hits a unique-constraint (P2002). Re-read the winner's record.
         if ((err as { code?: string }).code !== 'P2002') throw err;
+        // Unique-constraint clash. Either a concurrent first-login race (same
+        // supabaseId) or an existing account with this email under a different
+        // supabaseId (e.g. the Supabase identity was recreated). Reconcile:
         user = await this.store.getUserBySupabaseId(claims.sub);
+        if (!user) {
+          const byEmail = await this.store.getUserByEmail(email);
+          if (byEmail) {
+            // Re-link this Supabase identity to the existing workspace.
+            user =
+              (await this.store.updateUser(byEmail.id, {
+                supabaseId: claims.sub,
+                name: claims.name ?? byEmail.name,
+              })) ?? byEmail;
+          }
+        }
       }
     }
     if (!user) throw new Error('Failed to resolve user after creation');

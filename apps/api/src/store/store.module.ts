@@ -130,7 +130,12 @@ export abstract class Store {
 
   abstract createUser(input: Omit<UserRecord, 'id' | 'createdAt'>): Promise<UserRecord>;
   abstract getUserBySupabaseId(supabaseId: string): Promise<UserRecord | undefined>;
+  abstract getUserByEmail(email: string): Promise<UserRecord | undefined>;
   abstract getUser(id: string): Promise<UserRecord | undefined>;
+  abstract updateUser(
+    id: string,
+    patch: Partial<Pick<UserRecord, 'supabaseId' | 'email' | 'name'>>,
+  ): Promise<UserRecord | undefined>;
 
   abstract createOrganization(input: Omit<OrganizationRecord, 'id' | 'createdAt'>): Promise<OrganizationRecord>;
   abstract getOrganization(id: string): Promise<OrganizationRecord | undefined>;
@@ -218,6 +223,14 @@ export class InMemoryStore extends Store {
   }
 
   async createUser(input: Omit<UserRecord, 'id' | 'createdAt'>) {
+    // Mirror Postgres' unique constraints on supabaseId/email so tests exercise
+    // the same conflict (P2002) handling the real store triggers.
+    const clash = [...this.users.values()].some(
+      (u) => u.supabaseId === input.supabaseId || u.email === input.email,
+    );
+    if (clash) {
+      throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    }
     const record = this.stamp(input);
     this.users.set(record.id, record);
     return record;
@@ -225,8 +238,18 @@ export class InMemoryStore extends Store {
   async getUserBySupabaseId(supabaseId: string) {
     return [...this.users.values()].find((u) => u.supabaseId === supabaseId);
   }
+  async getUserByEmail(email: string) {
+    return [...this.users.values()].find((u) => u.email === email);
+  }
   async getUser(id: string) {
     return this.users.get(id);
+  }
+  async updateUser(id: string, patch: Partial<Pick<UserRecord, 'supabaseId' | 'email' | 'name'>>) {
+    const existing = this.users.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...patch };
+    this.users.set(id, updated);
+    return updated;
   }
 
   async createOrganization(input: Omit<OrganizationRecord, 'id' | 'createdAt'>) {
