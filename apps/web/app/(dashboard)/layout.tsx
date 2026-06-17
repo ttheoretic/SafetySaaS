@@ -1,5 +1,6 @@
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { Topbar } from '@/components/dashboard/topbar';
+import { SectionTabs } from '@/components/dashboard/section-tabs';
 import { SubscriptionGate } from '@/components/dashboard/subscription-gate';
 
 export default function DashboardLayout({
@@ -14,7 +15,10 @@ export default function DashboardLayout({
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto">
+            <SectionTabs />
+            <div className="space-y-6 p-4 md:p-6">{children}</div>
+          </main>
         </div>
       </div>
     </SubscriptionGate>
