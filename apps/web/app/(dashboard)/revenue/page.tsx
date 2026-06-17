@@ -6,6 +6,7 @@ import {
   SimulationType,
 } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
+import { FeatureGate } from '@/components/dashboard/feature-gate';
 
 const SCENARIOS: { type: SimulationType; label: string; hours: number }[] = [
   { type: 'dns', label: 'Full outage (DNS)', hours: 2 },
@@ -37,6 +38,11 @@ export default function RevenuePage() {
         title="Revenue Risk"
         subtitle={`Modeled on MRR ${fmt(exampleBusiness.monthlyRevenue, c)} · ${exampleBusiness.activeUsers} active users.`}
       />
+      <FeatureGate
+        feature="revenueImpact"
+        title="Revenue impact scoring"
+        description="Quantify the euro cost of every failure scenario — direct loss, conversion loss, SLA credits and churn risk."
+      >
       <div className="grid grid-cols-3 gap-4">
         <Stat label="Monthly revenue" value={fmt(exampleBusiness.monthlyRevenue, c)} />
         <Stat
@@ -76,6 +82,7 @@ export default function RevenuePage() {
           </tbody>
         </table>
       </Card>
+      </FeatureGate>
     </>
   );
 }

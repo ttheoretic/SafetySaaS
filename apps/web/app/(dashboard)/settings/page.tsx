@@ -8,9 +8,9 @@ const PLANS = PLAN_ORDER.map((p) => {
     name: p[0].toUpperCase() + p.slice(1),
     price: l.priceEur === null ? 'Custom' : `${l.priceEur} €/mo`,
     features: [
-      l.maxProjects === Infinity ? 'Unlimited projects' : `${l.maxProjects} project(s)`,
-      l.aiPredictions ? 'AI predictions' : 'Heuristic predictions',
-      l.pdfReports ? 'PDF reports' : 'No PDF export',
+      l.maxScansPerDay === Infinity ? 'Unlimited scans / day' : `${l.maxScansPerDay} scans / day`,
+      l.aiTier === 'basic' ? 'Basis AI (Haiku)' : l.aiTier === 'sonnet' ? 'AI · Sonnet 4.6' : 'AI · Opus 4.8',
+      l.reports ? 'PDF & Excel reports' : 'No report export',
       l.maxMembers === Infinity ? 'Unlimited members' : `${l.maxMembers} members`,
     ],
   };

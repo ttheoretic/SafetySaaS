@@ -1,5 +1,7 @@
-import { ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { planLimits, Plan, PlanLimits } from '@riscly/shared';
+import {
+  ForbiddenException, HttpException, HttpStatus, Inject, Injectable,
+} from '@nestjs/common';
+import { planLimits, Plan, PlanLimits, Feature, hasFeature } from '@riscly/shared';
 import { Store, OrganizationRecord } from '../store/store.module';
 import { BILLING_PROVIDER, BillingProvider, BillingEvent } from './billing-provider';
 
@@ -77,7 +79,33 @@ export class BillingService {
     const count = (await this.store.listProjects(org.id)).length;
     if (count >= limit) {
       throw new ForbiddenException(
-        `Plan limit reached: ${org.plan} allows ${limit} project(s). Upgrade to add more.`,
+        `Plan limit reached: ${org.plan} covers ${limit} project(s). ` +
+          `Start a new subscription for another project.`,
+      );
+    }
+  }
+
+  /** Enforce the per-day scan cap for the org's plan (UTC day). */
+  async assertCanScan(org: OrganizationRecord) {
+    const limit = planLimits(org.plan).maxScansPerDay;
+    if (!Number.isFinite(limit)) return;
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const count = await this.store.countScansSince(org.id, startOfDay.toISOString());
+    if (count >= limit) {
+      throw new HttpException(
+        `Daily scan limit reached: ${org.plan} allows ${limit} scan(s) per day. ` +
+          `Upgrade for more.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  /** Enforce that the org's plan unlocks a given feature. */
+  assertHasFeature(org: OrganizationRecord, feature: Feature, label: string = feature) {
+    if (!hasFeature(org.plan, feature)) {
+      throw new ForbiddenException(
+        `${label} is not available on the ${org.plan} plan. Upgrade to unlock it.`,
       );
     }
   }

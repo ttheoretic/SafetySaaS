@@ -15,6 +15,7 @@ import {
 import { Store, StoreModule, ProjectRecord } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
+import { BillingService } from '../billing/billing.service';
 
 class StepDto {
   @IsString() type!: string;
@@ -36,6 +37,7 @@ class ScenariosController {
   constructor(
     private readonly store: Store,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
   ) {}
 
   @Get()
@@ -53,6 +55,7 @@ class ScenariosController {
     @Body() dto: CreateScenarioDto,
   ) {
     await this.requireProject(auth, projectId);
+    this.billing.assertHasFeature(auth.org, 'scenarioLab', 'Scenario Lab');
     const scenario = await this.store.createScenario({
       orgId: auth.org.id,
       projectId,
@@ -75,6 +78,7 @@ class ScenariosController {
     @Param('id') id: string,
   ) {
     await this.requireProject(auth, projectId);
+    this.billing.assertHasFeature(auth.org, 'scenarioLab', 'Scenario Lab');
     const scenario = await this.store.getScenario(id);
     if (!scenario || scenario.orgId !== auth.org.id || scenario.projectId !== projectId) {
       throw new NotFoundException('Scenario not found');

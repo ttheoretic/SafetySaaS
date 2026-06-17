@@ -1,4 +1,4 @@
-import type { Prediction, SystemGraph } from '@riscly/shared';
+import type { AiTier, Prediction, SystemGraph } from '@riscly/shared';
 
 /** DI token for the active AI provider. */
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
@@ -8,6 +8,10 @@ export interface PredictRequest {
   /** Deterministic heuristic predictions, given to the model as grounding. */
   heuristics: Prediction[];
   currentUsers?: number;
+  /** Concrete model id to use; falls back to the provider default. */
+  model?: string;
+  /** Tier hint — higher tiers get a larger token budget & deeper analysis. */
+  tier?: AiTier;
 }
 
 /**

@@ -1,54 +1,110 @@
 /**
  * Subscription plans and their enforced limits. Pure config + helpers so the
  * API, the billing UI and tests all agree on what each tier allows.
+ *
+ * Projects are deliberately NOT a tier lever — a paid subscription covers one
+ * project, and a second project means a second subscription. Tiers differ on
+ * scans/day, the AI model that powers predictions, and which features
+ * (Live View, Scenario Lab, Reports, Revenue Impact) are unlocked.
  */
 
 export type Plan = 'starter' | 'growth' | 'pro' | 'enterprise';
 
+/** Which Claude model powers AI predictions for a tier. */
+export type AiTier = 'basic' | 'sonnet' | 'opus';
+
+/** Feature flags that can be gated per plan. */
+export type Feature =
+  | 'aiPredictions'
+  | 'liveView'
+  | 'simulations'
+  | 'scenarioLab'
+  | 'reports'
+  | 'revenueImpact';
+
 export interface PlanLimits {
   /** Monthly price in euros (null = custom). */
   priceEur: number | null;
+  /** Projects per subscription. One for everyone except enterprise. */
   maxProjects: number; // Infinity for unlimited
-  maxScansPerDay: number;
+  /** Hard cap on scans started per UTC day. */
+  maxScansPerDay: number; // Infinity for unlimited
+  /** AI model tier used for failure prediction. */
+  aiTier: AiTier;
   /** Whether the AI (LLM) prediction layer is available. */
   aiPredictions: boolean;
-  /** Whether PDF report export is available. */
-  pdfReports: boolean;
+  /** Continuous "Live View" monitoring of the architecture. */
+  liveView: boolean;
+  /** Failure simulations (the core deterministic engine). */
+  simulations: boolean;
+  /** The Scenario Lab (compose & save multi-step failure scenarios). */
+  scenarioLab: boolean;
+  /** Exportable reports (PDF / Excel). */
+  reports: boolean;
+  /** Revenue / business-impact scoring. */
+  revenueImpact: boolean;
   /** Maximum team members. */
   maxMembers: number;
 }
+
+/** Logical AI tier → concrete Claude model id. */
+export const AI_MODELS: Record<AiTier, string> = {
+  basic: 'claude-haiku-4-5',
+  sonnet: 'claude-sonnet-4-6',
+  opus: 'claude-opus-4-8',
+};
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   starter: {
     priceEur: 29,
     maxProjects: 1,
-    maxScansPerDay: 10,
-    aiPredictions: false,
-    pdfReports: false,
+    maxScansPerDay: 5,
+    aiTier: 'basic',
+    aiPredictions: true,
+    liveView: false,
+    simulations: true,
+    scenarioLab: false,
+    reports: false,
+    revenueImpact: false,
     maxMembers: 2,
   },
   growth: {
     priceEur: 99,
-    maxProjects: 5,
-    maxScansPerDay: 100,
+    maxProjects: 1,
+    maxScansPerDay: 50,
+    aiTier: 'sonnet',
     aiPredictions: true,
-    pdfReports: true,
+    liveView: true,
+    simulations: true,
+    scenarioLab: true,
+    reports: true,
+    revenueImpact: true,
     maxMembers: 10,
   },
   pro: {
     priceEur: 299,
-    maxProjects: 25,
-    maxScansPerDay: 1000,
+    maxProjects: 1,
+    maxScansPerDay: 500,
+    aiTier: 'opus',
     aiPredictions: true,
-    pdfReports: true,
+    liveView: true,
+    simulations: true,
+    scenarioLab: true,
+    reports: true,
+    revenueImpact: true,
     maxMembers: 50,
   },
   enterprise: {
     priceEur: null,
     maxProjects: Infinity,
     maxScansPerDay: Infinity,
+    aiTier: 'opus',
     aiPredictions: true,
-    pdfReports: true,
+    liveView: true,
+    simulations: true,
+    scenarioLab: true,
+    reports: true,
+    revenueImpact: true,
     maxMembers: Infinity,
   },
 };
@@ -67,6 +123,21 @@ export function canAddMember(plan: Plan, currentCount: number): boolean {
   return currentCount < PLAN_LIMITS[plan].maxMembers;
 }
 
-export function hasFeature(plan: Plan, feature: 'aiPredictions' | 'pdfReports'): boolean {
+/** Whether another scan may be started today given how many already ran. */
+export function canScanToday(plan: Plan, scansToday: number): boolean {
+  return scansToday < PLAN_LIMITS[plan].maxScansPerDay;
+}
+
+export function hasFeature(plan: Plan, feature: Feature): boolean {
   return PLAN_LIMITS[plan][feature];
+}
+
+/** The Claude model that powers AI prediction for a plan. */
+export function aiModelForPlan(plan: Plan): string {
+  return AI_MODELS[PLAN_LIMITS[plan].aiTier];
+}
+
+/** The AI tier (basic/sonnet/opus) for a plan. */
+export function aiTierForPlan(plan: Plan): AiTier {
+  return PLAN_LIMITS[plan].aiTier;
 }

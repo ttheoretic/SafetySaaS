@@ -12,6 +12,7 @@ import {
   SimulationType,
 } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
+import { FeatureGate } from '@/components/dashboard/feature-gate';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 
@@ -122,6 +123,11 @@ export default function ScenariosPage() {
         subtitle="Compose multiple failures into one what-if experiment and quantify the combined impact."
       />
 
+      <FeatureGate
+        feature="scenarioLab"
+        title="Scenario Lab"
+        description="Compose multi-step failure scenarios, save them, and quantify the combined business impact."
+      >
       <div className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
         {/* Builder */}
         <Card title="Build a scenario">
@@ -284,6 +290,7 @@ export default function ScenariosPage() {
           </ul>
         </Card>
       )}
+      </FeatureGate>
     </>
   );
 }

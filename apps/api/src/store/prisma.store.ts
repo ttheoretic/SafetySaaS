@@ -90,6 +90,11 @@ export class PrismaStore extends Store {
     });
     return rows.map((r) => this.toScan(r));
   }
+  async countScansSince(orgId: string, sinceIso: string) {
+    return this.prisma.scan.count({
+      where: { orgId, createdAt: { gte: new Date(sinceIso) } },
+    });
+  }
   private toScan(r: any): ScanRecord {
     return {
       id: r.id, orgId: r.orgId, projectId: r.projectId, status: r.status,

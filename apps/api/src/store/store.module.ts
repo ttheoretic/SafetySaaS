@@ -124,6 +124,8 @@ export abstract class Store {
   abstract updateScan(id: string, patch: Partial<ScanRecord>): Promise<ScanRecord | undefined>;
   abstract getScan(id: string): Promise<ScanRecord | undefined>;
   abstract listScans(projectId: string): Promise<ScanRecord[]>;
+  /** Number of scans created for an org at or after the given ISO timestamp. */
+  abstract countScansSince(orgId: string, sinceIso: string): Promise<number>;
 
   abstract createConnection(input: Omit<ConnectionRecord, 'id' | 'createdAt'>): Promise<ConnectionRecord>;
   abstract listConnections(projectId: string): Promise<ConnectionRecord[]>;
@@ -211,6 +213,11 @@ export class InMemoryStore extends Store {
     return [...this.scans.values()]
       .filter((s) => s.projectId === projectId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async countScansSince(orgId: string, sinceIso: string) {
+    return [...this.scans.values()].filter(
+      (s) => s.orgId === orgId && s.createdAt >= sinceIso,
+    ).length;
   }
 
   async createConnection(input: Omit<ConnectionRecord, 'id' | 'createdAt'>) {

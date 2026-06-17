@@ -7,12 +7,27 @@ import { PLAN_LIMITS, type Plan } from '@riscly/shared';
 import { api, type MeResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth-store';
 
-const FEATURES: Record<Plan, string[]> = {
-  starter: ['1 project', '10 scans / day', 'Up to 2 members'],
-  growth: ['5 projects', '100 scans / day', 'AI predictions', 'PDF reports', 'Up to 10 members'],
-  pro: ['25 projects', '1,000 scans / day', 'AI predictions', 'PDF reports', 'Up to 50 members'],
-  enterprise: ['Unlimited projects', 'Unlimited scans', 'SSO & priority support', 'Custom limits'],
+const AI_LABEL: Record<string, string> = {
+  basic: 'Basis AI (Haiku 4.5)',
+  sonnet: 'AI · Claude Sonnet 4.6',
+  opus: 'AI · Claude Opus 4.8',
 };
+
+/** Build the feature bullets for a plan from the shared limits config. */
+function featuresFor(plan: Plan): string[] {
+  const l = PLAN_LIMITS[plan];
+  const scans = l.maxScansPerDay === Infinity ? 'Unlimited scans / day' : `${l.maxScansPerDay} scans / day`;
+  const members = l.maxMembers === Infinity ? 'Unlimited members' : `Up to ${l.maxMembers} members`;
+  return [
+    scans,
+    AI_LABEL[l.aiTier],
+    ...(l.liveView ? ['Live View monitoring'] : []),
+    ...(l.scenarioLab ? ['Scenario Lab'] : []),
+    ...(l.revenueImpact ? ['Revenue impact scoring'] : []),
+    ...(l.reports ? ['PDF & Excel reports'] : []),
+    members,
+  ];
+}
 
 export default function BillingPage() {
   const router = useRouter();
@@ -82,7 +97,7 @@ export default function BillingPage() {
                 <span className="text-sm text-muted-foreground">/ month</span>
               </div>
               <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
-                {FEATURES[plan].map((f) => (
+                {featuresFor(plan).map((f) => (
                   <li key={f} className="flex items-center gap-2">
                     <Check className="size-4 shrink-0 text-primary" /> {f}
                   </li>

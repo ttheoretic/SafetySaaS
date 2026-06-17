@@ -9,11 +9,16 @@ const DESCRIPTIONS: Record<string, string> = {
   pro: 'For platforms with real revenue on the line.',
   enterprise: 'For mission-critical platforms at scale.',
 };
+const AI_LABEL: Record<string, string> = {
+  basic: 'Basis AI (Haiku 4.5)',
+  sonnet: 'AI prediction · Claude Sonnet 4.6',
+  opus: 'AI prediction · Claude Opus 4.8',
+};
 const EXTRAS: Record<string, string[]> = {
   starter: ['Reliability & security score', 'Failure simulations', 'Community support'],
-  growth: ['AI failure prediction', 'PDF reports', 'Scenario lab', 'Priority support'],
-  pro: ['Revenue impact scoring', 'Predictive alerts', 'Audit logs', 'SSO & RBAC'],
-  enterprise: ['Custom failure models', 'Dedicated reliability engineer', 'SLA & onboarding'],
+  growth: ['Live View monitoring', 'Scenario Lab', 'Revenue impact scoring', 'PDF & Excel reports', 'Priority support'],
+  pro: ['Everything in Growth', 'Predictive alerts', 'Audit logs', 'SSO & RBAC'],
+  enterprise: ['Unlimited scans & projects', 'Custom failure models', 'Dedicated reliability engineer', 'SLA & onboarding'],
 };
 
 export function Pricing() {
@@ -27,7 +32,8 @@ export function Pricing() {
       featured: plan === 'growth',
       cta: plan === 'enterprise' ? 'Contact sales' : plan === 'growth' ? 'Analyze My Architecture' : 'Start free',
       features: [
-        l.maxProjects === Infinity ? 'Unlimited projects' : `${l.maxProjects} project${l.maxProjects > 1 ? 's' : ''}`,
+        l.maxScansPerDay === Infinity ? 'Unlimited scans / day' : `${l.maxScansPerDay} scans / day`,
+        AI_LABEL[l.aiTier],
         l.maxMembers === Infinity ? 'Unlimited members' : `${l.maxMembers} team members`,
         ...EXTRAS[plan],
       ],

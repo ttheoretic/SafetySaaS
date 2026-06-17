@@ -33,9 +33,21 @@ export class AnthropicProvider implements AiProvider {
 
   async predict(req: PredictRequest): Promise<Prediction[]> {
     try {
+      // Per-plan model: higher tiers get a stronger model, a larger token
+      // budget and an instruction to produce deeper, more actionable fixes.
+      const model = req.model ?? this.model;
+      const tier = req.tier ?? 'opus';
+      const maxTokens = tier === 'basic' ? 1500 : tier === 'sonnet' ? 3000 : 4096;
+      const depthHint =
+        tier === 'basic'
+          ? 'Return up to 4 concise predictions with a one-line fix each.'
+          : tier === 'sonnet'
+            ? 'Return up to 8 predictions with concrete, step-by-step fixes.'
+            : 'Return a thorough set of predictions with detailed, ' +
+              'prioritized remediation plans and quantified horizons.';
       const response = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 4096,
+        model,
+        max_tokens: maxTokens,
         thinking: { type: 'adaptive' },
         system:
           'You are a principal reliability engineer. Given a system dependency ' +
@@ -43,7 +55,8 @@ export class AnthropicProvider implements AiProvider {
           'modes: bottlenecks, scaling cliffs, architectural and security risks ' +
           'that emerge as the system grows. Do not repeat the heuristics ' +
           'verbatim. Be specific and quantify the horizon where possible. ' +
-          'Return only predictions that follow from the provided graph.',
+          'Return only predictions that follow from the provided graph. ' +
+          depthHint,
         messages: [
           {
             role: 'user',

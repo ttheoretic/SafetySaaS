@@ -16,6 +16,7 @@ import {
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
+import { BillingService } from '../billing/billing.service';
 import { renderReportPdf } from './pdf';
 
 const REPORT_TYPES: ReportType[] = [
@@ -27,6 +28,7 @@ class ReportsController {
   constructor(
     private readonly store: Store,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
   ) {}
 
   /**
@@ -49,6 +51,7 @@ class ReportsController {
     if (!REPORT_TYPES.includes(type as ReportType)) {
       throw new BadRequestException(`Unknown report type: ${type}`);
     }
+    this.billing.assertHasFeature(auth.org, 'reports', 'Report export');
 
     const graph = await this.latestGraph(projectId);
     const report = buildReport(graph, exampleBusiness, type as ReportType);

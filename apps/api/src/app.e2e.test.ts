@@ -182,8 +182,8 @@ describe('Riscly API (e2e)', () => {
     expect(run.body.totalRevenueImpact).toBeGreaterThanOrEqual(0);
   });
 
-  it('enforces plan limits and lifts them on upgrade', async () => {
-    // Carol starts on the starter plan (1 project).
+  it('covers one project per subscription, lifted only on enterprise', async () => {
+    // Carol starts on the starter plan: one project per subscription.
     const summary = await request(app.getHttpServer())
       .get('/billing')
       .set('Authorization', CAROL);
@@ -197,30 +197,79 @@ describe('Riscly API (e2e)', () => {
       .send({ name: 'Carol Project 1' });
     expect(first.status).toBe(201);
 
-    // Second project exceeds the starter limit.
+    // Second project exceeds the one-per-subscription cap — even on a paid tier
+    // a second project means a second subscription.
     const second = await request(app.getHttpServer())
       .post('/projects')
       .set('Authorization', CAROL)
       .send({ name: 'Carol Project 2' });
     expect(second.status).toBe(403);
 
-    // Upgrade via the webhook, then it's allowed.
     const me = await request(app.getHttpServer()).get('/me').set('Authorization', CAROL);
+    // Upgrading to pro keeps the one-project cap.
     await request(app.getHttpServer())
       .post('/billing/webhook')
       .send({ orgId: me.body.activeOrg.id, plan: 'pro' });
-
-    const afterUpgrade = await request(app.getHttpServer())
+    const afterPro = await request(app.getHttpServer())
       .post('/projects')
       .set('Authorization', CAROL)
       .send({ name: 'Carol Project 2' });
-    expect(afterUpgrade.status).toBe(201);
+    expect(afterPro.status).toBe(403);
+
+    // Only enterprise (custom) lifts the project cap.
+    await request(app.getHttpServer())
+      .post('/billing/webhook')
+      .send({ orgId: me.body.activeOrg.id, plan: 'enterprise' });
+    const afterEnterprise = await request(app.getHttpServer())
+      .post('/projects')
+      .set('Authorization', CAROL)
+      .send({ name: 'Carol Project 2' });
+    expect(afterEnterprise.status).toBe(201);
+  });
+
+  it('enforces the per-day scan cap and gates AI by plan tier', async () => {
+    const EVE = `Bearer ${devToken({ sub: 'eve-1', email: 'eve@plan.io', name: 'Eve' })}`;
+    // Eve is on the starter plan (5 scans/day, basic AI tier).
+    const me = await request(app.getHttpServer()).get('/me').set('Authorization', EVE);
+    expect(me.body.subscription.plan).toBe('starter');
+
+    const project = (
+      await request(app.getHttpServer())
+        .post('/projects')
+        .set('Authorization', EVE)
+        .send({ name: 'Eve Project' })
+    ).body;
+
+    // The first five scans of the day succeed; the sixth is rejected (429).
+    for (let i = 0; i < 5; i++) {
+      const ok = await request(app.getHttpServer())
+        .post(`/projects/${project.id}/scans`)
+        .set('Authorization', EVE)
+        .send({});
+      expect(ok.status).toBe(201);
+    }
+    const over = await request(app.getHttpServer())
+      .post(`/projects/${project.id}/scans`)
+      .set('Authorization', EVE)
+      .send({});
+    expect(over.status).toBe(429);
+
+    // AI predictions report the plan's tier (basic for starter).
+    const predict = await request(app.getHttpServer())
+      .post(`/projects/${project.id}/scans/predict`)
+      .set('Authorization', EVE)
+      .send({});
+    expect(predict.status).toBe(201);
+    expect(predict.body.tier).toBe('basic');
+    expect(predict.body.predictions.length).toBeGreaterThan(0);
   });
 
   it('processes a billing webhook idempotently', async () => {
     const me = await request(app.getHttpServer()).get('/me').set('Authorization', ALICE);
     const orgId = me.body.activeOrg.id;
-    const payload = { orgId, plan: 'pro', eventId: 'evt_dupe_1' };
+    // Keep Alice on enterprise (unlimited projects) so later tests can create
+    // projects freely; this exercises only webhook idempotency.
+    const payload = { orgId, plan: 'enterprise', eventId: 'evt_dupe_1' };
     const first = await request(app.getHttpServer()).post('/billing/webhook').send(payload);
     expect(first.body.applied).toBe(true);
     const second = await request(app.getHttpServer()).post('/billing/webhook').send(payload);

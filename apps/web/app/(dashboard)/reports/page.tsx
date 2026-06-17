@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, FileSpreadsheet, FileJson, Download, Loader2 } from 'lucide-react';
 import { buildReport, exampleGraph, exampleBusiness } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
+import { FeatureGate } from '@/components/dashboard/feature-gate';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 
@@ -59,6 +60,11 @@ export default function ReportsPage() {
         subtitle="Generate Executive / Board / Engineering / Security / Compliance / Full reports as PDF, Excel, CSV or JSON."
       />
 
+      <FeatureGate
+        feature="reports"
+        title="Exportable reports"
+        description="Executive, Board, Engineering, Security and Compliance reports as PDF, Excel, CSV or JSON."
+      >
       {hydrated && token && projects.data && projects.data.length > 0 && (
         <div className="mb-4 flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Project:</span>
@@ -115,6 +121,7 @@ export default function ReportsPage() {
           </div>
         ))}
       </Card>
+      </FeatureGate>
     </>
   );
 }

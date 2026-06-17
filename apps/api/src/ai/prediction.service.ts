@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   predictFailures,
+  aiModelForPlan,
+  aiTierForPlan,
+  Plan,
+  AiTier,
   Prediction,
   SystemGraph,
 } from '@riscly/shared';
@@ -9,6 +13,8 @@ import { AI_PROVIDER, AiProvider } from './ai-provider';
 export interface PredictionReport {
   aiEnabled: boolean;
   provider: string;
+  /** AI tier actually used (reflects the org's plan). */
+  tier: AiTier;
   predictions: Prediction[];
 }
 
@@ -24,13 +30,20 @@ export class PredictionService {
 
   async predict(
     graph: SystemGraph,
-    opts: { currentUsers?: number } = {},
+    opts: { currentUsers?: number; plan?: Plan } = {},
   ): Promise<PredictionReport> {
+    // The plan selects the Claude model & analysis depth. Without a plan
+    // (the public demo endpoint) we fall back to the basic tier.
+    const tier = opts.plan ? aiTierForPlan(opts.plan) : 'basic';
+    const model = opts.plan ? aiModelForPlan(opts.plan) : undefined;
+
     const heuristics = predictFailures(graph, opts);
     const aiPredictions = await this.ai.predict({
       graph,
       heuristics,
       currentUsers: opts.currentUsers,
+      model,
+      tier,
     });
 
     const merged = dedupe([...heuristics, ...aiPredictions]).sort(
@@ -40,6 +53,7 @@ export class PredictionService {
     return {
       aiEnabled: this.ai.enabled,
       provider: this.ai.name,
+      tier,
       predictions: merged,
     };
   }

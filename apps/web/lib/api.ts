@@ -2,6 +2,8 @@ import type {
   SystemGraph,
   SimulationType,
   BusinessContext,
+  PlanLimits,
+  Plan,
 } from '@riscly/shared';
 
 import { currentAuth } from './auth-store';
@@ -60,6 +62,30 @@ export interface MeResponse {
   subscription: { active: boolean; status: string; plan: string };
 }
 
+export interface BillingResponse {
+  plan: Plan;
+  provider: string;
+  limits: PlanLimits;
+  usage: { projects: number; members: number };
+}
+
+export interface PredictionResponse {
+  aiEnabled: boolean;
+  provider: string;
+  tier: 'basic' | 'sonnet' | 'opus';
+  predictions: Array<{
+    id: string;
+    category: string;
+    severity: string;
+    title: string;
+    horizon: string;
+    likelihood: number;
+    rationale: string;
+    recommendation: string;
+    source: string;
+  }>;
+}
+
 export interface ReliabilityResponse {
   score: number;
   findings: Array<{
@@ -105,7 +131,7 @@ export const api = {
 
   // --- Authenticated (tenant) endpoints ---
   me: () => get<MeResponse>('/me'),
-  billing: () => get<{ plan: string; limits: Record<string, unknown>; usage: Record<string, number> }>('/billing'),
+  billing: () => get<BillingResponse>('/billing'),
   checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
   listProjects: () =>
     get<Array<{ id: string; name: string; environment: string }>>('/projects'),
@@ -120,6 +146,9 @@ export const api = {
     get<Array<{ id: string; status: string; graph?: unknown; reliabilityScore?: number; createdAt: string }>>(
       `/projects/${projectId}/scans`,
     ),
+  /** AI failure prediction for the project's latest scan (model chosen by plan). */
+  tenantPredict: (projectId: string) =>
+    post<PredictionResponse>(`/projects/${projectId}/scans/predict`, {}),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
   listScenarios: (projectId: string) =>
