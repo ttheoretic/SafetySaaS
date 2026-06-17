@@ -16,14 +16,24 @@ export class AuthService {
     const existing = await this.store.getUserBySupabaseId(claims.sub);
     if (existing) return existing;
 
-    const user = await this.store.createUser({
-      supabaseId: claims.sub,
-      email: claims.email ?? `${claims.sub}@users.riscly.ai`,
-      name: claims.name,
-    });
-    // First-login: give the user a personal org they own.
-    await this.provisionPersonalOrg(user);
-    return user;
+    try {
+      const user = await this.store.createUser({
+        supabaseId: claims.sub,
+        email: claims.email ?? `${claims.sub}@users.riscly.ai`,
+        name: claims.name,
+      });
+      // First-login: give the user a personal org they own.
+      await this.provisionPersonalOrg(user);
+      return user;
+    } catch (err) {
+      // Concurrent first-login requests race to provision the same user; the
+      // loser hits a unique-constraint (P2002). Re-read the winner's record.
+      if ((err as { code?: string }).code === 'P2002') {
+        const created = await this.store.getUserBySupabaseId(claims.sub);
+        if (created) return created;
+      }
+      throw err;
+    }
   }
 
   private async provisionPersonalOrg(user: UserRecord): Promise<OrganizationRecord> {
