@@ -42,6 +42,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function patch<T>(path: string, body: unknown): Promise<T> {
+  const res = await apiFetch(path, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) await readError(res, path);
+  return res.json() as Promise<T>;
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await apiFetch(path, { headers: authHeaders() });
   if (!res.ok) await readError(res, path);
@@ -136,6 +142,9 @@ export const api = {
 
   // --- Authenticated (tenant) endpoints ---
   me: () => get<MeResponse>('/me'),
+  /** Update the current user's display name. */
+  updateProfile: (name: string) =>
+    patch<{ id: string; email: string; name?: string }>('/me', { name }),
   billing: () => get<BillingResponse>('/billing'),
   checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
   /** Confirm a Stripe Checkout Session on return so access is granted at once. */

@@ -14,6 +14,7 @@ interface AuthState {
   user: SessionUser | null;
   hydrated: boolean;
   signIn: (token: string, user: SessionUser, orgId: string) => void;
+  updateUser: (patch: Partial<SessionUser>) => void;
   signOut: () => void;
   hydrate: () => void;
 }
@@ -32,6 +33,19 @@ export const useAuth = create<AuthState>((set) => ({
     }
     set({ token, user, activeOrgId: orgId });
   },
+
+  updateUser: (patch) =>
+    set((state) => {
+      if (!state.user) return state;
+      const user = { ...state.user, ...patch };
+      if (typeof window !== 'undefined' && state.token && state.activeOrgId) {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ token: state.token, user, orgId: state.activeOrgId }),
+        );
+      }
+      return { user };
+    }),
 
   signOut: () => {
     if (typeof window !== 'undefined') localStorage.removeItem(STORAGE_KEY);

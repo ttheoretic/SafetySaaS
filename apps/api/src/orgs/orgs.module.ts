@@ -1,11 +1,29 @@
-import { Controller, Get, Module } from '@nestjs/common';
+import { Body, Controller, Get, Module, Patch } from '@nestjs/common';
+import { IsString, Length } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
 import { AllowWithoutSubscription, Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { hasAppAccess } from '../billing/subscription';
 
+class UpdateProfileDto {
+  @IsString() @Length(1, 80)
+  name!: string;
+}
+
 @Controller()
 class OrgsController {
   constructor(private readonly store: Store) {}
+
+  /** Update the authenticated user's own profile (display name). */
+  @AllowWithoutSubscription()
+  @Patch('me')
+  async updateMe(@Auth() auth: AuthContext, @Body() dto: UpdateProfileDto) {
+    const user = await this.store.updateUser(auth.user.id, { name: dto.name.trim() });
+    return {
+      id: auth.user.id,
+      email: user?.email ?? auth.user.email,
+      name: user?.name ?? dto.name.trim(),
+    };
+  }
 
   /** The authenticated user plus every org they belong to. */
   // Always reachable so the client can detect a missing subscription and route
