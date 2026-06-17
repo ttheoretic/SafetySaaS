@@ -33,6 +33,9 @@ export class StripeBillingProvider implements BillingProvider {
       // Stamp the subscription too, so later subscription.* events (renewal,
       // past_due, canceled) can be mapped back to the org without a lookup.
       subscription_data: { metadata: { orgId, plan } },
+      // Show the promotion-code field on the hosted checkout page.
+      allow_promotion_codes: true,
+      billing_address_collection: 'auto',
       // After paying, continue into onboarding (which sends already-onboarded
       // users straight to the dashboard).
       success_url: `${process.env.APP_URL ?? ''}/get-started?upgraded=1`,
