@@ -12,4 +12,12 @@ export class NullAiProvider implements AiProvider {
   async predict(): Promise<Prediction[]> {
     return [];
   }
+
+  async chat(): Promise<string> {
+    return (
+      'The AI assistant is not configured on this server (no ANTHROPIC_API_KEY). ' +
+      'The heuristic predictions on this page remain fully available, and the ' +
+      'assistant will answer your questions once a key is set.'
+    );
+  }
 }

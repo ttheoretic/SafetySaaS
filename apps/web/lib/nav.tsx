@@ -1,6 +1,6 @@
 import {
-  LayoutDashboard, Crosshair, FlaskConical, Network, TrendingDown,
-  FileText, Users, Settings, type LucideIcon,
+  LayoutDashboard, Network, Crosshair, FlaskConical, TrendingDown,
+  Sparkles, FileText, Users, Settings, type LucideIcon,
 } from 'lucide-react';
 
 export interface NavTab {
@@ -23,13 +23,13 @@ export interface NavSection {
  */
 export const SECTIONS: NavSection[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', tabs: [] },
+  { label: 'Architecture', icon: Network, href: '/architecture', tabs: [] },
   {
     label: 'Risk Center', icon: Crosshair, href: '/risk-center',
     tabs: [
       { label: 'Overview', href: '/risk-center' },
       { label: 'Reliability', href: '/reliability' },
       { label: 'Security', href: '/security' },
-      { label: 'AI Predictions', href: '/predictions' },
     ],
   },
   {
@@ -39,7 +39,6 @@ export const SECTIONS: NavSection[] = [
       { label: 'Custom Scenarios', href: '/scenarios' },
     ],
   },
-  { label: 'Architecture', icon: Network, href: '/architecture', tabs: [] },
   {
     label: 'Business Impact', icon: TrendingDown, href: '/revenue',
     tabs: [
@@ -49,6 +48,7 @@ export const SECTIONS: NavSection[] = [
       { label: 'Churn Risk', href: '/churn' },
     ],
   },
+  { label: 'AI Predictions', icon: Sparkles, href: '/predictions', tabs: [] },
   { label: 'Reports', icon: FileText, href: '/reports', tabs: [] },
   { label: 'Team', icon: Users, href: '/team', tabs: [] },
   { label: 'Settings', icon: Settings, href: '/settings', tabs: [] },

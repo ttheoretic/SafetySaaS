@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Prediction } from '@riscly/shared';
 import {
   AiProvider,
+  ChatRequest,
   PredictRequest,
   PREDICTION_SCHEMA,
 } from './ai-provider';
@@ -84,6 +85,60 @@ export class AnthropicProvider implements AiProvider {
     } catch (err) {
       this.logger.warn(`AI prediction unavailable: ${(err as Error).message}`);
       return [];
+    }
+  }
+
+  async chat(req: ChatRequest): Promise<string> {
+    try {
+      const model = req.model ?? this.model;
+      const tier = req.tier ?? 'opus';
+      const maxTokens = tier === 'basic' ? 1024 : tier === 'sonnet' ? 2048 : 3072;
+      const context = JSON.stringify(
+        {
+          nodes: req.graph.nodes.map((n) => ({
+            id: n.id,
+            kind: n.kind,
+            provider: n.provider,
+            redundant: n.redundant,
+            hasBackup: n.hasBackup,
+            hasRateLimit: n.hasRateLimit,
+          })),
+          edges: req.graph.edges,
+          knownRisks: req.heuristics.map((h) => ({
+            title: h.title,
+            severity: h.severity,
+            recommendation: h.recommendation,
+          })),
+        },
+        null,
+        2,
+      );
+      const response = await this.client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        system:
+          'You are Riscly, an expert reliability, security and business-risk ' +
+          'assistant. Answer the user\'s questions about THEIR system using the ' +
+          'architecture graph and known risks provided as JSON below. Be ' +
+          'concrete, prioritize by impact, and give actionable fixes. If the ' +
+          'answer is not derivable from their system, say so briefly. Keep ' +
+          'answers tight and skimmable (short paragraphs or bullets).\n\n' +
+          `System context:\n${context}`,
+        messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
+      });
+
+      if (response.stop_reason === 'refusal') {
+        return 'I can’t help with that request.';
+      }
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n')
+        .trim();
+      return text || 'I don’t have an answer for that based on your current scan.';
+    } catch (err) {
+      this.logger.warn(`AI chat unavailable: ${(err as Error).message}`);
+      return 'The assistant is temporarily unavailable. Please try again in a moment.';
     }
   }
 

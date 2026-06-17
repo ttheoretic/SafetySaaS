@@ -14,15 +14,33 @@ export interface PredictRequest {
   tier?: AiTier;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatRequest {
+  /** Conversation so far (most recent last). */
+  messages: ChatMessage[];
+  /** The scanned system, used to ground the assistant's answers. */
+  graph: SystemGraph;
+  /** Deterministic heuristic risks for additional grounding. */
+  heuristics: Prediction[];
+  model?: string;
+  tier?: AiTier;
+}
+
 /**
  * Abstraction over the LLM. Implementations must never throw — they return an
- * empty list on any failure so the prediction pipeline degrades gracefully to
- * the deterministic heuristics.
+ * empty list (or a graceful message for chat) on any failure so the pipeline
+ * degrades gracefully to the deterministic heuristics.
  */
 export interface AiProvider {
   readonly name: string;
   readonly enabled: boolean;
   predict(req: PredictRequest): Promise<Prediction[]>;
+  /** Grounded Q&A about the user's architecture and risks. */
+  chat(req: ChatRequest): Promise<string>;
 }
 
 /** JSON schema the model's structured output must satisfy. */

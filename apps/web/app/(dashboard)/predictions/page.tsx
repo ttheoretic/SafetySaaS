@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Sparkles, Loader2, Cpu } from 'lucide-react';
 import { predictFailures, exampleGraph, exampleBusiness } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
+import { AiChat } from '@/components/dashboard/ai-chat';
 import { useAuth } from '@/lib/auth-store';
 import { usePlan } from '@/lib/use-plan';
 import { api, type PredictionResponse } from '@/lib/api';
@@ -65,10 +66,12 @@ export default function PredictionsPage() {
   return (
     <>
       <PageHeader
-        title="AI Failure Prediction"
-        subtitle="Likely future bottlenecks, scaling cliffs and risks — found before they happen."
+        title="AI Predictions"
+        subtitle="Likely future bottlenecks, scaling cliffs and risks — found before they happen. Ask the assistant anything about your system."
       />
 
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Cpu className="size-4 text-primary" />
@@ -127,6 +130,12 @@ export default function PredictionsPage() {
             </div>
           </Card>
         ))}
+      </div>
+        </div>
+
+        <div className="xl:sticky xl:top-4">
+          <AiChat projectId={projectId} />
+        </div>
       </div>
     </>
   );

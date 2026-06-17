@@ -8,7 +8,7 @@ import {
   Prediction,
   SystemGraph,
 } from '@riscly/shared';
-import { AI_PROVIDER, AiProvider } from './ai-provider';
+import { AI_PROVIDER, AiProvider, ChatMessage } from './ai-provider';
 
 export interface PredictionReport {
   aiEnabled: boolean;
@@ -56,6 +56,23 @@ export class PredictionService {
       tier,
       predictions: merged,
     };
+  }
+
+  /**
+   * Grounded chat about the user's system. The conversation is answered with
+   * the org's plan-selected model, using the scanned graph and heuristic risks
+   * as context. Degrades to a graceful message when no AI key is configured.
+   */
+  async chat(
+    graph: SystemGraph,
+    messages: ChatMessage[],
+    opts: { plan?: Plan } = {},
+  ): Promise<{ aiEnabled: boolean; provider: string; reply: string }> {
+    const tier = opts.plan ? aiTierForPlan(opts.plan) : 'basic';
+    const model = opts.plan ? aiModelForPlan(opts.plan) : undefined;
+    const heuristics = predictFailures(graph, {});
+    const reply = await this.ai.chat({ graph, heuristics, messages, model, tier });
+    return { aiEnabled: this.ai.enabled, provider: this.ai.name, reply };
   }
 }
 

@@ -86,6 +86,11 @@ export interface PredictionResponse {
   }>;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface ReliabilityResponse {
   score: number;
   findings: Array<{
@@ -152,6 +157,12 @@ export const api = {
   /** AI failure prediction for the project's latest scan (model chosen by plan). */
   tenantPredict: (projectId: string) =>
     post<PredictionResponse>(`/projects/${projectId}/scans/predict`, {}),
+  /** Grounded AI chat about the project's latest scan. */
+  tenantChat: (projectId: string, messages: ChatMessage[]) =>
+    post<{ aiEnabled: boolean; provider: string; reply: string }>(
+      `/projects/${projectId}/scans/chat`,
+      { messages },
+    ),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
   listScenarios: (projectId: string) =>

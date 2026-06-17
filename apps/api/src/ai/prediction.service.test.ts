@@ -11,6 +11,9 @@ class FakeAiProvider implements AiProvider {
   async predict(_req: PredictRequest): Promise<Prediction[]> {
     return this.out;
   }
+  async chat(): Promise<string> {
+    return 'fake';
+  }
 }
 
 describe('PredictionService', () => {

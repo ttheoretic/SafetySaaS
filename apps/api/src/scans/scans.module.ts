@@ -1,7 +1,11 @@
 import {
   Body, Controller, Get, Module, NotFoundException, Param, Post,
 } from '@nestjs/common';
-import { IsOptional, IsObject } from 'class-validator';
+import {
+  IsOptional, IsObject, IsArray, ArrayNotEmpty, ArrayMaxSize, ValidateNested,
+  IsIn, IsString, MaxLength,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 import { SystemGraph, exampleGraph, exampleBusiness } from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { AnalyzeModule } from '../analyze/analyze.module';
@@ -17,6 +21,21 @@ class StartScanDto {
   /** Optional pre-built graph (skips the scanner entirely). */
   @IsOptional() @IsObject()
   graph?: SystemGraph;
+}
+
+class ChatMessageDto {
+  @IsIn(['user', 'assistant'])
+  role!: 'user' | 'assistant';
+
+  @IsString() @MaxLength(4000)
+  content!: string;
+}
+
+class ChatDto {
+  @IsArray() @ArrayNotEmpty() @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => ChatMessageDto)
+  messages!: ChatMessageDto[];
 }
 
 @Controller('projects/:projectId/scans')
@@ -76,6 +95,25 @@ class ScansController {
       currentUsers: exampleBusiness.activeUsers,
       plan: auth.org.plan,
     });
+  }
+
+  /**
+   * Grounded AI chat about the project's latest scan. Same plan-gating and
+   * model selection as prediction; the scanned graph grounds the answers.
+   */
+  @Post('chat')
+  @RequirePermission('project:read')
+  async chat(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Body() dto: ChatDto,
+  ) {
+    await this.requireProject(auth, projectId);
+    this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI assistant');
+    const scans = await this.store.listScans(projectId);
+    const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
+    const graph = (latest?.graph as SystemGraph) ?? exampleGraph;
+    return this.prediction.chat(graph, dto.messages, { plan: auth.org.plan });
   }
 
   @Get(':scanId')
