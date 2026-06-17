@@ -7,7 +7,7 @@ export function AiRiskSummary() {
   const { aiInsights } = useDashboard();
 
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border bg-surface">
+    <section className="rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Sparkles className="size-4 text-primary" /> AI Risk Summary
@@ -21,7 +21,7 @@ export function AiRiskSummary() {
         </span>
       </div>
 
-      <div className="grid flex-1 gap-3 p-5 md:grid-cols-2">
+      <div className="grid gap-3 p-5 md:grid-cols-2">
         {aiInsights.map((insight) => (
           <div
             key={insight.title}

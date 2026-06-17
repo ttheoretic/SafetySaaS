@@ -95,8 +95,9 @@ export function Sidebar() {
   const groupActive = (g: Group) => isActive(g.href) || (g.items?.some((i) => isActive(i.href)) ?? false);
 
   return (
-    // Reserve a 56px rail in the flow; the inner panel expands over content on hover.
-    <aside className="group/sb sticky top-0 z-30 hidden h-screen w-14 shrink-0 md:block">
+    // Reserve a 56px rail; the inner panel expands over content on hover. The
+    // shell is fixed-height so this stays put while the main area scrolls.
+    <aside className="group/sb relative z-30 hidden h-full w-14 shrink-0 md:block">
       <div className="absolute inset-y-0 left-0 flex h-full w-14 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out group-hover/sb:w-60 group-hover/sb:shadow-2xl group-hover/sb:shadow-black/40">
         <Link href="/dashboard" className="flex h-14 items-center gap-3 px-[18px]">
           <ShieldCheck className="size-5 shrink-0 text-primary" />

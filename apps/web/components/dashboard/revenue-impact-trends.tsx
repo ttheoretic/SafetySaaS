@@ -11,7 +11,7 @@ export function RevenueImpactTrends() {
   const top = d.revenue.slice(0, 4);
 
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border bg-surface">
+    <section className="rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <TrendingDown className="size-4 text-destructive" /> Revenue Impact
@@ -31,7 +31,7 @@ export function RevenueImpactTrends() {
         </div>
       </div>
 
-      <ul className="mt-3 flex-1 divide-y divide-border/60 px-5 pb-2">
+      <ul className="mt-3 divide-y divide-border/60 px-5 pb-4">
         {top.map((r) => {
           const pct = Math.round((r.amount / (d.worstRevenue || 1)) * 100);
           return (

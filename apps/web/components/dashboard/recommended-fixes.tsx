@@ -15,7 +15,7 @@ export function RecommendedFixes() {
   const fixes = d.recommendations;
 
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border bg-surface">
+    <section className="rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Wrench className="size-4 text-primary" /> Recommended Fixes
@@ -23,7 +23,7 @@ export function RecommendedFixes() {
         <span className="text-[11px] text-muted-foreground">ranked by impact</span>
       </div>
 
-      <ul className="flex-1 divide-y divide-border/60">
+      <ul className="divide-y divide-border/60 pb-1">
         {fixes.map((f, i) => (
           <li key={i} className="px-5 py-3">
             <div className="flex items-start justify-between gap-3">

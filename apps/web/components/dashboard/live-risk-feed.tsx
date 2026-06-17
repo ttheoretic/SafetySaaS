@@ -13,7 +13,7 @@ export function LiveRiskFeed() {
     .slice(0, 8);
 
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border bg-surface">
+    <section className="rounded-xl border border-border bg-surface">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Radio className="size-4 text-primary" /> Live Risk Feed
@@ -27,7 +27,7 @@ export function LiveRiskFeed() {
         </span>
       </div>
 
-      <ul className="flex-1 divide-y divide-border/60">
+      <ul className="divide-y divide-border/60 pb-1">
         {feed.map((r, i) => {
           const meta = severityMeta[(r.severity as Severity) ?? 'low'];
           return (

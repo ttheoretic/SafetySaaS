@@ -10,7 +10,7 @@ import { ArchitecturePreview } from '@/components/dashboard/architecture-preview
 
 export default function DashboardPage() {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Dashboard"
         description="Predict outages, attacks and revenue loss before your customers experience them."
@@ -26,7 +26,7 @@ export default function DashboardPage() {
 
       <KpiCards />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <AiRiskSummary />
         </div>
@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
       <ArchitecturePreview />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <LiveRiskFeed />
         <RecommendedFixes />
       </div>
