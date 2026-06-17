@@ -38,10 +38,41 @@ export class StripeBillingProvider implements BillingProvider {
       billing_address_collection: 'auto',
       // After paying, continue into onboarding (which sends already-onboarded
       // users straight to the dashboard).
-      success_url: `${process.env.APP_URL ?? ''}/get-started?upgraded=1`,
+      success_url: `${process.env.APP_URL ?? ''}/get-started?upgraded=1&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.APP_URL ?? ''}/billing?canceled=1`,
     });
     return { url: session.url ?? '' };
+  }
+
+  /**
+   * Retrieve the Checkout Session by id and, if it's paid, return a
+   * `plan_changed` event. Lets the app grant access the moment the user returns
+   * from Stripe, independent of webhook delivery/latency.
+   */
+  async confirmCheckout(sessionId: string): Promise<BillingEvent | null> {
+    try {
+      const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+      const paid = session.payment_status === 'paid' || session.status === 'complete';
+      if (!paid) return null;
+      const orgId =
+        (session.client_reference_id as string | null) ?? session.metadata?.orgId;
+      const plan = session.metadata?.plan as Plan | undefined;
+      if (!orgId || !plan || !(plan in PLAN_LIMITS)) return null;
+      return {
+        type: 'plan_changed',
+        orgId,
+        plan,
+        // Stable, session-scoped id → idempotent even if called twice.
+        eventId: `checkout_confirm_${session.id}`,
+        stripeCustomerId:
+          typeof session.customer === 'string' ? session.customer : undefined,
+        stripeSubscriptionId:
+          typeof session.subscription === 'string' ? session.subscription : undefined,
+      };
+    } catch (err) {
+      this.logger.warn(`Confirm checkout failed: ${(err as Error).message}`);
+      return null;
+    }
   }
 
   parseWebhook(rawBody: string, signature?: string): BillingEvent | null {

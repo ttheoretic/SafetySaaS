@@ -40,6 +40,18 @@ export class BillingService {
     return this.provider.parseWebhook(rawBody, signature);
   }
 
+  /**
+   * Confirm a Checkout Session on return from the provider and grant access
+   * immediately (no webhook wait). Only applies when the session belongs to the
+   * requesting org. Returns true when access was granted.
+   */
+  async confirmCheckout(sessionId: string, orgId: string): Promise<boolean> {
+    const event = await this.provider.confirmCheckout(sessionId);
+    if (!event || event.orgId !== orgId) return false;
+    await this.applyEvent(event);
+    return true;
+  }
+
   private readonly processedEvents = new Set<string>();
 
   /**

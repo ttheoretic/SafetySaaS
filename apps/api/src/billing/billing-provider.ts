@@ -32,4 +32,10 @@ export interface BillingProvider {
   createCheckout(orgId: string, plan: Plan, email: string): Promise<CheckoutResult>;
   /** Verify + parse an incoming webhook into a normalized event, or null. */
   parseWebhook(rawBody: string, signature?: string): BillingEvent | null;
+  /**
+   * Confirm a completed Checkout Session on return from the provider, so access
+   * is granted immediately without waiting for the (async) webhook. Returns a
+   * normalized `plan_changed` event when the session is paid, else null.
+   */
+  confirmCheckout(sessionId: string): Promise<BillingEvent | null>;
 }

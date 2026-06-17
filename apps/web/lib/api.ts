@@ -133,6 +133,9 @@ export const api = {
   me: () => get<MeResponse>('/me'),
   billing: () => get<BillingResponse>('/billing'),
   checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
+  /** Confirm a Stripe Checkout Session on return so access is granted at once. */
+  confirmCheckout: (sessionId: string) =>
+    post<{ active: boolean }>('/billing/confirm', { sessionId }),
   listProjects: () =>
     get<Array<{ id: string; name: string; environment: string }>>('/projects'),
   createProject: (name: string) =>

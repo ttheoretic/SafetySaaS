@@ -61,11 +61,28 @@ export default function GetStartedPage() {
     if (!hydrated) return;
     if (!token) { router.replace('/login?mode=signup'); return; }
     let cancelled = false;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     (async () => {
       try {
-        const me = await api.me();
+        // Returning from Stripe: confirm the session so access is granted
+        // immediately, then poll briefly to cover webhook/propagation latency
+        // before falling back to the paywall.
+        const params = new URLSearchParams(window.location.search);
+        const upgraded = params.get('upgraded') === '1';
+        const sessionId = params.get('session_id');
+        if (upgraded && sessionId) {
+          try { await api.confirmCheckout(sessionId); } catch { /* webhook fallback */ }
+        }
+
+        let me = await api.me();
         if (cancelled) return;
+        for (let i = 0; upgraded && !me.subscription.active && i < 8; i++) {
+          await sleep(1500);
+          if (cancelled) return;
+          me = await api.me();
+        }
         if (!me.subscription.active) { router.replace('/billing'); return; }
+
         // Already has a project → skip the wizard.
         const projects = await api.listProjects();
         if (cancelled) return;

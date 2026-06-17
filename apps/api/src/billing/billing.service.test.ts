@@ -2,7 +2,24 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryStore } from '../store/store.module';
 import { BillingService } from './billing.service';
 import { NullBillingProvider } from './null.provider';
+import { BillingEvent, BillingProvider, CheckoutResult } from './billing-provider';
 import { isSubscriptionActive } from './subscription';
+
+/** A provider whose confirmCheckout returns a fixed paid event. */
+class FakeStripeProvider implements BillingProvider {
+  readonly name = 'fake-stripe';
+  readonly enabled = true;
+  constructor(private readonly event: BillingEvent | null) {}
+  async createCheckout(): Promise<CheckoutResult> {
+    return { url: 'https://stripe.test/checkout' };
+  }
+  parseWebhook(): BillingEvent | null {
+    return null;
+  }
+  async confirmCheckout(): Promise<BillingEvent | null> {
+    return this.event;
+  }
+}
 
 describe('BillingService.applyEvent (subscription lifecycle)', () => {
   let store: InMemoryStore;
@@ -45,5 +62,26 @@ describe('BillingService.applyEvent (subscription lifecycle)', () => {
     const second = await billing.applyEvent({ type: 'plan_changed', orgId, plan: 'growth', eventId: 'dup' });
     expect(first).toBe(true);
     expect(second).toBe(false);
+  });
+
+  it('confirmCheckout grants access immediately for the matching org', async () => {
+    const provider = new FakeStripeProvider({
+      type: 'plan_changed', orgId, plan: 'pro', eventId: 'checkout_confirm_x',
+    });
+    const svc = new BillingService(store, provider);
+    const granted = await svc.confirmCheckout('cs_test_x', orgId);
+    expect(granted).toBe(true);
+    expect(isSubscriptionActive((await store.getSubscription(orgId))?.status)).toBe(true);
+    expect((await store.getOrganization(orgId))?.plan).toBe('pro');
+  });
+
+  it('confirmCheckout refuses a session belonging to another org', async () => {
+    const provider = new FakeStripeProvider({
+      type: 'plan_changed', orgId: 'someone-else', plan: 'pro', eventId: 'checkout_confirm_y',
+    });
+    const svc = new BillingService(store, provider);
+    const granted = await svc.confirmCheckout('cs_test_y', orgId);
+    expect(granted).toBe(false);
+    expect(await store.getSubscription(orgId)).toBeUndefined();
   });
 });

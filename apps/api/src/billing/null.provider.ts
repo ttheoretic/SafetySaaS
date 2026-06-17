@@ -14,6 +14,11 @@ export class NullBillingProvider implements BillingProvider {
     return { url: `https://billing.local/checkout?org=${orgId}&plan=${plan}` };
   }
 
+  /** No real session to confirm locally — the dev webhook drives activation. */
+  async confirmCheckout(): Promise<BillingEvent | null> {
+    return null;
+  }
+
   parseWebhook(rawBody: string): BillingEvent | null {
     try {
       const body = JSON.parse(rawBody) as {

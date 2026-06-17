@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import type { Request } from 'express';
-import { IsIn } from 'class-validator';
+import { IsIn, IsString } from 'class-validator';
 import { PLAN_ORDER, Plan } from '@riscly/shared';
 import { StoreModule } from '../store/store.module';
 import {
@@ -18,6 +18,10 @@ import { NullBillingProvider } from './null.provider';
 
 class CheckoutDto {
   @IsIn(PLAN_ORDER) plan!: Plan;
+}
+
+class ConfirmDto {
+  @IsString() sessionId!: string;
 }
 
 // Reaching and completing checkout must work before a subscription exists.
@@ -44,6 +48,20 @@ class BillingController {
     const result = await this.billing.createCheckout(auth.org, dto.plan, auth.user.email);
     this.audit.record(auth, 'billing.checkout', { type: 'org', id: auth.org.id }, { plan: dto.plan });
     return result;
+  }
+
+  /**
+   * Confirm a Checkout Session on return from Stripe so the workspace is
+   * activated immediately, without waiting for the async webhook.
+   */
+  @Post('confirm')
+  @RequirePermission('billing:manage')
+  async confirm(@Auth() auth: AuthContext, @Body() dto: ConfirmDto) {
+    const active = await this.billing.confirmCheckout(dto.sessionId, auth.org.id);
+    if (active) {
+      this.audit.record(auth, 'billing.confirm', { type: 'org', id: auth.org.id }, {});
+    }
+    return { active };
   }
 
   /** Stripe (or dev) webhook — public, verified inside the provider. */
