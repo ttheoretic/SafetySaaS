@@ -28,11 +28,21 @@ describe('plan limits', () => {
     expect(hasFeature('starter', 'aiPredictions')).toBe(true);
     expect(hasFeature('starter', 'simulations')).toBe(true);
     expect(hasFeature('starter', 'reports')).toBe(false);
-    expect(hasFeature('starter', 'liveView')).toBe(false);
     expect(hasFeature('starter', 'scenarioLab')).toBe(false);
+    expect(hasFeature('starter', 'revenueImpact')).toBe(false);
     expect(hasFeature('growth', 'reports')).toBe(true);
-    expect(hasFeature('growth', 'liveView')).toBe(true);
+    expect(hasFeature('growth', 'revenueImpact')).toBe(true);
     expect(hasFeature('pro', 'revenueImpact')).toBe(true);
+  });
+
+  it('escalates monitoring, alerts and history with the tier', () => {
+    expect(planLimits('starter').monitoring).toBe('daily');
+    expect(planLimits('growth').monitoring).toBe('hourly');
+    expect(planLimits('pro').monitoring).toBe('continuous');
+    expect(planLimits('starter').alerts).toBe('email');
+    expect(planLimits('pro').alerts).toBe('slack_teams');
+    expect(planLimits('starter').historyDays).toBe(30);
+    expect(planLimits('pro').historyDays).toBe(Infinity);
   });
 
   it('escalates the AI model with the tier', () => {

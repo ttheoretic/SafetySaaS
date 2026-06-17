@@ -3,25 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Loader2, ShieldCheck, LogOut } from 'lucide-react';
-import { PLAN_LIMITS, type Plan } from '@riscly/shared';
+import {
+  PLAN_LIMITS, AI_TIER_LABEL_LONG, MONITORING_LABEL, type Plan,
+} from '@riscly/shared';
 import { api, type MeResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth-store';
-
-const AI_LABEL: Record<string, string> = {
-  basic: 'Basis AI (Haiku 4.5)',
-  sonnet: 'AI · Claude Sonnet 4.6',
-  opus: 'AI · Claude Opus 4.8',
-};
 
 /** Build the feature bullets for a plan from the shared limits config. */
 function featuresFor(plan: Plan): string[] {
   const l = PLAN_LIMITS[plan];
-  const scans = l.maxScansPerDay === Infinity ? 'Unlimited scans / day' : `${l.maxScansPerDay} scans / day`;
   const members = l.maxMembers === Infinity ? 'Unlimited members' : `Up to ${l.maxMembers} members`;
   return [
-    scans,
-    AI_LABEL[l.aiTier],
-    ...(l.liveView ? ['Live View monitoring'] : []),
+    AI_TIER_LABEL_LONG[l.aiTier],
+    `${MONITORING_LABEL[l.monitoring]} monitoring`,
     ...(l.scenarioLab ? ['Scenario Lab'] : []),
     ...(l.revenueImpact ? ['Revenue impact scoring'] : []),
     ...(l.reports ? ['PDF & Excel reports'] : []),

@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { Check } from 'lucide-react';
-import { PLAN_ORDER, PLAN_LIMITS } from '@riscly/shared';
+import { Check, ArrowRight } from 'lucide-react';
+import {
+  PLAN_ORDER, PLAN_LIMITS, AI_TIER_LABEL_LONG, MONITORING_LABEL, ALERTS_LABEL,
+} from '@riscly/shared';
 import { cn } from '@/lib/utils';
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -9,16 +11,11 @@ const DESCRIPTIONS: Record<string, string> = {
   pro: 'For platforms with real revenue on the line.',
   enterprise: 'For mission-critical platforms at scale.',
 };
-const AI_LABEL: Record<string, string> = {
-  basic: 'Basis AI (Haiku 4.5)',
-  sonnet: 'AI prediction · Claude Sonnet 4.6',
-  opus: 'AI prediction · Claude Opus 4.8',
-};
 const EXTRAS: Record<string, string[]> = {
   starter: ['Reliability & security score', 'Failure simulations', 'Community support'],
-  growth: ['Live View monitoring', 'Scenario Lab', 'Revenue impact scoring', 'PDF & Excel reports', 'Priority support'],
+  growth: ['Scenario Lab', 'Revenue impact scoring', 'PDF & Excel reports', 'Priority support'],
   pro: ['Everything in Growth', 'Predictive alerts', 'Audit logs', 'SSO & RBAC'],
-  enterprise: ['Unlimited scans & projects', 'Custom failure models', 'Dedicated reliability engineer', 'SLA & onboarding'],
+  enterprise: ['Unlimited projects', 'Custom failure models', 'Dedicated reliability engineer', 'SLA & onboarding'],
 };
 
 export function Pricing() {
@@ -32,8 +29,9 @@ export function Pricing() {
       featured: plan === 'growth',
       cta: plan === 'enterprise' ? 'Contact sales' : plan === 'growth' ? 'Analyze My Architecture' : 'Start free',
       features: [
-        l.maxScansPerDay === Infinity ? 'Unlimited scans / day' : `${l.maxScansPerDay} scans / day`,
-        AI_LABEL[l.aiTier],
+        AI_TIER_LABEL_LONG[l.aiTier],
+        `${MONITORING_LABEL[l.monitoring]} monitoring`,
+        `${ALERTS_LABEL[l.alerts]} alerts`,
         l.maxMembers === Infinity ? 'Unlimited members' : `${l.maxMembers} team members`,
         ...EXTRAS[plan],
       ],
@@ -82,6 +80,15 @@ export function Pricing() {
               </Link>
             </div>
           ))}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          >
+            Compare all plans & features <ArrowRight className="size-4" />
+          </Link>
         </div>
       </div>
     </section>

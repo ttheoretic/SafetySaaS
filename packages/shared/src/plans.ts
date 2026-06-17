@@ -13,10 +13,15 @@ export type Plan = 'starter' | 'growth' | 'pro' | 'enterprise';
 /** Which Claude model powers AI predictions for a tier. */
 export type AiTier = 'basic' | 'sonnet' | 'opus';
 
+/** How often automated monitoring re-scans the architecture. */
+export type MonitoringTier = 'daily' | 'hourly' | 'continuous';
+
+/** Alerting destinations available per tier. */
+export type AlertsTier = 'email' | 'slack' | 'slack_teams' | 'custom';
+
 /** Feature flags that can be gated per plan. */
 export type Feature =
   | 'aiPredictions'
-  | 'liveView'
   | 'simulations'
   | 'scenarioLab'
   | 'reports'
@@ -31,10 +36,14 @@ export interface PlanLimits {
   maxScansPerDay: number; // Infinity for unlimited
   /** AI model tier used for failure prediction. */
   aiTier: AiTier;
+  /** Automated monitoring cadence. */
+  monitoring: MonitoringTier;
+  /** Alerting destinations. */
+  alerts: AlertsTier;
+  /** How long scan history is retained, in days (Infinity = unlimited). */
+  historyDays: number;
   /** Whether the AI (LLM) prediction layer is available. */
   aiPredictions: boolean;
-  /** Continuous "Live View" monitoring of the architecture. */
-  liveView: boolean;
   /** Failure simulations (the core deterministic engine). */
   simulations: boolean;
   /** The Scenario Lab (compose & save multi-step failure scenarios). */
@@ -60,8 +69,10 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxProjects: 1,
     maxScansPerDay: 5,
     aiTier: 'basic',
+    monitoring: 'daily',
+    alerts: 'email',
+    historyDays: 30,
     aiPredictions: true,
-    liveView: false,
     simulations: true,
     scenarioLab: false,
     reports: false,
@@ -73,8 +84,10 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxProjects: 1,
     maxScansPerDay: 50,
     aiTier: 'sonnet',
+    monitoring: 'hourly',
+    alerts: 'slack',
+    historyDays: 365,
     aiPredictions: true,
-    liveView: true,
     simulations: true,
     scenarioLab: true,
     reports: true,
@@ -82,12 +95,14 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxMembers: 10,
   },
   pro: {
-    priceEur: 299,
+    priceEur: 399,
     maxProjects: 1,
     maxScansPerDay: 500,
     aiTier: 'opus',
+    monitoring: 'continuous',
+    alerts: 'slack_teams',
+    historyDays: Infinity,
     aiPredictions: true,
-    liveView: true,
     simulations: true,
     scenarioLab: true,
     reports: true,
@@ -99,8 +114,10 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxProjects: Infinity,
     maxScansPerDay: Infinity,
     aiTier: 'opus',
+    monitoring: 'continuous',
+    alerts: 'custom',
+    historyDays: Infinity,
     aiPredictions: true,
-    liveView: true,
     simulations: true,
     scenarioLab: true,
     reports: true,
@@ -140,4 +157,39 @@ export function aiModelForPlan(plan: Plan): string {
 /** The AI tier (basic/sonnet/opus) for a plan. */
 export function aiTierForPlan(plan: Plan): AiTier {
   return PLAN_LIMITS[plan].aiTier;
+}
+
+// --- Human-readable labels (shared by every pricing surface) -----------------
+
+export const AI_TIER_LABEL: Record<AiTier, string> = {
+  basic: 'Haiku',
+  sonnet: 'Sonnet',
+  opus: 'Opus',
+};
+
+/** AI tier label including the concrete Claude version. */
+export const AI_TIER_LABEL_LONG: Record<AiTier, string> = {
+  basic: 'Basis AI · Haiku 4.5',
+  sonnet: 'Claude Sonnet 4.6',
+  opus: 'Claude Opus 4.8',
+};
+
+export const MONITORING_LABEL: Record<MonitoringTier, string> = {
+  daily: 'Daily',
+  hourly: 'Hourly',
+  continuous: 'Continuous',
+};
+
+export const ALERTS_LABEL: Record<AlertsTier, string> = {
+  email: 'Email',
+  slack: 'Slack',
+  slack_teams: 'Slack + Teams',
+  custom: 'Custom',
+};
+
+/** History-retention label, e.g. "30d", "1y", "Unlimited". */
+export function historyLabel(days: number): string {
+  if (!Number.isFinite(days)) return 'Unlimited';
+  if (days % 365 === 0) return `${days / 365}y`;
+  return `${days}d`;
 }
