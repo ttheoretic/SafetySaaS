@@ -1,6 +1,9 @@
 # Multi-stage build for the Riscly API.
 FROM node:20-alpine AS base
 WORKDIR /app
+# Prisma's query engine needs OpenSSL present so `prisma generate` detects the
+# right engine (OpenSSL 3 on modern Alpine) and links it at runtime.
+RUN apk add --no-cache openssl libc6-compat
 COPY package.json package-lock.json* ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
@@ -17,6 +20,8 @@ RUN npx prisma generate \
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+# libssl for the Prisma query engine at runtime.
+RUN apk add --no-cache openssl libc6-compat
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/shared/dist ./packages/shared/dist
 COPY --from=build /app/packages/shared/package.json ./packages/shared/

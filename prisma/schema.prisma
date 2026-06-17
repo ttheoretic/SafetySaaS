@@ -1,8 +1,11 @@
-// FailSafe AI — multi-tenant PostgreSQL schema.
+// Riscly — multi-tenant PostgreSQL schema.
 // See docs/DATABASE.md for the design rationale.
 
 generator client {
   provider = "prisma-client-js"
+  // `native` for local dev; the musl/OpenSSL-3 target is what the Alpine-based
+  // Docker image (node:20-alpine, OpenSSL 3) needs at runtime.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
