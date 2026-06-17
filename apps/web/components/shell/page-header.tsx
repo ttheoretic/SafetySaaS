@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 export function PageHeader({
   title,
   description,
@@ -5,15 +7,15 @@ export function PageHeader({
 }: {
   title: string;
   description?: string;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-4">
-      <div className="min-w-0">
-        <h1 className="text-balance text-lg font-semibold tracking-tight text-foreground">{title}</h1>
-        {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-balance text-xl font-semibold tracking-tight text-foreground">{title}</h1>
+        {description && <p className="text-pretty text-[13px] text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
-    </header>
+    </div>
   );
 }

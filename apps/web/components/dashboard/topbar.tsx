@@ -1,39 +1,36 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { Bell, Circle, ChevronDown, Database } from 'lucide-react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Search, Bell, ChevronsUpDown, CircleDot, Command, Loader2, ScanLine,
+} from 'lucide-react';
 import type { SystemGraph } from '@riscly/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-store';
+import { usePlan } from '@/lib/use-plan';
 import { useDashboardStore } from '@/lib/dashboard-store';
+import { cn } from '@/lib/utils';
 
-const TITLES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/risk-center': 'Risk Center',
-  '/architecture': 'System Architecture',
-  '/projects': 'Projects',
-  '/reliability': 'Reliability Score',
-  '/simulations': 'Failure Simulations',
-  '/predictions': 'AI Failure Prediction',
-  '/scenarios': 'Scenario Laboratory',
-  '/security': 'Security',
-  '/revenue': 'Revenue Risk',
-  '/downtime': 'Downtime Cost',
-  '/sla': 'SLA Impact',
-  '/churn': 'Churn Risk',
-  '/reports': 'Reports',
-  '/team': 'Team Management',
-  '/settings': 'Settings',
-  '/login': 'Sign in',
-};
-
-function DataSourceSwitcher() {
+/** Workspace + data-source breadcrumb, search, and a working Run Scan action. */
+export function Topbar() {
+  const router = useRouter();
+  const qc = useQueryClient();
   const { token } = useAuth();
+  const { plan } = usePlan();
   const { source, setGraph, reset } = useDashboardStore();
-  const projects = useQuery({ queryKey: ['projects'], queryFn: api.listProjects, enabled: Boolean(token) });
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [running, setRunning] = useState(false);
 
-  async function pick(value: string) {
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) });
+  const projects = useQuery({ queryKey: ['projects'], queryFn: api.listProjects, enabled: Boolean(token) });
+  const firstId = projects.data?.[0]?.id;
+
+  const workspace = me.data?.activeOrg.name ?? 'Riscly';
+
+  async function pickSource(value: string) {
+    setSourceOpen(false);
     if (value === 'demo') return reset();
     const project = projects.data?.find((p) => p.id === value);
     if (!project) return;
@@ -42,48 +39,101 @@ function DataSourceSwitcher() {
       const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
       if (latest?.graph) setGraph(latest.graph as SystemGraph, project.name);
       else setGraph(useDashboardStore.getState().graph, `${project.name} (run a scan)`);
-    } catch {
-      /* keep current */
+    } catch { /* keep current */ }
+  }
+
+  async function runScan() {
+    if (!token) return router.push('/login');
+    if (!firstId) return router.push('/get-started');
+    setRunning(true);
+    try {
+      await api.startScan(firstId);
+      const scans = await api.listScans(firstId);
+      const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
+      if (latest?.graph) setGraph(latest.graph as SystemGraph, projects.data?.[0]?.name ?? source);
+      qc.invalidateQueries({ queryKey: ['billing'] });
+      qc.invalidateQueries({ queryKey: ['scans'] });
+    } catch { /* ignore */ } finally {
+      setRunning(false);
     }
   }
 
-  if (!token || !projects.data?.length) {
-    return (
-      <span className="hidden items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground sm:flex">
-        <Circle className="size-2 fill-primary text-primary" />
-        {source} data
-      </span>
-    );
-  }
-
   return (
-    <label className="relative flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
-      <Database className="size-3.5" />
-      <select
-        onChange={(e) => pick(e.target.value)}
-        defaultValue="demo"
-        className="cursor-pointer appearance-none bg-transparent pr-4 text-foreground outline-none"
-      >
-        <option value="demo">Demo data</option>
-        {projects.data.map((p) => (
-          <option key={p.id} value={p.id}>{p.name}</option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-1.5 size-3.5" />
-    </label>
-  );
-}
+    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur">
+      {/* Workspace + data source breadcrumb */}
+      <div className="flex items-center gap-2 text-sm">
+        <span className="flex items-center gap-1.5 rounded-md px-2 py-1">
+          <span className="font-medium text-foreground">{workspace}</span>
+          <span className="rounded bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+            {plan}
+          </span>
+        </span>
+        <span className="text-border">/</span>
+        <div className="relative">
+          <button
+            onClick={() => setSourceOpen((o) => !o)}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <span className="font-medium text-foreground">{source}</span>
+            <span className="flex items-center gap-1 rounded border border-risk-ok/30 bg-risk-ok/10 px-1.5 py-0.5 text-[10px] font-medium text-risk-ok">
+              <CircleDot className="size-2.5" /> LIVE
+            </span>
+            <ChevronsUpDown className="size-3" />
+          </button>
+          {sourceOpen && (
+            <div className="absolute left-0 top-full z-20 mt-1 min-w-44 rounded-lg border border-border bg-popover p-1 shadow-xl">
+              <button
+                onClick={() => pickSource('demo')}
+                className="block w-full rounded-md px-2.5 py-1.5 text-left text-[13px] text-foreground hover:bg-accent"
+              >
+                Demo data
+              </button>
+              {projects.data?.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => pickSource(p.id)}
+                  className="block w-full truncate rounded-md px-2.5 py-1.5 text-left text-[13px] text-foreground hover:bg-accent"
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-export function Topbar() {
-  const pathname = usePathname();
-  const title = TITLES[pathname] ?? 'Riscly';
-  return (
-    <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur md:px-6">
-      <h1 className="text-sm font-medium text-foreground">{title}</h1>
-      <div className="flex items-center gap-2">
-        <DataSourceSwitcher />
-        <button className="flex size-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground">
+      {/* Search */}
+      <div className="ml-2 hidden flex-1 items-center lg:flex">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            placeholder="Search risks, services, scenarios..."
+            className="h-8 w-full rounded-md border border-border bg-surface pl-8 pr-12 text-[13px] outline-none placeholder:text-muted-foreground focus:border-ring/60"
+          />
+          <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded border border-border bg-elevated px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <Command className="size-2.5" />K
+          </span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="ml-auto flex items-center gap-1.5">
+        <button className="hidden rounded-md px-2.5 py-1.5 text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground sm:block">
+          Feedback
+        </button>
+        <button className="relative rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground">
           <Bell className="size-4" />
+          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-risk-critical" />
+        </button>
+        <button
+          onClick={runScan}
+          disabled={running}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[13px] font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60',
+          )}
+        >
+          {running ? <Loader2 className="size-3.5 animate-spin" /> : <ScanLine className="size-3.5" />}
+          Run Scan
         </button>
       </div>
     </header>
