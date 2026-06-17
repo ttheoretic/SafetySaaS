@@ -66,7 +66,7 @@ export interface BillingResponse {
   plan: Plan;
   provider: string;
   limits: PlanLimits;
-  usage: { projects: number; members: number };
+  usage: { projects: number; members: number; scansToday: number };
 }
 
 export interface PredictionResponse {

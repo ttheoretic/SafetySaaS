@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
+import type { SystemGraph } from '@riscly/shared';
+import { SystemDiagram } from '@/components/dashboard/system-diagram';
 
 type Step = 'workspace' | 'connect' | 'scan' | 'result';
 
@@ -53,6 +55,8 @@ export default function GetStartedPage() {
   const [targetScore, setTargetScore] = useState(0);
   const [shownScore, setShownScore] = useState(0);
   const [findings, setFindings] = useState<{ title: string; severity: string }[]>([]);
+  const [graph, setGraph] = useState<SystemGraph | null>(null);
+  const [riskyIds, setRiskyIds] = useState<Set<string>>(new Set());
 
   const stepIdx = STEP_ORDER.indexOf(step);
 
@@ -123,13 +127,17 @@ export default function GetStartedPage() {
     try {
       const scan = await api.startScan(projectId);
       const score = scan.reliabilityScore ?? 0;
-      let f: { title: string; severity: string }[] = [];
+      let f: { title: string; severity: string; nodeId?: string }[] = [];
       try {
         const scans = await api.listScans(projectId);
-        const latest = scans.find((s) => s.id === scan.id) as { findings?: { title: string; severity: string }[] } | undefined;
-        f = (latest?.findings ?? []).slice(0, 3);
+        const latest = scans.find((s) => s.id === scan.id) as
+          | { graph?: SystemGraph; findings?: { title: string; severity: string; nodeId?: string }[] }
+          | undefined;
+        f = latest?.findings ?? [];
+        if (latest?.graph) setGraph(latest.graph);
+        setRiskyIds(new Set(f.filter((x) => x.nodeId).map((x) => x.nodeId as string)));
       } catch { /* ignore */ }
-      setFindings(f);
+      setFindings(f.slice(0, 3));
       setTargetScore(score);
       setStep('result');
     } catch (err) {
@@ -220,6 +228,19 @@ export default function GetStartedPage() {
           <div className="mt-4 flex justify-center">
             <Gauge score={shownScore} />
           </div>
+
+          {graph && (
+            <div className="mt-6 overflow-hidden rounded-xl border border-border bg-card/30 text-left">
+              <div className="flex items-center justify-between border-b border-border/60 px-4 py-2.5">
+                <span className="text-xs font-medium text-foreground">Your system, mapped</span>
+                <span className="text-[11px] text-muted-foreground">{graph.nodes.length} modules</span>
+              </div>
+              <div className="p-3">
+                <SystemDiagram graph={graph} risky={riskyIds} minWidth={420} />
+              </div>
+            </div>
+          )}
+
           {findings.length > 0 && (
             <div className="mt-6 space-y-2 text-left">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Top risks we found</p>

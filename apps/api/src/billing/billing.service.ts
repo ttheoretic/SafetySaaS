@@ -9,7 +9,7 @@ export interface BillingSummary {
   plan: Plan;
   provider: string;
   limits: PlanLimits;
-  usage: { projects: number; members: number };
+  usage: { projects: number; members: number; scansToday: number };
 }
 
 @Injectable()
@@ -20,15 +20,18 @@ export class BillingService {
   ) {}
 
   async summary(org: OrganizationRecord): Promise<BillingSummary> {
-    const [projects, members] = await Promise.all([
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const [projects, members, scansToday] = await Promise.all([
       this.store.listProjects(org.id),
       this.store.listMembershipsForOrg(org.id),
+      this.store.countScansSince(org.id, startOfDay.toISOString()),
     ]);
     return {
       plan: org.plan,
       provider: this.provider.name,
       limits: planLimits(org.plan),
-      usage: { projects: projects.length, members: members.length },
+      usage: { projects: projects.length, members: members.length, scansToday },
     };
   }
 

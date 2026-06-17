@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 export interface PlanInfo {
   plan: Plan;
   limits: PlanLimits;
-  usage: { projects: number; members: number };
+  usage: { projects: number; members: number; scansToday: number };
   /** Whether the org's plan unlocks a feature. */
   has: (feature: Feature) => boolean;
   loading: boolean;
@@ -30,7 +30,7 @@ export function usePlan(): PlanInfo {
 
   const plan = (q.data?.plan ?? 'starter') as Plan;
   const limits = q.data?.limits ?? PLAN_LIMITS[plan];
-  const usage = q.data?.usage ?? { projects: 0, members: 0 };
+  const usage = q.data?.usage ?? { projects: 0, members: 0, scansToday: 0 };
 
   return {
     plan,
