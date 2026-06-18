@@ -30,5 +30,9 @@ COPY --from=build /app/apps/api/package.json ./apps/api/
 # Schema + migrations for `prisma migrate deploy` (run by the migrate Job).
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/package.json ./package.json
+COPY apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 EXPOSE 4000
-CMD ["node", "apps/api/dist/main.js"]
+# Apply any pending migrations (when a DB is configured) before starting, so a
+# deploy that ships a new migration can't leave the schema behind the code.
+CMD ["./docker-entrypoint.sh"]
