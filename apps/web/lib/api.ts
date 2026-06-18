@@ -192,6 +192,11 @@ export const api = {
     get<BusinessInput | null>(`/projects/${projectId}/business`),
   updateBusiness: (projectId: string, body: BusinessInput) =>
     put<BusinessInput>(`/projects/${projectId}/business`, body),
+  /** Live MRR / active-users suggestion from a connected Stripe account. */
+  getStripeSuggestion: (projectId: string) =>
+    get<{ monthlyRevenue: number; currency: string; activeUsers: number } | null>(
+      `/projects/${projectId}/business/stripe-suggestion`,
+    ),
   listConnections: (projectId: string) =>
     get<Array<{ id: string; provider: string; status: string; metadata?: Record<string, unknown>; createdAt: string }>>(
       `/projects/${projectId}/connections`,

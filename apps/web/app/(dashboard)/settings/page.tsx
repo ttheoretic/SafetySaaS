@@ -141,6 +141,7 @@ function BusinessSection() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stripe, setStripe] = useState<{ monthlyRevenue: number; currency: string; activeUsers: number } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -159,10 +160,22 @@ function BusinessSection() {
               peakCheckoutShare: Math.round((biz.peakCheckoutShare ?? 0.17) * 100),
             });
           }
+          // Best-effort live suggestion from a connected Stripe account.
+          api.getStripeSuggestion(pid).then(setStripe).catch(() => {});
         }
       } catch { /* ignore */ }
     })();
   }, [token]);
+
+  function applyStripe() {
+    if (!stripe) return;
+    setForm((f) => ({
+      ...f,
+      monthlyRevenue: stripe.monthlyRevenue,
+      activeUsers: stripe.activeUsers,
+      currency: stripe.currency || f.currency,
+    }));
+  }
 
   async function save() {
     if (!projectId) return setError('Create a project first to attach business numbers.');
@@ -192,6 +205,23 @@ function BusinessSection() {
       title="Business context"
       description="Your real numbers power revenue-at-risk, SLA and churn impact — instead of demo figures."
     >
+      {stripe && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+          <p className="text-[13px] text-foreground">
+            Detected from your connected Stripe:{' '}
+            <span className="font-medium">
+              {new Intl.NumberFormat('en', { style: 'currency', currency: stripe.currency, maximumFractionDigits: 0 }).format(stripe.monthlyRevenue)} MRR
+            </span>{' '}
+            · {stripe.activeUsers} active subscriptions
+          </p>
+          <button
+            onClick={applyStripe}
+            className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+          >
+            Use Stripe values
+          </button>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Monthly recurring revenue">
           <input type="number" min={0} className={inputCls}

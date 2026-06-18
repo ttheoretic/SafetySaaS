@@ -6,6 +6,8 @@ import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { BillingService } from '../billing/billing.service';
+import { SecretBox } from '../crypto/secret-box';
+import { StripeRevenueService } from '../billing/stripe-revenue.service';
 
 class CreateProjectDto {
   @IsString() name!: string;
@@ -28,6 +30,8 @@ class ProjectsController {
     private readonly store: Store,
     private readonly audit: AuditService,
     private readonly billing: BillingService,
+    private readonly secrets: SecretBox,
+    private readonly stripeRevenue: StripeRevenueService,
   ) {}
 
   @Get()
@@ -80,6 +84,23 @@ class ProjectsController {
     return updated?.businessContext ?? null;
   }
 
+  /** Live MRR / active-subscription suggestion from a connected Stripe account. */
+  @Get(':id/business/stripe-suggestion')
+  @RequirePermission('project:read')
+  async stripeSuggestion(@Auth() auth: AuthContext, @Param('id') id: string) {
+    await this.requireProject(auth, id);
+    const connections = await this.store.listConnections(id);
+    const stripe = connections.find((c) => c.provider === 'stripe' && c.encryptedToken);
+    if (!stripe?.encryptedToken) return null;
+    let token: string;
+    try {
+      token = this.secrets.decrypt(stripe.encryptedToken);
+    } catch {
+      return null;
+    }
+    return this.stripeRevenue.fetchMrr(token);
+  }
+
   private async requireProject(auth: AuthContext, id: string) {
     const project = await this.store.getProject(id);
     if (!project || project.orgId !== auth.org.id) {
@@ -96,5 +117,6 @@ function slugify(name: string): string {
 @Module({
   imports: [StoreModule],
   controllers: [ProjectsController],
+  providers: [StripeRevenueService],
 })
 export class ProjectsModule {}
