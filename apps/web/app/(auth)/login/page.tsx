@@ -40,7 +40,13 @@ export default function LoginPage() {
       signIn(token, { id: '', email }, '');
       const me = await api.me();
       signIn(token, { id: me.user.id, email: me.user.email, name: me.user.name }, me.activeOrg.id);
-      router.push(mode === 'signup' ? '/get-started' : '/dashboard');
+      // Honor an explicit return target (e.g. bounced out of checkout/onboarding),
+      // otherwise let /get-started decide where this user belongs based on their
+      // subscription + onboarding state (it redirects to /billing or /dashboard
+      // as appropriate). Routing straight to /dashboard would strand a user who
+      // just paid but hasn't onboarded on demo data with a stale plan.
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      router.push(redirect || '/get-started');
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);

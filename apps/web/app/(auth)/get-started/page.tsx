@@ -65,7 +65,10 @@ export default function GetStartedPage() {
   // Onboarding is a post-auth, post-paywall wizard. Guard accordingly.
   useEffect(() => {
     if (!hydrated) return;
-    if (!token) { router.replace('/login?mode=signup'); return; }
+    // Preserve where we are (incl. ?upgraded&session_id from Stripe) so signing
+    // back in returns here and the checkout still gets confirmed.
+    const back = encodeURIComponent(window.location.pathname + window.location.search);
+    if (!token) { router.replace(`/login?redirect=${back}`); return; }
     let cancelled = false;
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     (async () => {
@@ -115,7 +118,10 @@ export default function GetStartedPage() {
         }
         setReady(true);
       } catch {
-        if (!cancelled) router.replace('/login');
+        // Don't strand the user at a bare login (which would drop the Stripe
+        // session_id and leave the purchase unconfirmed) — send them back here
+        // after they re-authenticate.
+        if (!cancelled) router.replace(`/login?redirect=${back}`);
       }
     })();
     return () => { cancelled = true; };
