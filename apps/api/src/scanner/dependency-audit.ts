@@ -85,6 +85,58 @@ export function parseRequirements(raw: string): ResolvedDep[] {
   return out;
 }
 
+/** The npm name encoded in a yarn/pnpm spec, e.g. "@scope/x@npm:^1" → "@scope/x". */
+function npmSpecName(spec: string): string | undefined {
+  const s = spec.trim().replace(/^"|"$/g, '');
+  if (!s) return undefined;
+  const at = s.lastIndexOf('@');
+  return at <= 0 ? s : s.slice(0, at); // at===0 means a bare scope, keep as-is
+}
+
+/** Extract resolved deps from a yarn.lock (classic v1 and berry). */
+export function parseYarnLock(raw: string): ResolvedDep[] {
+  const out: ResolvedDep[] = [];
+  const seen = new Set<string>();
+  let names: string[] = [];
+  for (const line of raw.split('\n')) {
+    if (!line.trim() || line.startsWith('#')) continue;
+    if (!/^\s/.test(line) && line.trimEnd().endsWith(':')) {
+      names = line
+        .trimEnd()
+        .replace(/:$/, '')
+        .split(',')
+        .map((p) => npmSpecName(p))
+        .filter((n): n is string => Boolean(n));
+      continue;
+    }
+    const m = line.match(/^\s+version:?\s+"?([^"\s]+)"?/);
+    if (m && names.length) {
+      for (const name of names) {
+        const key = `${name}@${m[1]}`;
+        if (!seen.has(key)) { seen.add(key); out.push({ name, version: m[1], ecosystem: 'npm' }); }
+      }
+      names = [];
+    }
+  }
+  return out;
+}
+
+/** Extract resolved deps from a pnpm-lock.yaml (best-effort across versions). */
+export function parsePnpmLock(raw: string): ResolvedDep[] {
+  const out: ResolvedDep[] = [];
+  const seen = new Set<string>();
+  // Package keys look like /lodash@4.17.20:, /lodash/4.17.20:, /@scope/n@1.2.3:
+  const re = /^\s+'?\/?(@?[\w.-]+(?:\/[\w.-]+)?)[@/](\d[\w.\-+]*)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw))) {
+    const name = m[1];
+    const version = m[2].split('(')[0];
+    const key = `${name}@${version}`;
+    if (!seen.has(key)) { seen.add(key); out.push({ name, version, ecosystem: 'npm' }); }
+  }
+  return out;
+}
+
 function mapSeverity(vuln: any): Severity {
   const s = String(vuln?.database_specific?.severity ?? '').toUpperCase();
   if (s === 'CRITICAL') return 'critical';
@@ -191,12 +243,27 @@ export async function auditRepoDependencies(
   const npmLock = await readFile(repo, 'package-lock.json', ctx);
   if (npmLock) deps.push(...parseNpmLock(npmLock));
 
+  const yarnLock = await readFile(repo, 'yarn.lock', ctx);
+  if (yarnLock) deps.push(...parseYarnLock(yarnLock));
+
+  const pnpmLock = await readFile(repo, 'pnpm-lock.yaml', ctx);
+  if (pnpmLock) deps.push(...parsePnpmLock(pnpmLock));
+
   const requirements = await readFile(repo, 'requirements.txt', ctx);
   if (requirements) deps.push(...parseRequirements(requirements));
 
-  if (deps.length === 0) return [];
+  // De-dup across lockfiles (a repo may ship more than one).
+  const seen = new Set<string>();
+  const unique = deps.filter((d) => {
+    const k = `${d.ecosystem}:${d.name}@${d.version}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  if (unique.length === 0) return [];
   try {
-    return await auditResolvedDeps(deps, repo, ctx.fetchImpl);
+    return await auditResolvedDeps(unique, repo, ctx.fetchImpl);
   } catch (err) {
     logger.warn(`Dependency audit for ${repo} failed: ${(err as Error).message}`);
     return [];

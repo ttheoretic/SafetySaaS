@@ -30,6 +30,8 @@ export interface RepoSignals {
   hostProvider?: ProviderId;
   /** Known vulnerabilities in this repo's resolved dependency tree (SCA). */
   vulnerabilities?: import('../vulnerabilities').DependencyVulnerability[];
+  /** Code-level security findings (committed secrets, insecure config, …). */
+  codeFindings?: import('../findings').Finding[];
 }
 
 /** A cloud/hosting account and its notable resources. */

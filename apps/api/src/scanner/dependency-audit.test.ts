@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseNpmLock, parseRequirements, auditResolvedDeps } from './dependency-audit';
+import { parseNpmLock, parseRequirements, parseYarnLock, parsePnpmLock, auditResolvedDeps } from './dependency-audit';
 
 describe('lockfile parsing', () => {
   it('parses resolved versions from an npm v3 lockfile', () => {
@@ -21,6 +21,32 @@ describe('lockfile parsing', () => {
       { name: 'Django', version: '3.2.0', ecosystem: 'PyPI' },
       { name: 'requests', version: '2.25.1', ecosystem: 'PyPI' },
     ]);
+  });
+
+  it('parses a classic yarn.lock', () => {
+    const yarn = [
+      '"@babel/core@^7.0.0":',
+      '  version "7.20.0"',
+      '',
+      'lodash@^4.17.0, lodash@^4.17.21:',
+      '  version "4.17.21"',
+    ].join('\n');
+    const deps = parseYarnLock(yarn);
+    expect(deps).toContainEqual({ name: '@babel/core', version: '7.20.0', ecosystem: 'npm' });
+    expect(deps).toContainEqual({ name: 'lodash', version: '4.17.21', ecosystem: 'npm' });
+  });
+
+  it('parses pnpm-lock package keys (with peer suffixes)', () => {
+    const pnpm = [
+      'packages:',
+      '  /lodash@4.17.21:',
+      '    resolution: {integrity: sha512-x}',
+      '  /@babel/core@7.20.0(supports-color@5):',
+      '    resolution: {integrity: sha512-y}',
+    ].join('\n');
+    const deps = parsePnpmLock(pnpm);
+    expect(deps).toContainEqual({ name: 'lodash', version: '4.17.21', ecosystem: 'npm' });
+    expect(deps).toContainEqual({ name: '@babel/core', version: '7.20.0', ecosystem: 'npm' });
   });
 });
 

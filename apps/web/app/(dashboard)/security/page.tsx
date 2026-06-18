@@ -20,10 +20,12 @@ export default function SecurityPage() {
   const result = securitySimulation(graph);
   const exposed = result.exposures.filter((e) => e.exposed);
   const vulns = graph.vulnerabilities ?? [];
+  const codeFindings = graph.codeFindings ?? [];
   const critical = [
-    ...result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high'),
-    ...vulns.filter((v) => v.severity === 'critical' || v.severity === 'high'),
-  ];
+    ...result.findings,
+    ...codeFindings,
+    ...vulns,
+  ].filter((f) => f.severity === 'critical' || f.severity === 'high');
 
   return (
     <>
@@ -137,6 +139,29 @@ export default function SecurityPage() {
           )}
         </ul>
       </section>
+
+      {/* Code & configuration risks (committed secrets, insecure Docker, …) */}
+      {codeFindings.length > 0 && (
+        <section className="mt-6 rounded-xl border border-border bg-surface">
+          <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <ShieldAlert className="size-4 text-muted-foreground" /> Code &amp; configuration risks
+            </h2>
+            <span className="text-xs text-muted-foreground">{codeFindings.length} found</span>
+          </header>
+          <ul className="divide-y divide-border">
+            {codeFindings.map((f, i) => (
+              <li key={`code-${i}`} className="px-5 py-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">{f.title}</span>
+                  <SeverityBadge severity={f.severity} />
+                </div>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{f.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Prioritized findings */}
       <section className="mt-6 rounded-xl border border-border bg-surface">

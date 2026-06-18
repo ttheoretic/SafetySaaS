@@ -69,6 +69,8 @@ export interface SystemGraph {
   /** Known dependency vulnerabilities (SCA), when the scanner read the code.
    *  Optional so topology-only graphs and the demo remain unaffected. */
   vulnerabilities?: import('./vulnerabilities').DependencyVulnerability[];
+  /** Code-level security findings (committed secrets, insecure config, …). */
+  codeFindings?: import('./findings').Finding[];
 }
 
 /** Business context used by the revenue engine. */
