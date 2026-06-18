@@ -4,10 +4,11 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { FileText, FileSpreadsheet, FileJson, Download, Loader2 } from 'lucide-react';
-import { buildReport, exampleGraph, exampleBusiness } from '@riscly/shared';
+import { buildReport } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { FeatureGate } from '@/components/dashboard/feature-gate';
 import { useAuth } from '@/lib/auth-store';
+import { useSystemGraph, useBusiness } from '@/lib/dashboard-store';
 import { api } from '@/lib/api';
 
 const TYPES = [
@@ -35,7 +36,9 @@ export default function ReportsPage() {
   const [projectId, setProjectId] = useState('');
   const activeProject = projectId || projects.data?.[0]?.id || '';
 
-  const preview = buildReport(exampleGraph, exampleBusiness, 'executive');
+  const graph = useSystemGraph();
+  const business = useBusiness();
+  const preview = buildReport(graph, business, 'executive');
 
   async function download(type: string, fmt: string, ext: string) {
     if (!activeProject) { setError('Create a project on the Projects page first.'); return; }
