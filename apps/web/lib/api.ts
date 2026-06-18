@@ -174,6 +174,15 @@ export const api = {
     ),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
+  listConnections: (projectId: string) =>
+    get<Array<{ id: string; provider: string; status: string; metadata?: Record<string, unknown>; createdAt: string }>>(
+      `/projects/${projectId}/connections`,
+    ),
+  /** Token-based connection (providers without an OAuth flow). */
+  createConnection: (
+    projectId: string,
+    body: { provider: string; token?: string; metadata?: Record<string, unknown> },
+  ) => post<{ id: string; provider: string; status: string }>(`/projects/${projectId}/connections`, body),
   listScenarios: (projectId: string) =>
     get<Array<{ id: string; name: string; prompt: string; createdAt: string; lastResult?: unknown }>>(
       `/projects/${projectId}/scenarios`,

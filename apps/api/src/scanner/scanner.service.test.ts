@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import { ScannerService } from './scanner.service';
 import { GithubCollector } from './collectors/github.collector';
+import { VercelCollector } from './collectors/vercel.collector';
+import { StripeCollector } from './collectors/stripe.collector';
 import { MetadataCollector } from './collectors/metadata.collector';
 import type { ConnectionRecord } from '../store/store.module';
 
 function makeService() {
-  return new ScannerService(new GithubCollector(), new MetadataCollector());
+  return new ScannerService(
+    [new GithubCollector(), new VercelCollector(), new StripeCollector()],
+    new MetadataCollector(),
+  );
 }
 
 function conn(partial: Partial<ConnectionRecord>): ConnectionRecord {

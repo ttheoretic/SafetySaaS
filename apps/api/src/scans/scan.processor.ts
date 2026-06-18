@@ -66,15 +66,19 @@ export class ScanProcessor implements OnModuleInit {
       let graph = job.graph;
       if (!graph) {
         const connections = await this.store.listConnections(job.projectId);
-        // Decrypt the code-host token (if any) just-in-time for the scan.
-        const tokenConn = connections.find(
-          (c) => c.provider === 'github' && c.encryptedToken,
-        );
-        const token = tokenConn?.encryptedToken
-          ? this.secrets.decrypt(tokenConn.encryptedToken)
-          : undefined;
+        // Decrypt each connection's own token just-in-time, so every collector
+        // authenticates to its provider with the right credentials.
+        const tokens: Record<string, string> = {};
+        for (const c of connections) {
+          if (!c.encryptedToken) continue;
+          try {
+            tokens[c.id] = this.secrets.decrypt(c.encryptedToken);
+          } catch (err) {
+            this.logger.warn(`Could not decrypt token for connection ${c.id}: ${(err as Error).message}`);
+          }
+        }
         graph = connections.length
-          ? await this.scanner.scan(connections, { token })
+          ? await this.scanner.scan(connections, { tokens })
           : exampleGraph;
       }
       const analysis = this.analyze.reliability(graph);

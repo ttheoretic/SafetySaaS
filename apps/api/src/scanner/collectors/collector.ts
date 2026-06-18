@@ -16,10 +16,13 @@ export interface ProviderCollector {
 }
 
 export interface CollectorContext {
-  /** Decrypted access token for the connection, if available. */
+  /** Decrypted access token for THIS connection, if available. */
   token?: string;
   /** Injected so collectors are testable without hitting the network. */
   fetchImpl: typeof fetch;
 }
 
 export const EMPTY: Partial<ScanCollection> = {};
+
+/** DI token for the registered provider-specific collectors. */
+export const PROVIDER_COLLECTORS = Symbol('PROVIDER_COLLECTORS');

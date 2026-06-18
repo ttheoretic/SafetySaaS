@@ -9,6 +9,7 @@ import {
 } from '../auth/auth-context';
 import { OAuthService } from './oauth.service';
 import { GithubOAuthProvider } from './github-oauth';
+import { GenericOAuth2Provider, OAUTH2_PROVIDERS } from './generic-oauth2';
 
 // Connecting a stack is part of onboarding, before the dashboard is unlocked.
 @AllowWithoutSubscription()
@@ -68,6 +69,18 @@ export class OAuthModule implements OnModuleInit {
       Logger.log('OAuth: GitHub provider registered.', 'OAuthModule');
     } else {
       Logger.log('OAuth: GITHUB_CLIENT_ID/SECRET not set — GitHub OAuth disabled.', 'OAuthModule');
+    }
+
+    // Config-driven OAuth2 providers — enabled per-provider when their
+    // <PROVIDER>_CLIENT_ID / _CLIENT_SECRET env vars are present.
+    for (const cfg of OAUTH2_PROVIDERS) {
+      const envKey = cfg.name.toUpperCase();
+      const clientId = process.env[`${envKey}_CLIENT_ID`];
+      const clientSecret = process.env[`${envKey}_CLIENT_SECRET`];
+      if (clientId && clientSecret) {
+        this.oauth.register(new GenericOAuth2Provider({ ...cfg, clientId, clientSecret }));
+        Logger.log(`OAuth: ${cfg.name} provider registered.`, 'OAuthModule');
+      }
     }
   }
 }
