@@ -10,6 +10,7 @@ import {
 import { OAuthService } from './oauth.service';
 import { GithubOAuthProvider } from './github-oauth';
 import { GenericOAuth2Provider, OAUTH2_PROVIDERS } from './generic-oauth2';
+import { isGithubAppConfigured } from './github-app';
 
 // Connecting a stack is part of onboarding, before the dashboard is unlocked.
 @AllowWithoutSubscription()
@@ -27,12 +28,18 @@ class OAuthController {
     @Query('next') next?: string,
   ) {
     if (!projectId) throw new BadRequestException('projectId is required');
-    const url = this.oauth.authorizeUrl(provider, {
+    const ctx = {
       orgId: auth.org.id,
       projectId,
       userId: auth.user.id,
       next: safeNext(next),
-    });
+    };
+    // Prefer the GitHub App when configured — it gives the native repo-selection
+    // screen and scoped, short-lived tokens instead of a broad OAuth token.
+    const url =
+      provider === 'github' && isGithubAppConfigured()
+        ? this.oauth.githubAppInstallUrl(ctx)
+        : this.oauth.authorizeUrl(provider, ctx);
     return { url };
   }
 
@@ -43,15 +50,25 @@ class OAuthController {
     @Param('provider') provider: string,
     @Query('code') code: string,
     @Query('state') state: string,
+    @Query('installation_id') installationId: string,
     @Res() res: Response,
   ) {
-    if (!code || !state) throw new BadRequestException('Missing code/state');
-    const result = await this.oauth.handleCallback(provider, code, state);
+    // GitHub App installs return an installation_id (no code) — handle that path
+    // first; otherwise fall back to the OAuth authorization-code exchange.
+    const result =
+      provider === 'github' && installationId
+        ? await this.oauth.handleGithubAppInstall(installationId, state)
+        : await this.exchangeOAuthCode(provider, code, state);
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
     const dest = safeNext(result.next) ?? '/settings';
     res.redirect(
       `${appUrl}${dest}?connected=${provider}&project=${result.projectId}`,
     );
+  }
+
+  private exchangeOAuthCode(provider: string, code: string, state: string) {
+    if (!code || !state) throw new BadRequestException('Missing code/state');
+    return this.oauth.handleCallback(provider, code, state);
   }
 }
 

@@ -6,6 +6,7 @@ import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
 import { JOB_QUEUE, JobQueue } from '../jobs/job-queue';
 import { SecretBox } from '../crypto/secret-box';
+import { isGithubAppConfigured, mintInstallationToken } from '../oauth/github-app';
 
 export interface ScanJob {
   scanId: string;
@@ -70,11 +71,23 @@ export class ScanProcessor implements OnModuleInit {
         // authenticates to its provider with the right credentials.
         const tokens: Record<string, string> = {};
         for (const c of connections) {
-          if (!c.encryptedToken) continue;
-          try {
-            tokens[c.id] = this.secrets.decrypt(c.encryptedToken);
-          } catch (err) {
-            this.logger.warn(`Could not decrypt token for connection ${c.id}: ${(err as Error).message}`);
+          if (c.encryptedToken) {
+            try {
+              tokens[c.id] = this.secrets.decrypt(c.encryptedToken);
+            } catch (err) {
+              this.logger.warn(`Could not decrypt token for connection ${c.id}: ${(err as Error).message}`);
+            }
+            continue;
+          }
+          // GitHub App connections store no token — mint a short-lived
+          // installation token from the App's private key at scan time.
+          const installationId = c.metadata?.installationId;
+          if (c.provider === 'github' && installationId && isGithubAppConfigured()) {
+            try {
+              tokens[c.id] = await mintInstallationToken(String(installationId));
+            } catch (err) {
+              this.logger.warn(`Could not mint installation token for connection ${c.id}: ${(err as Error).message}`);
+            }
           }
         }
         graph = connections.length
