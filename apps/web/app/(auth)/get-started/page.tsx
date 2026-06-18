@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRight, Github, Loader2, ScanSearch, Sparkles, ServerCog,
 } from 'lucide-react';
@@ -42,6 +43,7 @@ function Gauge({ score }: { score: number }) {
 
 export default function GetStartedPage() {
   const router = useRouter();
+  const qc = useQueryClient();
   const { token, hydrated } = useAuth();
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState<Step>('workspace');
@@ -75,7 +77,12 @@ export default function GetStartedPage() {
         const upgraded = params.get('upgraded') === '1';
         const sessionId = params.get('session_id');
         if (upgraded && sessionId) {
-          try { await api.confirmCheckout(sessionId); } catch { /* webhook fallback */ }
+          try {
+            await api.confirmCheckout(sessionId);
+            // Reflect the new plan everywhere (badge, feature gates).
+            qc.invalidateQueries({ queryKey: ['billing'] });
+            qc.invalidateQueries({ queryKey: ['me'] });
+          } catch { /* webhook fallback */ }
         }
 
         let me = await api.me();
@@ -87,11 +94,25 @@ export default function GetStartedPage() {
         }
         if (!me.subscription.active) { router.replace('/billing'); return; }
 
-        // Already has a project → skip the wizard.
+        setWorkspace(me.activeOrg.name);
+
+        // Resume / skip the wizard based on real progress: only jump to the
+        // dashboard once a project has actually been scanned — otherwise the
+        // user would land on demo data. An unscanned project resumes the wizard.
         const projects = await api.listProjects();
         if (cancelled) return;
-        if (projects.length > 0) { router.replace('/dashboard'); return; }
-        setWorkspace(me.activeOrg.name);
+        if (projects.length > 0) {
+          const existing = projects[0];
+          let scanned = false;
+          try {
+            const scans = await api.listScans(existing.id);
+            scanned = scans.some((s) => s.status === 'succeeded');
+          } catch { /* treat as unscanned */ }
+          if (scanned) { router.replace('/dashboard'); return; }
+          setProjectId(existing.id);
+          setProjectName(existing.name);
+          setStep('connect');
+        }
         setReady(true);
       } catch {
         if (!cancelled) router.replace('/login');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -54,6 +54,18 @@ export function Topbar() {
       await loadBusiness(project.id);
     } catch { /* keep current */ }
   }
+
+  // Auto-load the user's real data once, instead of leaving them on the demo:
+  // on first load, if still on the demo source, select their first project.
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    if (autoLoaded.current) return;
+    if (!projects.data || projects.data.length === 0) return;
+    if (useDashboardStore.getState().source !== 'Demo') return;
+    autoLoaded.current = true;
+    void pickSource(projects.data[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.data]);
 
   async function runScan() {
     if (!token) return router.push('/login');
