@@ -8,6 +8,8 @@ interface OAuthState {
   projectId: string;
   userId: string;
   provider: string;
+  /** Internal app path to return the user to after the callback. */
+  next?: string;
   exp: number;
 }
 
@@ -15,6 +17,7 @@ export interface OAuthStartContext {
   orgId: string;
   projectId: string;
   userId: string;
+  next?: string;
 }
 
 /**
@@ -87,6 +90,11 @@ export class OAuthService {
       encryptedToken: this.secrets.encrypt(result.accessToken),
     });
 
-    return { connectionId: connection.id, orgId: state.orgId, projectId: state.projectId };
+    return {
+      connectionId: connection.id,
+      orgId: state.orgId,
+      projectId: state.projectId,
+      next: state.next,
+    };
   }
 }

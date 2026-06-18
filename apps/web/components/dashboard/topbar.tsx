@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -54,6 +54,20 @@ export function Topbar() {
       await loadBusiness(project.id);
     } catch { /* keep current */ }
   }
+
+  // Show the user's real data by default: once their projects load, auto-select
+  // the first one instead of leaving the dashboard on the demo source. Runs once
+  // and only while still on 'Demo', so it never overrides a manual choice.
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    if (autoLoaded.current) return;
+    const list = projects.data;
+    if (!list || list.length === 0) return;
+    if (useDashboardStore.getState().source !== 'Demo') return;
+    autoLoaded.current = true;
+    void pickSource(list[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects.data]);
 
   async function runScan() {
     if (!token) return router.push('/login');

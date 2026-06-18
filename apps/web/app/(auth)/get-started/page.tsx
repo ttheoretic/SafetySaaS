@@ -54,6 +54,9 @@ export default function GetStartedPage() {
   // retry instead of bouncing to /login, which would drop the Stripe session).
   const [fatal, setFatal] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Set when the user just returned from connecting a provider (OAuth callback),
+  // so the connect step can confirm it and offer a real (non-demo) first scan.
+  const [connected, setConnected] = useState<string | null>(null);
 
   // final result
   const [targetScore, setTargetScore] = useState(0);
@@ -83,6 +86,8 @@ export default function GetStartedPage() {
         const params = new URLSearchParams(window.location.search);
         const upgraded = params.get('upgraded') === '1';
         const sessionId = params.get('session_id');
+        const connectedProvider = params.get('connected');
+        if (connectedProvider) setConnected(connectedProvider);
         if (upgraded && sessionId) {
           // Retry confirm a few times — a flaky confirm must not leave the user
           // unsubscribed (and bounced out of onboarding) after a real payment.
@@ -103,11 +108,26 @@ export default function GetStartedPage() {
         if (!me) throw new Error('Could not load your account.');
         if (!me.subscription.active) { router.replace('/billing'); return; }
 
-        // Already has a project → skip the wizard.
+        setWorkspace(me.activeOrg.name);
+
+        // Only skip the wizard once a project has actually been scanned —
+        // otherwise the user would land on an empty dashboard (demo data).
+        // An existing-but-unscanned project resumes at the connect/scan step.
         const projects = await api.listProjects();
         if (cancelled) return;
-        if (projects.length > 0) { router.replace('/dashboard'); return; }
-        setWorkspace(me.activeOrg.name);
+        if (projects.length > 0) {
+          const existing = projects[0];
+          let scanned = false;
+          try {
+            const scans = await api.listScans(existing.id);
+            scanned = scans.some((s) => s.status === 'succeeded');
+          } catch { /* treat as unscanned */ }
+          if (cancelled) return;
+          if (scanned) { router.replace('/dashboard'); return; }
+          setProjectId(existing.id);
+          setProjectName(existing.name);
+          setStep('connect');
+        }
         setReady(true);
       } catch (err) {
         // Stay on this page and surface the problem (with a retry) rather than
@@ -131,7 +151,8 @@ export default function GetStartedPage() {
   async function connectGithub() {
     setBusy(true); setError(null);
     try {
-      const { url } = await api.oauthAuthorizeUrl('github', projectId);
+      // Return to the wizard (not /settings) so onboarding flows into a real scan.
+      const { url } = await api.oauthAuthorizeUrl('github', projectId, '/get-started');
       window.location.href = url;
     } catch {
       setError('GitHub OAuth isn’t configured here — continue with the demo stack.');
@@ -239,16 +260,36 @@ export default function GetStartedPage() {
       )}
 
       {step === 'connect' && (
-        <Card icon={<Github className="size-5 text-primary" />} title="Connect your stack" subtitle="Connect GitHub so we can map your services — or continue with a demo stack.">
+        <Card
+          icon={<Github className="size-5 text-primary" />}
+          title={connected ? 'Stack connected' : 'Connect your stack'}
+          subtitle={connected
+            ? `Your ${connected} account is connected — run the first scan to map your real services.`
+            : 'Connect GitHub so we can map your services — or continue with a demo stack.'}
+        >
           <div className="space-y-3">
-            <button onClick={connectGithub} disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/70 disabled:opacity-50">
-              <Github className="size-4" /> Connect GitHub
-            </button>
-            <button onClick={runScan} disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-              <ScanSearch className="size-4" /> Continue with demo stack
-            </button>
+            {connected ? (
+              <>
+                <div className="flex items-center justify-center gap-2 rounded-md border border-risk-ok/30 bg-risk-ok/10 px-3 py-2.5 text-sm font-medium text-risk-ok">
+                  <Github className="size-4" /> {connected} connected
+                </div>
+                <button onClick={runScan} disabled={busy}
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                  <ScanSearch className="size-4" /> Run your first scan
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={connectGithub} disabled={busy}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/70 disabled:opacity-50">
+                  <Github className="size-4" /> Connect GitHub
+                </button>
+                <button onClick={runScan} disabled={busy}
+                  className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                  <ScanSearch className="size-4" /> Continue with demo stack
+                </button>
+              </>
+            )}
           </div>
         </Card>
       )}

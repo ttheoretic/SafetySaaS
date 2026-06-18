@@ -186,8 +186,11 @@ export const api = {
       `/projects/${projectId}/scans/chat`,
       { messages },
     ),
-  oauthAuthorizeUrl: (provider: string, projectId: string) =>
-    get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
+  oauthAuthorizeUrl: (provider: string, projectId: string, next?: string) =>
+    get<{ url: string }>(
+      `/oauth/${provider}/authorize?projectId=${projectId}` +
+        (next ? `&next=${encodeURIComponent(next)}` : ''),
+    ),
   getBusiness: (projectId: string) =>
     get<BusinessInput | null>(`/projects/${projectId}/business`),
   updateBusiness: (projectId: string, body: BusinessInput) =>

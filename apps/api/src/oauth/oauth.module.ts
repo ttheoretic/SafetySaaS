@@ -24,12 +24,14 @@ class OAuthController {
     @Auth() auth: AuthContext,
     @Param('provider') provider: string,
     @Query('projectId') projectId: string,
+    @Query('next') next?: string,
   ) {
     if (!projectId) throw new BadRequestException('projectId is required');
     const url = this.oauth.authorizeUrl(provider, {
       orgId: auth.org.id,
       projectId,
       userId: auth.user.id,
+      next: safeNext(next),
     });
     return { url };
   }
@@ -46,10 +48,20 @@ class OAuthController {
     if (!code || !state) throw new BadRequestException('Missing code/state');
     const result = await this.oauth.handleCallback(provider, code, state);
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+    const dest = safeNext(result.next) ?? '/settings';
     res.redirect(
-      `${appUrl}/settings?connected=${provider}&project=${result.projectId}`,
+      `${appUrl}${dest}?connected=${provider}&project=${result.projectId}`,
     );
   }
+}
+
+/**
+ * Whitelist the post-OAuth return path to our own known in-app destinations,
+ * so the `next` param can never be abused as an open redirect.
+ */
+function safeNext(next?: string): string | undefined {
+  const allowed = ['/settings', '/get-started'];
+  return next && allowed.includes(next) ? next : undefined;
 }
 
 @Module({
