@@ -57,8 +57,8 @@ export const INTEGRATIONS: Integration[] = [
     discovers: ['Projects & domains', 'Regions', 'Edge redundancy'] },
   { id: 'railway', name: 'Railway', category: 'hosting', auth: 'token', status: 'beta',
     discovers: ['Services & environments', 'Region', 'Replicas'] },
-  { id: 'render', name: 'Render', category: 'hosting', auth: 'token', status: 'beta',
-    discovers: ['Services', 'Region', 'Autoscaling'] },
+  { id: 'render', name: 'Render', category: 'hosting', auth: 'token', status: 'live',
+    discovers: ['Services', 'Region', 'Instance redundancy'] },
   { id: 'netlify', name: 'Netlify', category: 'hosting', auth: 'token', status: 'planned',
     discovers: ['Sites & functions', 'Edge'] },
 
@@ -71,10 +71,10 @@ export const INTEGRATIONS: Integration[] = [
     discovers: ['Regions', 'Services', 'Redundancy'] },
 
   // ---- Databases ----
-  { id: 'supabase', name: 'Supabase', category: 'database', auth: 'token', status: 'beta',
-    discovers: ['Database & region', 'Backups', 'Read replicas'] },
-  { id: 'neon', name: 'Neon', category: 'database', auth: 'token', status: 'beta',
-    discovers: ['Database & region', 'Branches', 'Backups'] },
+  { id: 'supabase', name: 'Supabase', category: 'database', auth: 'token', status: 'live',
+    discovers: ['Projects & region', 'Automated backups'] },
+  { id: 'neon', name: 'Neon', category: 'database', auth: 'token', status: 'live',
+    discovers: ['Projects & region', 'Point-in-time recovery'] },
   { id: 'planetscale', name: 'PlanetScale', category: 'database', auth: 'token', status: 'planned',
     discovers: ['Database & region', 'Replicas'] },
   { id: 'mongodb', name: 'MongoDB Atlas', category: 'database', auth: 'token', status: 'planned',
