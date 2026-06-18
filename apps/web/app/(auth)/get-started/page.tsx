@@ -3,19 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowRight, Github, Loader2, ScanSearch, Sparkles, ServerCog,
+  ArrowRight, Github, Loader2, ScanSearch, Sparkles, ServerCog, Boxes,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-store';
 import { api } from '@/lib/api';
 import type { SystemGraph } from '@riscly/shared';
 import { SystemDiagram } from '@/components/dashboard/system-diagram';
+import { ConnectProviders } from '@/components/ConnectProviders';
 
-type Step = 'workspace' | 'connect' | 'scan' | 'result';
+type Step = 'workspace' | 'connect' | 'review' | 'scan' | 'result';
 
-const STEP_ORDER: Step[] = ['workspace', 'connect', 'scan', 'result'];
+const STEP_ORDER: Step[] = ['workspace', 'connect', 'review', 'scan', 'result'];
 const STEP_LABELS: Record<Step, string> = {
   workspace: 'Workspace',
   connect: 'Connect',
+  review: 'Review stack',
   scan: 'Initial scan',
   result: 'Reliability score',
 };
@@ -61,6 +63,9 @@ export default function GetStartedPage() {
   const [connectionId, setConnectionId] = useState('');
   const [repos, setRepos] = useState<string[]>([]);
   const [selectedRepo, setSelectedRepo] = useState('');
+
+  // detected stack (shown in the review step before the scoring scan)
+  const [detectedGraph, setDetectedGraph] = useState<SystemGraph | null>(null);
 
   // final result
   const [targetScore, setTargetScore] = useState(0);
@@ -179,6 +184,30 @@ export default function GetStartedPage() {
     }
   }
 
+  /** First scan after connecting: detect the modules/tools, then let the
+   *  customer review them and connect anything we missed before scoring. */
+  async function detectScan() {
+    setBusy(true); setError(null);
+    setStep('scan');
+    try {
+      if (connectionId && selectedRepo) {
+        await api.updateConnection(projectId, connectionId, { selectedRepos: [selectedRepo] });
+      }
+      const scan = await api.startScan(projectId);
+      let g: SystemGraph | null = null;
+      try {
+        const scans = await api.listScans(projectId);
+        const latest = scans.find((s) => s.id === scan.id) as { graph?: SystemGraph } | undefined;
+        g = latest?.graph ?? null;
+      } catch { /* ignore */ }
+      setDetectedGraph(g);
+      setStep('review');
+    } catch (err) {
+      setError((err as Error).message);
+      setStep('connect');
+    } finally { setBusy(false); }
+  }
+
   async function runScan() {
     setBusy(true); setError(null);
     setStep('scan');
@@ -257,7 +286,7 @@ export default function GetStartedPage() {
   }
 
   return (
-    <div className="w-full max-w-lg">
+    <div className={step === 'review' ? 'w-full max-w-2xl' : 'w-full max-w-lg'}>
       {/* progress */}
       <ol className="mb-8 flex items-center gap-2">
         {STEP_ORDER.map((s, i) => (
@@ -310,9 +339,9 @@ export default function GetStartedPage() {
                     </select>
                   </label>
                 )}
-                <button onClick={runScan} disabled={busy}
+                <button onClick={detectScan} disabled={busy}
                   className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-                  <ScanSearch className="size-4" /> Run your first scan
+                  <ScanSearch className="size-4" /> Scan repository
                 </button>
               </>
             ) : (
@@ -329,6 +358,53 @@ export default function GetStartedPage() {
             )}
           </div>
         </Card>
+      )}
+
+      {step === 'review' && (
+        <div className="rounded-2xl border border-border bg-card p-7">
+          <div className="flex size-11 items-center justify-center rounded-lg bg-primary/10">
+            <Boxes className="size-5 text-primary" />
+          </div>
+          <h1 className="mt-4 text-xl font-semibold text-foreground">We mapped your stack</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here’s what we detected from your repository. Connect anything we missed, then continue
+            to your reliability score.
+          </p>
+
+          {/* Detected modules / tools */}
+          <div className="mt-5">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Detected modules &amp; tools ({detectedGraph?.nodes.length ?? 0})
+            </p>
+            {detectedGraph && detectedGraph.nodes.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {detectedGraph.nodes.map((n) => (
+                  <span key={n.id} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-xs text-foreground">
+                    {n.name}
+                    <span className="text-[10px] uppercase text-muted-foreground">{n.kind.replace(/_/g, ' ')}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No modules detected yet — connect the tools below so we can map your system.
+              </p>
+            )}
+          </div>
+
+          {/* Connect anything we missed */}
+          <div className="mt-6 border-t border-border pt-5">
+            <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Connect more tools
+            </p>
+            <ConnectProviders />
+          </div>
+
+          <button onClick={runScan} disabled={busy}
+            className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+            Continue to reliability score <ArrowRight className="size-4" />
+          </button>
+        </div>
       )}
 
       {step === 'scan' && (
