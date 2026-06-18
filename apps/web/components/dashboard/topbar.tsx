@@ -19,7 +19,7 @@ export function Topbar() {
   const qc = useQueryClient();
   const { token } = useAuth();
   const { plan } = usePlan();
-  const { source, setGraph, setBusiness, reset } = useDashboardStore();
+  const { source, setGraph, setOverlay, setBusiness, reset } = useDashboardStore();
   const [sourceOpen, setSourceOpen] = useState(false);
   const [running, setRunning] = useState(false);
 
@@ -49,8 +49,13 @@ export function Topbar() {
     try {
       const scans = await api.listScans(project.id);
       const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
-      if (latest?.graph) setGraph(latest.graph as SystemGraph, project.name);
-      else setGraph(useDashboardStore.getState().graph, `${project.name} (run a scan)`);
+      if (latest?.graph) setGraph(latest.graph as SystemGraph, project.name, project.id);
+      else setGraph(useDashboardStore.getState().baseGraph, `${project.name} (run a scan)`, project.id);
+      // Re-apply the customer's manual architecture corrections on top.
+      try {
+        const overlay = await api.getArchitectureOverlay(project.id);
+        if (overlay) setOverlay(overlay);
+      } catch { /* no overlay yet */ }
       await loadBusiness(project.id);
     } catch { /* keep current */ }
   }

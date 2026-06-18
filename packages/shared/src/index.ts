@@ -2,6 +2,7 @@ export * from './model';
 export * from './graph';
 export * from './findings';
 export * from './vulnerabilities';
+export * from './overlay';
 export * from './reliability';
 export * from './simulation';
 export * from './revenue';

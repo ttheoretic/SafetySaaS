@@ -20,6 +20,8 @@ export interface ProjectRecord {
   createdAt: string;
   /** Customer business context (MRR, active users, currency) for revenue impact. */
   businessContext?: Record<string, unknown> | null;
+  /** Customer's manual corrections to the auto-detected architecture (overlay). */
+  architectureOverlay?: Record<string, unknown> | null;
 }
 
 export interface ScanRecord {

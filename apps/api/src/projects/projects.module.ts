@@ -1,7 +1,7 @@
 import {
   Body, Controller, Get, Module, NotFoundException, Param, Post, Put,
 } from '@nestjs/common';
-import { IsIn, IsNumber, IsOptional, IsString, Min, Max, Length } from 'class-validator';
+import { IsArray, IsIn, IsNumber, IsObject, IsOptional, IsString, Min, Max, Length } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
@@ -22,6 +22,14 @@ class BusinessContextDto {
   @IsOptional() @IsString() @Length(3, 3) currency?: string;
   @IsOptional() @IsNumber() @Min(0) @Max(1) peakCheckoutShare?: number;
   @IsOptional() @IsNumber() @Min(0) @Max(1) slaCreditRatePerHour?: number;
+}
+
+class ArchitectureOverlayDto {
+  @IsOptional() @IsArray() removedNodeIds?: string[];
+  @IsOptional() @IsArray() addedNodes?: unknown[];
+  @IsOptional() @IsObject() nodeOverrides?: Record<string, unknown>;
+  @IsOptional() @IsArray() removedEdges?: unknown[];
+  @IsOptional() @IsArray() addedEdges?: unknown[];
 }
 
 @Controller('projects')
@@ -82,6 +90,29 @@ class ProjectsController {
     });
     void this.audit.record(auth, 'project.business.update', { type: 'project', id }, {});
     return updated?.businessContext ?? null;
+  }
+
+  /** The customer's manual corrections to the auto-detected architecture. */
+  @Get(':id/architecture-overlay')
+  @RequirePermission('project:read')
+  async getOverlay(@Auth() auth: AuthContext, @Param('id') id: string) {
+    const project = await this.requireProject(auth, id);
+    return project.architectureOverlay ?? null;
+  }
+
+  @Put(':id/architecture-overlay')
+  @RequirePermission('project:write')
+  async setOverlay(
+    @Auth() auth: AuthContext,
+    @Param('id') id: string,
+    @Body() dto: ArchitectureOverlayDto,
+  ) {
+    await this.requireProject(auth, id);
+    const updated = await this.store.updateProject(id, {
+      architectureOverlay: dto as unknown as Record<string, unknown>,
+    });
+    void this.audit.record(auth, 'project.architecture.update', { type: 'project', id }, {});
+    return updated?.architectureOverlay ?? null;
   }
 
   /** Live MRR / active-subscription suggestion from a connected Stripe account. */

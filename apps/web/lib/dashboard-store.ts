@@ -2,7 +2,10 @@
 
 import { useMemo } from 'react';
 import { create } from 'zustand';
-import { exampleGraph, exampleBusiness, SystemGraph, BusinessContext } from '@riscly/shared';
+import {
+  exampleGraph, exampleBusiness, SystemGraph, BusinessContext,
+  GraphOverlay, applyOverlay,
+} from '@riscly/shared';
 import { computeDashboard, Dashboard } from './dashboard-data';
 
 const BUSINESS_KEY = 'riscly.business';
@@ -17,26 +20,42 @@ function loadBusiness(): BusinessContext {
 }
 
 interface DashboardState {
+  /** Effective graph (auto-detected base + customer overlay) — what pages read. */
   graph: SystemGraph;
+  /** Auto-detected graph before the overlay (for the architecture editor). */
+  baseGraph: SystemGraph;
+  /** The customer's manual corrections, merged into `graph`. */
+  overlay: GraphOverlay;
+  /** Project the current graph belongs to (null for the demo). */
+  projectId: string | null;
   source: string; // 'Demo' or a project name
   business: BusinessContext;
-  setGraph: (graph: SystemGraph, source: string) => void;
+  /** Set the auto-detected base graph (resets the overlay; load it separately). */
+  setGraph: (graph: SystemGraph, source: string, projectId?: string | null) => void;
+  /** Apply the customer's overlay on top of the current base graph. */
+  setOverlay: (overlay: GraphOverlay) => void;
   setBusiness: (business: BusinessContext) => void;
   reset: () => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
   graph: exampleGraph,
+  baseGraph: exampleGraph,
+  overlay: {},
+  projectId: null,
   source: 'Demo',
   business: loadBusiness(),
-  setGraph: (graph, source) => set({ graph, source }),
+  setGraph: (graph, source, projectId = null) =>
+    set({ baseGraph: graph, overlay: {}, graph, source, projectId }),
+  setOverlay: (overlay) =>
+    set((s) => ({ overlay, graph: applyOverlay(s.baseGraph, overlay) })),
   setBusiness: (business) => {
     if (typeof window !== 'undefined') {
       try { localStorage.setItem(BUSINESS_KEY, JSON.stringify(business)); } catch { /* ignore */ }
     }
     set({ business });
   },
-  reset: () => set({ graph: exampleGraph, source: 'Demo' }),
+  reset: () => set({ graph: exampleGraph, baseGraph: exampleGraph, overlay: {}, projectId: null, source: 'Demo' }),
 }));
 
 /** The computed dashboard for the currently-selected graph + business context. */

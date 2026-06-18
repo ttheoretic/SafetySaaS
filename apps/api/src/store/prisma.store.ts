@@ -47,6 +47,7 @@ export class PrismaStore extends Store {
         slug: patch.slug,
         environment: patch.environment as any,
         businessContext: patch.businessContext as any,
+        architectureOverlay: patch.architectureOverlay as any,
       },
     });
     return this.toProject(row);
@@ -56,6 +57,7 @@ export class PrismaStore extends Store {
       id: r.id, orgId: r.orgId, name: r.name, slug: r.slug,
       environment: r.environment, createdAt: r.createdAt.toISOString(),
       businessContext: r.businessContext ?? null,
+      architectureOverlay: r.architectureOverlay ?? null,
     };
   }
 

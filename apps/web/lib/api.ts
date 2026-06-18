@@ -4,6 +4,7 @@ import type {
   BusinessContext,
   PlanLimits,
   Plan,
+  GraphOverlay,
 } from '@riscly/shared';
 
 import { currentAuth } from './auth-store';
@@ -193,6 +194,11 @@ export const api = {
     ),
   getBusiness: (projectId: string) =>
     get<BusinessInput | null>(`/projects/${projectId}/business`),
+  /** The customer's manual corrections to the auto-detected architecture. */
+  getArchitectureOverlay: (projectId: string) =>
+    get<GraphOverlay | null>(`/projects/${projectId}/architecture-overlay`),
+  updateArchitectureOverlay: (projectId: string, overlay: GraphOverlay) =>
+    put<GraphOverlay>(`/projects/${projectId}/architecture-overlay`, overlay),
   updateBusiness: (projectId: string, body: BusinessInput) =>
     put<BusinessInput>(`/projects/${projectId}/business`, body),
   /** Live MRR / active-users suggestion from a connected Stripe account. */
