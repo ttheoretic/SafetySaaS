@@ -50,6 +50,10 @@ export default function GetStartedPage() {
   const [projectId, setProjectId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Fatal error while resolving the post-checkout state (kept on-page with a
+  // retry instead of bouncing to /login, which would drop the Stripe session).
+  const [fatal, setFatal] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   // final result
   const [targetScore, setTargetScore] = useState(0);
@@ -66,8 +70,13 @@ export default function GetStartedPage() {
     if (!token) { router.replace('/login?mode=signup'); return; }
     let cancelled = false;
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    // Tolerate transient failures while Stripe/the API propagate the upgrade.
+    const meSafe = async () => {
+      try { return await api.me(); } catch { return null; }
+    };
     (async () => {
       try {
+        setFatal(null);
         // Returning from Stripe: confirm the session so access is granted
         // immediately, then poll briefly to cover webhook/propagation latency
         // before falling back to the paywall.
@@ -75,16 +84,23 @@ export default function GetStartedPage() {
         const upgraded = params.get('upgraded') === '1';
         const sessionId = params.get('session_id');
         if (upgraded && sessionId) {
-          try { await api.confirmCheckout(sessionId); } catch { /* webhook fallback */ }
+          // Retry confirm a few times — a flaky confirm must not leave the user
+          // unsubscribed (and bounced out of onboarding) after a real payment.
+          for (let i = 0; i < 4; i++) {
+            try { if (await api.confirmCheckout(sessionId)) break; } catch { /* retry */ }
+            await sleep(1200);
+            if (cancelled) return;
+          }
         }
 
-        let me = await api.me();
+        let me = await meSafe();
         if (cancelled) return;
-        for (let i = 0; upgraded && !me.subscription.active && i < 8; i++) {
+        for (let i = 0; upgraded && !me?.subscription.active && i < 8; i++) {
           await sleep(1500);
           if (cancelled) return;
-          me = await api.me();
+          me = await meSafe();
         }
+        if (!me) throw new Error('Could not load your account.');
         if (!me.subscription.active) { router.replace('/billing'); return; }
 
         // Already has a project → skip the wizard.
@@ -93,12 +109,14 @@ export default function GetStartedPage() {
         if (projects.length > 0) { router.replace('/dashboard'); return; }
         setWorkspace(me.activeOrg.name);
         setReady(true);
-      } catch {
-        if (!cancelled) router.replace('/login');
+      } catch (err) {
+        // Stay on this page and surface the problem (with a retry) rather than
+        // dumping the user at /login and losing the Stripe session/context.
+        if (!cancelled) setFatal((err as Error).message || 'Something went wrong.');
       }
     })();
     return () => { cancelled = true; };
-  }, [hydrated, token, router]);
+  }, [hydrated, token, router, attempt]);
 
   async function createProject() {
     setBusy(true); setError(null);
@@ -163,6 +181,30 @@ export default function GetStartedPage() {
   }, [step, targetScore]);
 
   if (!ready) {
+    if (fatal) {
+      return (
+        <div className="flex min-h-[40vh] w-full max-w-md flex-col items-center justify-center gap-4 text-center">
+          <p className="text-sm text-muted-foreground">
+            We couldn’t finish setting up your workspace.
+          </p>
+          <p className="text-sm text-destructive">{fatal}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setAttempt((a) => a + 1)}
+              className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Try again
+            </button>
+            <button
+              onClick={() => router.replace('/billing')}
+              className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Back to plans
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
         <Loader2 className="size-5 animate-spin" />
