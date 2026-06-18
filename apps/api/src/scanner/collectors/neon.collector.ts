@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScanCollection, DatabaseSignals } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
 
 interface NeonProject {
   id: string;
@@ -31,7 +31,7 @@ export class NeonCollector implements ProviderCollector {
     if (!ctx.token) return { databases: [fallback] };
 
     try {
-      const res = await ctx.fetchImpl('https://console.neon.tech/api/v2/projects', {
+      const res = await resilientFetch(ctx.fetchImpl, 'https://console.neon.tech/api/v2/projects', {
         headers: { Authorization: `Bearer ${ctx.token}`, accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`Neon API ${res.status}`);

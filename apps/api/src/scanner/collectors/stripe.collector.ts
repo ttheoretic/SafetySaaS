@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScanCollection } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
 
 /**
  * Confirms the Stripe dependency is live. With a secret key it calls the Stripe
@@ -23,7 +23,7 @@ export class StripeCollector implements ProviderCollector {
     }
 
     try {
-      const res = await ctx.fetchImpl('https://api.stripe.com/v1/balance', {
+      const res = await resilientFetch(ctx.fetchImpl, 'https://api.stripe.com/v1/balance', {
         headers: { Authorization: `Bearer ${ctx.token}` },
       });
       if (!res.ok) throw new Error(`Stripe API ${res.status}`);

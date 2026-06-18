@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScanCollection, CloudSignals, NodeKind } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
 
 interface RenderService {
   id: string;
@@ -32,7 +32,7 @@ export class RenderCollector implements ProviderCollector {
     if (!ctx.token) return declared ? { clouds: [{ provider: 'render', services: declared }] } : {};
 
     try {
-      const res = await ctx.fetchImpl('https://api.render.com/v1/services?limit=50', {
+      const res = await resilientFetch(ctx.fetchImpl, 'https://api.render.com/v1/services?limit=50', {
         headers: { Authorization: `Bearer ${ctx.token}`, accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`Render API ${res.status}`);

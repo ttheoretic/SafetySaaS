@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScanCollection, DatabaseSignals } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
 
 interface SupabaseProject {
   id: string;
@@ -31,7 +31,7 @@ export class SupabaseCollector implements ProviderCollector {
     if (!ctx.token) return { databases: [fallback] };
 
     try {
-      const res = await ctx.fetchImpl('https://api.supabase.com/v1/projects', {
+      const res = await resilientFetch(ctx.fetchImpl, 'https://api.supabase.com/v1/projects', {
         headers: { Authorization: `Bearer ${ctx.token}`, accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`Supabase API ${res.status}`);

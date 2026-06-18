@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScanCollection, CloudSignals } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
 
 interface VercelProject {
   id: string;
@@ -30,7 +30,7 @@ export class VercelCollector implements ProviderCollector {
 
     try {
       const teamId = typeof meta.teamId === 'string' ? `?teamId=${meta.teamId}` : '';
-      const res = await ctx.fetchImpl(`https://api.vercel.com/v9/projects${teamId}`, {
+      const res = await resilientFetch(ctx.fetchImpl, `https://api.vercel.com/v9/projects${teamId}`, {
         headers: { Authorization: `Bearer ${ctx.token}` },
       });
       if (!res.ok) throw new Error(`Vercel API ${res.status}`);
