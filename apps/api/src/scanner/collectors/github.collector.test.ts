@@ -27,6 +27,38 @@ function fakeGithubFetch() {
   return { fetchImpl, seen };
 }
 
+/** A fetch serving specific repo files (by contents path) and 404 otherwise. */
+function fileServer(files: Record<string, string>) {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const m = String(url).match(/\/contents\/(.+)$/);
+    const path = m ? decodeURIComponent(m[1]).replace(/\?.*$/, '') : '';
+    if (init?.method === 'HEAD') return { ok: path in files } as Response;
+    const content = files[path];
+    if (content === undefined) return { ok: false, status: 404 } as Response;
+    return {
+      ok: true, status: 200,
+      json: async () => ({ content: Buffer.from(content).toString('base64'), encoding: 'base64' }),
+    } as Response;
+  }) as unknown as typeof fetch;
+}
+
+describe('GithubCollector multi-language detection', () => {
+  it('detects a Python repo (no package.json) with frameworks + env vars', async () => {
+    const fetchImpl = fileServer({
+      'requirements.txt': 'fastapi==0.110.0\nstripe==8.0.0\n# comment\n',
+      '.env.example': 'DATABASE_URL=\nSTRIPE_SECRET_KEY=\n',
+    });
+    const collector = new GithubCollector();
+    const conn = connection({ repos: ['acme/py'], selectedRepos: ['acme/py'] });
+
+    const { repos } = await collector.collect(conn, { token: 't', fetchImpl });
+    const sig = repos?.[0];
+    expect(sig?.frameworks).toContain('fastapi');
+    expect(sig?.dependencies).toContain('stripe');
+    expect(sig?.envVars).toEqual(expect.arrayContaining(['DATABASE_URL', 'STRIPE_SECRET_KEY']));
+  });
+});
+
 describe('GithubCollector repo selection', () => {
   it('scans only the selected repos when selectedRepos is set', async () => {
     const { fetchImpl, seen } = fakeGithubFetch();

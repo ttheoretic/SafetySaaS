@@ -115,4 +115,31 @@ export const SERVICE_HINTS: ServiceHint[] = [
   { match: /\b(cloudflare|@cloudflare)\b/, id: 'cloudflare', name: 'Cloudflare', kind: 'cdn', provider: 'cloudflare', defaults: { redundant: true } },
   // Storage
   { match: /\b(aws-sdk|@aws-sdk|s3)\b/, id: 's3', name: 'Object Storage (S3)', kind: 'storage', provider: 'aws', defaults: { hasBackup: true, redundant: true } },
+  { match: /\b(cloudinary)\b/, id: 'cloudinary', name: 'Cloudinary', kind: 'storage', defaults: { hasBackup: true, redundant: true } },
+  { match: /@google-cloud\/storage|\bgcs\b/, id: 'gcs', name: 'Google Cloud Storage', kind: 'storage', provider: 'gcp', defaults: { hasBackup: true, redundant: true } },
+  // Vector databases
+  { match: /\b(pinecone|@pinecone)\b/, id: 'pinecone', name: 'Pinecone', kind: 'database', defaults: { hasBackup: true } },
+  { match: /\b(weaviate)\b/, id: 'weaviate', name: 'Weaviate', kind: 'database', defaults: { hasBackup: false } },
+  { match: /\b(qdrant)\b/, id: 'qdrant', name: 'Qdrant', kind: 'database', defaults: { hasBackup: false } },
+  // Search
+  { match: /\b(algoliasearch|algolia)\b/, id: 'algolia', name: 'Algolia', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /@elastic|\belasticsearch\b/, id: 'elasticsearch', name: 'Elasticsearch', kind: 'service', defaults: { redundant: false } },
+  { match: /\b(meilisearch)\b/, id: 'meilisearch', name: 'Meilisearch', kind: 'service', defaults: { redundant: false } },
+  { match: /\b(typesense)\b/, id: 'typesense', name: 'Typesense', kind: 'service', defaults: { redundant: false } },
+  // Auth
+  { match: /\b(@clerk|clerk)\b/, id: 'clerk', name: 'Clerk', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /\b(auth0|@auth0)\b/, id: 'auth0', name: 'Auth0', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /\b(firebase|firebase-admin|@firebase)\b/, id: 'firebase', name: 'Firebase', kind: 'external_api', provider: 'gcp', defaults: { hasRateLimit: true, hasAuth: true } },
+  // Monitoring / observability
+  { match: /@sentry|\bsentry\b/, id: 'sentry', name: 'Sentry', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /\b(datadog|dd-trace|@datadog)\b/, id: 'datadog', name: 'Datadog', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /\b(newrelic|new-relic)\b/, id: 'newrelic', name: 'New Relic', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  // Analytics
+  { match: /\b(posthog|posthog-js|posthog-node)\b/, id: 'posthog', name: 'PostHog', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /@segment|\bsegment\b|analytics-node/, id: 'segment', name: 'Segment', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  { match: /\b(mixpanel|amplitude)\b/, id: 'product-analytics', name: 'Product Analytics', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  // Feature flags
+  { match: /\b(launchdarkly|@launchdarkly|unleash|flagsmith)\b/, id: 'feature-flags', name: 'Feature Flags', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
+  // Payments (beyond Stripe)
+  { match: /\b(paddle|@paddle|braintree)\b/, id: 'payments', name: 'Payments Provider', kind: 'external_api', defaults: { hasRateLimit: true, hasAuth: true } },
 ];

@@ -26,7 +26,7 @@ const EDGE_CRITICALITY: Partial<Record<NodeKind, number>> = {
 };
 
 const FRONTEND_FRAMEWORKS = ['nextjs', 'next', 'react', 'vue', 'nuxt', 'svelte', 'angular'];
-const API_FRAMEWORKS = ['nestjs', 'nest', 'express', 'fastify', 'koa', 'hapi', 'django', 'flask', 'rails'];
+const API_FRAMEWORKS = ['nestjs', 'nest', 'express', 'fastify', 'koa', 'hapi', 'django', 'flask', 'fastapi', 'gin', 'echo', 'fiber', 'rails', 'laravel', 'spring'];
 
 /**
  * Build a fragment from one repository: a frontend and/or api node plus the
