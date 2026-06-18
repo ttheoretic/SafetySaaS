@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Module, NotFoundException, Param, Post,
+  Body, Controller, Get, Module, NotFoundException, Param, Patch, Post,
 } from '@nestjs/common';
 import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 import { Store, StoreModule, ProjectRecord } from '../store/store.module';
@@ -18,6 +18,11 @@ class CreateConnectionDto {
   @IsOptional() @IsObject() metadata?: Record<string, unknown>;
   /** Access token is accepted but never returned; encrypted at rest in prod. */
   @IsOptional() @IsString() token?: string;
+}
+
+class UpdateConnectionDto {
+  /** Non-secret config to merge in, e.g. { selectedRepos: ["org/repo"] }. */
+  @IsObject() metadata!: Record<string, unknown>;
 }
 
 @Controller('projects/:projectId/connections')
@@ -64,6 +69,30 @@ class ConnectionsController {
       provider: dto.provider,
     });
     return { id: conn.id, provider: conn.provider, status: conn.status };
+  }
+
+  /** Merge non-secret config into a connection (e.g. which repos to scan). */
+  @Patch(':connectionId')
+  @RequirePermission('connection:write')
+  async update(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Param('connectionId') connectionId: string,
+    @Body() dto: UpdateConnectionDto,
+  ) {
+    await this.requireProject(auth, projectId);
+    const conn = await this.store.getConnection(connectionId);
+    if (!conn || conn.projectId !== projectId || conn.orgId !== auth.org.id) {
+      throw new NotFoundException('Connection not found');
+    }
+    const merged = { ...conn.metadata, ...dto.metadata };
+    const updated = await this.store.updateConnectionMetadata(connectionId, merged);
+    void this.audit.record(auth, 'connection.update', { type: 'connection', id: connectionId }, {
+      keys: Object.keys(dto.metadata),
+    });
+    return {
+      id: updated.id, provider: updated.provider, status: updated.status, metadata: updated.metadata,
+    };
   }
 
   private async requireProject(auth: AuthContext, projectId: string): Promise<ProjectRecord> {

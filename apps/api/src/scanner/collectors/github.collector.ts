@@ -28,7 +28,13 @@ export class GithubCollector implements ProviderCollector {
 
   async collect(connection: ConnectionRecord, ctx: CollectorContext) {
     const meta = connection.metadata ?? {};
-    const repos: string[] = Array.isArray(meta.repos) ? (meta.repos as string[]) : [];
+    const all: string[] = Array.isArray(meta.repos) ? (meta.repos as string[]) : [];
+    // Honor an explicit repo selection; fall back to all discovered repos so
+    // pre-selection connections keep working.
+    const selected: string[] = Array.isArray(meta.selectedRepos)
+      ? (meta.selectedRepos as string[])
+      : [];
+    const repos = selected.length > 0 ? selected : all;
 
     // Offline / no-token fallback: explicit signals provided in metadata.
     const provided = (meta.signals as RepoSignals[] | undefined) ?? undefined;

@@ -209,6 +209,12 @@ export const api = {
     projectId: string,
     body: { provider: string; token?: string; metadata?: Record<string, unknown> },
   ) => post<{ id: string; provider: string; status: string }>(`/projects/${projectId}/connections`, body),
+  /** Merge non-secret config (e.g. which repos to scan) into a connection. */
+  updateConnection: (projectId: string, connectionId: string, metadata: Record<string, unknown>) =>
+    patch<{ id: string; provider: string; status: string; metadata: Record<string, unknown> }>(
+      `/projects/${projectId}/connections/${connectionId}`,
+      { metadata },
+    ),
   listScenarios: (projectId: string) =>
     get<Array<{ id: string; name: string; prompt: string; createdAt: string; lastResult?: unknown }>>(
       `/projects/${projectId}/scenarios`,

@@ -57,6 +57,10 @@ export default function GetStartedPage() {
   // Set when the user just returned from connecting a provider (OAuth callback),
   // so the connect step can confirm it and offer a real (non-demo) first scan.
   const [connected, setConnected] = useState<string | null>(null);
+  // Repo selection for a connected GitHub account (scan one repo, not all).
+  const [connectionId, setConnectionId] = useState('');
+  const [repos, setRepos] = useState<string[]>([]);
+  const [selectedRepo, setSelectedRepo] = useState('');
 
   // final result
   const [targetScore, setTargetScore] = useState(0);
@@ -127,6 +131,21 @@ export default function GetStartedPage() {
           setProjectId(existing.id);
           setProjectName(existing.name);
           setStep('connect');
+          // Just connected a provider → load its repos so the user can pick one
+          // to scan, instead of scanning every repo on the account.
+          if (connectedProvider) {
+            try {
+              const conns = await api.listConnections(existing.id);
+              if (cancelled) return;
+              const conn = conns.find((c) => c.provider === connectedProvider);
+              const list = Array.isArray(conn?.metadata?.repos)
+                ? (conn!.metadata!.repos as string[])
+                : [];
+              if (conn) setConnectionId(conn.id);
+              setRepos(list);
+              setSelectedRepo(list[0] ?? '');
+            } catch { /* ignore — fall back to no picker */ }
+          }
         }
         setReady(true);
       } catch (err) {
@@ -164,6 +183,10 @@ export default function GetStartedPage() {
     setBusy(true); setError(null);
     setStep('scan');
     try {
+      // Scan only the chosen repo (not the whole account).
+      if (connectionId && selectedRepo) {
+        await api.updateConnection(projectId, connectionId, { selectedRepos: [selectedRepo] });
+      }
       const scan = await api.startScan(projectId);
       const score = scan.reliabilityScore ?? 0;
       let f: { title: string; severity: string; nodeId?: string }[] = [];
@@ -273,6 +296,20 @@ export default function GetStartedPage() {
                 <div className="flex items-center justify-center gap-2 rounded-md border border-risk-ok/30 bg-risk-ok/10 px-3 py-2.5 text-sm font-medium text-risk-ok">
                   <Github className="size-4" /> {connected} connected
                 </div>
+                {repos.length > 0 && (
+                  <label className="block space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Repository to scan</span>
+                    <select
+                      value={selectedRepo}
+                      onChange={(e) => setSelectedRepo(e.target.value)}
+                      className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary"
+                    >
+                      {repos.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <button onClick={runScan} disabled={busy}
                   className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
                   <ScanSearch className="size-4" /> Run your first scan

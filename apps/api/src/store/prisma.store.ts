@@ -138,6 +138,17 @@ export class PrismaStore extends Store {
     const rows = await this.prisma.connection.findMany({ where: { projectId } });
     return rows.map((r) => this.toConnection(r));
   }
+  async getConnection(id: string) {
+    const row = await this.prisma.connection.findUnique({ where: { id } });
+    return row ? this.toConnection(row) : undefined;
+  }
+  async updateConnectionMetadata(id: string, metadata: Record<string, unknown>) {
+    const row = await this.prisma.connection.update({
+      where: { id },
+      data: { metadata: metadata as any },
+    });
+    return this.toConnection(row);
+  }
   private toConnection(r: any): ConnectionRecord {
     return {
       id: r.id, orgId: r.orgId, projectId: r.projectId, provider: r.provider,

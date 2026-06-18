@@ -132,6 +132,8 @@ export abstract class Store {
 
   abstract createConnection(input: Omit<ConnectionRecord, 'id' | 'createdAt'>): Promise<ConnectionRecord>;
   abstract listConnections(projectId: string): Promise<ConnectionRecord[]>;
+  abstract getConnection(id: string): Promise<ConnectionRecord | undefined>;
+  abstract updateConnectionMetadata(id: string, metadata: Record<string, unknown>): Promise<ConnectionRecord>;
 
   abstract createUser(input: Omit<UserRecord, 'id' | 'createdAt'>): Promise<UserRecord>;
   abstract getUserBySupabaseId(supabaseId: string): Promise<UserRecord | undefined>;
@@ -237,6 +239,16 @@ export class InMemoryStore extends Store {
   }
   async listConnections(projectId: string) {
     return [...this.connections.values()].filter((c) => c.projectId === projectId);
+  }
+  async getConnection(id: string) {
+    return this.connections.get(id);
+  }
+  async updateConnectionMetadata(id: string, metadata: Record<string, unknown>) {
+    const existing = this.connections.get(id);
+    if (!existing) throw new Error('Connection not found');
+    const updated = { ...existing, metadata };
+    this.connections.set(id, updated);
+    return updated;
   }
 
   async createUser(input: Omit<UserRecord, 'id' | 'createdAt'>) {
