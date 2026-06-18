@@ -4,6 +4,7 @@ import {
 import {
   simulateFailure, revenueImpact, attackSimulation, exampleGraph, exampleBusiness,
   type SimulationType, type SimulationParams, type AttackSimType, type Impact,
+  type SystemGraph, type BusinessContext,
 } from '@riscly/shared';
 
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
@@ -107,24 +108,32 @@ export function findScenario(id: string): { group: SimGroup; scenario: SimScenar
   return undefined;
 }
 
-function money(n: number) {
+function money(n: number, currency: string) {
   return new Intl.NumberFormat('en', {
     style: 'currency',
-    currency: exampleBusiness.currency ?? 'EUR',
+    currency,
     maximumFractionDigits: 0,
   }).format(n);
 }
 
-/** Run a scenario by id against the system model, producing a display view. */
-export function runScenarioById(id: string): SimView | null {
+/**
+ * Run a scenario by id against the given system model + business context,
+ * producing a display view. Pass the active project's graph/business so the
+ * simulation reflects real data (falls back to the demo fixtures).
+ */
+export function runScenarioById(
+  id: string,
+  graph: SystemGraph = exampleGraph,
+  business: BusinessContext = exampleBusiness,
+): SimView | null {
   const found = findScenario(id);
   if (!found) return null;
   const { group, scenario } = found;
 
   if (scenario.attack) {
-    const r = attackSimulation(exampleGraph, scenario.attack);
+    const r = attackSimulation(graph, scenario.attack);
     // The epicenter for an attack is the public entrypoint(s) it enters through.
-    const epicenterIds = exampleGraph.nodes
+    const epicenterIds = graph.nodes
       .filter((n) => n.kind === 'frontend' || n.kind === 'api' || n.kind === 'cdn' || n.kind === 'dns')
       .map((n) => n.id)
       .filter((nid) => r.affectedNodeIds.includes(nid));
@@ -143,8 +152,8 @@ export function runScenarioById(id: string): SimView | null {
   }
 
   const { type, params, durationHours } = scenario.sim!;
-  const result = simulateFailure(exampleGraph, type, params);
-  const rev = revenueImpact(result, exampleBusiness, durationHours ?? 1);
+  const result = simulateFailure(graph, type, params);
+  const rev = revenueImpact(result, business, durationHours ?? 1);
   return {
     id, groupKey: group.key, groupTitle: group.title, title: scenario.label,
     status: IMPACT_LABEL[result.impact],
@@ -155,7 +164,7 @@ export function runScenarioById(id: string): SimView | null {
     epicenterIds: result.affectedNodeIds.slice(0, 1),
     narrative: result.narrative,
     bullets: result.mitigations,
-    revenue: money(rev.totalImpact),
+    revenue: money(rev.totalImpact, business.currency ?? 'EUR'),
   };
 }
 

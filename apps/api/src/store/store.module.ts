@@ -18,6 +18,8 @@ export interface ProjectRecord {
   slug: string;
   environment: string;
   createdAt: string;
+  /** Customer business context (MRR, active users, currency) for revenue impact. */
+  businessContext?: Record<string, unknown> | null;
 }
 
 export interface ScanRecord {
@@ -119,6 +121,7 @@ export abstract class Store {
   abstract createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): Promise<ProjectRecord>;
   abstract listProjects(orgId: string): Promise<ProjectRecord[]>;
   abstract getProject(id: string): Promise<ProjectRecord | undefined>;
+  abstract updateProject(id: string, patch: Partial<ProjectRecord>): Promise<ProjectRecord | undefined>;
 
   abstract createScan(input: Omit<ScanRecord, 'id' | 'createdAt'>): Promise<ScanRecord>;
   abstract updateScan(id: string, patch: Partial<ScanRecord>): Promise<ScanRecord | undefined>;
@@ -192,6 +195,13 @@ export class InMemoryStore extends Store {
   }
   async getProject(id: string) {
     return this.projects.get(id);
+  }
+  async updateProject(id: string, patch: Partial<ProjectRecord>) {
+    const existing = this.projects.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...patch };
+    this.projects.set(id, updated);
+    return updated;
   }
 
   async createScan(input: Omit<ScanRecord, 'id' | 'createdAt'>) {

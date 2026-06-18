@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Play, Save, Loader2 } from 'lucide-react';
 import {
   runScenario,
-  exampleGraph,
   exampleBusiness,
   Impact,
   SimulationType,
@@ -14,6 +13,7 @@ import {
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { FeatureGate } from '@/components/dashboard/feature-gate';
 import { useAuth } from '@/lib/auth-store';
+import { useSystemGraph, useBusiness } from '@/lib/dashboard-store';
 import { api } from '@/lib/api';
 
 const SIM_TYPES: { type: SimulationType; label: string; kind: 'outage' | 'traffic' | 'business' }[] = [
@@ -77,10 +77,12 @@ export default function ScenariosPage() {
   ]);
   const [name, setName] = useState('');
   const [projectId, setProjectId] = useState('');
+  const graph = useSystemGraph();
+  const business = useBusiness();
 
   const result = useMemo(
-    () => runScenario(exampleGraph, { steps: toEngineSteps(steps) }, exampleBusiness),
-    [steps],
+    () => runScenario(graph, { steps: toEngineSteps(steps) }, business),
+    [steps, graph, business],
   );
 
   const projects = useQuery({ queryKey: ['projects'], queryFn: api.listProjects, enabled: Boolean(token) });
@@ -97,7 +99,7 @@ export default function ScenariosPage() {
         name: name.trim() || 'Untitled scenario',
         prompt: steps.map((s) => SIM_TYPES.find((t) => t.type === s.type)?.label).join(' + '),
         steps: toEngineSteps(steps),
-        business: exampleBusiness,
+        business,
       }),
     onSuccess: () => {
       setName('');

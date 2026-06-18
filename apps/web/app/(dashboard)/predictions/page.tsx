@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Sparkles, Loader2, Cpu } from 'lucide-react';
-import { predictFailures, exampleGraph, exampleBusiness } from '@riscly/shared';
+import { predictFailures } from '@riscly/shared';
 import { PageHeader, Card, SeverityBadge } from '@/components/ui';
 import { AiChat } from '@/components/dashboard/ai-chat';
 import { useAuth } from '@/lib/auth-store';
 import { usePlan } from '@/lib/use-plan';
+import { useSystemGraph, useBusiness } from '@/lib/dashboard-store';
 import { api, type PredictionResponse } from '@/lib/api';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -38,10 +39,12 @@ export default function PredictionsPage() {
     enabled: Boolean(token),
   });
   const projectId = projects.data?.[0]?.id;
+  const graph = useSystemGraph();
+  const business = useBusiness();
 
   // Baseline: the deterministic heuristic layer, always available.
-  const heuristics = predictFailures(exampleGraph, {
-    currentUsers: exampleBusiness.activeUsers,
+  const heuristics = predictFailures(graph, {
+    currentUsers: business.activeUsers,
   }) as unknown as Prediction[];
   const predictions: Prediction[] = live?.predictions ?? heuristics;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Users } from 'lucide-react';
-import { simulateFailure, revenueImpact, exampleBusiness, SimulationType } from '@riscly/shared';
+import { simulateFailure, revenueImpact, SimulationType } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 import { useDashboardStore } from '@/lib/dashboard-store';
 import { money } from '@/lib/dashboard-data';
@@ -16,11 +16,12 @@ const SCENARIOS: { type: SimulationType; label: string; hours: number }[] = [
 
 export default function ChurnPage() {
   const graph = useDashboardStore((s) => s.graph);
-  const c = exampleBusiness.currency ?? 'EUR';
-  const mrr = exampleBusiness.monthlyRevenue;
+  const business = useDashboardStore((s) => s.business);
+  const c = business.currency ?? 'EUR';
+  const mrr = business.monthlyRevenue;
 
   const rows = SCENARIOS.map((s) => {
-    const rev = revenueImpact(simulateFailure(graph, s.type), exampleBusiness, s.hours);
+    const rev = revenueImpact(simulateFailure(graph, s.type), business, s.hours);
     const pct = (rev.churnRiskCost / mrr) * 100;
     return { ...s, cost: rev.churnRiskCost, pct, annualized: rev.churnRiskCost * 12 };
   }).sort((a, b) => b.cost - a.cost);

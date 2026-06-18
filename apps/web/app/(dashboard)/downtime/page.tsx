@@ -1,7 +1,7 @@
 'use client';
 
 import { Clock } from 'lucide-react';
-import { simulateFailure, revenueImpact, exampleBusiness, SimulationType } from '@riscly/shared';
+import { simulateFailure, revenueImpact, SimulationType } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 import { useDashboardStore } from '@/lib/dashboard-store';
 import { money } from '@/lib/dashboard-data';
@@ -16,10 +16,11 @@ const SCENARIOS: { type: SimulationType; label: string }[] = [
 
 export default function DowntimePage() {
   const graph = useDashboardStore((s) => s.graph);
-  const c = exampleBusiness.currency ?? 'EUR';
+  const business = useDashboardStore((s) => s.business);
+  const c = business.currency ?? 'EUR';
   const rows = SCENARIOS.map((s) => {
     const sim = simulateFailure(graph, s.type);
-    const hourly = revenueImpact(sim, exampleBusiness, 1).totalImpact;
+    const hourly = revenueImpact(sim, business, 1).totalImpact;
     return { ...s, hourly, impact: sim.impact };
   }).sort((a, b) => b.hourly - a.hourly);
 

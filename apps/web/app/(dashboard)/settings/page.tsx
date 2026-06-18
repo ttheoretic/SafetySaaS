@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import {
-  User, Plug, Bell, ShieldCheck, AlertTriangle, Loader2, Check,
+  User, Plug, Bell, ShieldCheck, AlertTriangle, Loader2, Check, LineChart,
 } from 'lucide-react';
+import { exampleBusiness } from '@riscly/shared';
 import { PageHeader } from '@/components/ui';
 import { ConnectProviders } from '@/components/ConnectProviders';
 import { useAuth } from '@/lib/auth-store';
+import { useDashboardStore } from '@/lib/dashboard-store';
 import { api } from '@/lib/api';
 
 export default function SettingsPage() {
@@ -15,6 +17,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" subtitle="Manage your account, integrations and preferences." />
       <div className="space-y-6">
         <GeneralSection />
+        <BusinessSection />
         <IntegrationsSection />
         <NotificationsSection />
         <SecuritySection />
@@ -117,6 +120,107 @@ function GeneralSection() {
             <Check className="size-3.5" /> Saved
           </span>
         )}
+        {error && <span className="text-xs text-destructive">{error}</span>}
+      </div>
+    </Section>
+  );
+}
+
+/* ------------------------------- Business -------------------------------- */
+
+function BusinessSection() {
+  const { token } = useAuth();
+  const setBusiness = useDashboardStore((s) => s.setBusiness);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    monthlyRevenue: exampleBusiness.monthlyRevenue,
+    activeUsers: exampleBusiness.activeUsers,
+    currency: exampleBusiness.currency ?? 'EUR',
+    peakCheckoutShare: Math.round((exampleBusiness.peakCheckoutShare ?? 0.17) * 100),
+  });
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const projects = await api.listProjects();
+        const pid = projects[0]?.id ?? null;
+        setProjectId(pid);
+        if (pid) {
+          const biz = await api.getBusiness(pid);
+          if (biz) {
+            setForm({
+              monthlyRevenue: biz.monthlyRevenue,
+              activeUsers: biz.activeUsers,
+              currency: biz.currency ?? 'EUR',
+              peakCheckoutShare: Math.round((biz.peakCheckoutShare ?? 0.17) * 100),
+            });
+          }
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [token]);
+
+  async function save() {
+    if (!projectId) return setError('Create a project first to attach business numbers.');
+    setBusy(true); setError(null); setSaved(false);
+    const payload = {
+      monthlyRevenue: Number(form.monthlyRevenue),
+      activeUsers: Number(form.activeUsers),
+      currency: form.currency || 'EUR',
+      peakCheckoutShare: Math.max(0, Math.min(1, form.peakCheckoutShare / 100)),
+    };
+    try {
+      const saved = await api.updateBusiness(projectId, payload);
+      // Reflect immediately across every revenue calculation in the app.
+      setBusiness({ ...exampleBusiness, ...saved });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section
+      icon={<LineChart className="size-4 text-primary" />}
+      title="Business context"
+      description="Your real numbers power revenue-at-risk, SLA and churn impact — instead of demo figures."
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Monthly recurring revenue">
+          <input type="number" min={0} className={inputCls}
+            value={form.monthlyRevenue}
+            onChange={(e) => setForm((f) => ({ ...f, monthlyRevenue: Number(e.target.value) }))} />
+        </Field>
+        <Field label="Active paying users">
+          <input type="number" min={0} className={inputCls}
+            value={form.activeUsers}
+            onChange={(e) => setForm((f) => ({ ...f, activeUsers: Number(e.target.value) }))} />
+        </Field>
+        <Field label="Currency (ISO 4217)">
+          <input maxLength={3} className={inputCls}
+            value={form.currency}
+            onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value.toUpperCase() }))} />
+        </Field>
+        <Field label="Peak checkout share (%)">
+          <input type="number" min={0} max={100} className={inputCls}
+            value={form.peakCheckoutShare}
+            onChange={(e) => setForm((f) => ({ ...f, peakCheckoutShare: Number(e.target.value) }))} />
+        </Field>
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button onClick={save} disabled={busy}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">
+          {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+          Save business context
+        </button>
+        {saved && <span className="inline-flex items-center gap-1 text-xs text-success"><Check className="size-3.5" /> Saved</span>}
         {error && <span className="text-xs text-destructive">{error}</span>}
       </div>
     </Section>

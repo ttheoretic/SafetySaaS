@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ShieldCheck, AlertTriangle, Crosshair, RotateCw, Loader2 } from 'lucide-react';
 import { SeverityBadge } from '@/components/ui';
 import { SimulationMap } from '@/components/simulations/simulation-map';
-import { runScenarioById, exampleGraph, type SimView } from '@/lib/simulations';
+import { runScenarioById, type SimView } from '@/lib/simulations';
+import { useSystemGraph, useBusiness } from '@/lib/dashboard-store';
 
 export default function RunSimulationPage() {
   return (
@@ -27,7 +28,9 @@ const STEPS: Record<string, string[]> = {
 function RunSimulation() {
   const params = useSearchParams();
   const id = params.get('id') ?? '';
-  const view = useMemo(() => runScenarioById(id), [id]);
+  const graph = useSystemGraph();
+  const business = useBusiness();
+  const view = useMemo(() => runScenarioById(id, graph, business), [id, graph, business]);
 
   const [runKey, setRunKey] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -59,7 +62,7 @@ function RunSimulation() {
     );
   }
 
-  const nameOf = (nid: string) => exampleGraph.nodes.find((n) => n.id === nid)?.name ?? nid;
+  const nameOf = (nid: string) => graph.nodes.find((n) => n.id === nid)?.name ?? nid;
   const steps = STEPS[view.groupKey] ?? STEPS.failure;
 
   return (
@@ -116,7 +119,7 @@ function RunSimulation() {
             </div>
           </div>
           <div className="min-h-0 flex-1">
-            <SimulationMap graph={exampleGraph} affected={view.affectedIds} epicenter={view.epicenterIds} revealed={done} />
+            <SimulationMap graph={graph} affected={view.affectedIds} epicenter={view.epicenterIds} revealed={done} />
           </div>
         </div>
       </div>

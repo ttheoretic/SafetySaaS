@@ -1,12 +1,13 @@
+'use client';
+
 import {
   simulateFailure,
   revenueImpact,
-  exampleGraph,
-  exampleBusiness,
   SimulationType,
 } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 import { FeatureGate } from '@/components/dashboard/feature-gate';
+import { useSystemGraph, useBusiness } from '@/lib/dashboard-store';
 
 const SCENARIOS: { type: SimulationType; label: string; hours: number }[] = [
   { type: 'dns', label: 'Full outage (DNS)', hours: 2 },
@@ -25,10 +26,12 @@ function fmt(n: number, currency: string) {
 }
 
 export default function RevenuePage() {
-  const c = exampleBusiness.currency ?? 'EUR';
+  const graph = useSystemGraph();
+  const business = useBusiness();
+  const c = business.currency ?? 'EUR';
   const rows = SCENARIOS.map((s) => {
-    const result = simulateFailure(exampleGraph, s.type);
-    const revenue = revenueImpact(result, exampleBusiness, s.hours);
+    const result = simulateFailure(graph, s.type);
+    const revenue = revenueImpact(result, business, s.hours);
     return { ...s, revenue };
   });
 
@@ -36,7 +39,7 @@ export default function RevenuePage() {
     <>
       <PageHeader
         title="Revenue Risk"
-        subtitle={`Modeled on MRR ${fmt(exampleBusiness.monthlyRevenue, c)} · ${exampleBusiness.activeUsers} active users.`}
+        subtitle={`Modeled on MRR ${fmt(business.monthlyRevenue, c)} · ${business.activeUsers} active users.`}
       />
       <FeatureGate
         feature="revenueImpact"
@@ -44,7 +47,7 @@ export default function RevenuePage() {
         description="Quantify the euro cost of every failure scenario — direct loss, conversion loss, SLA credits and churn risk."
       >
       <div className="grid grid-cols-3 gap-4">
-        <Stat label="Monthly revenue" value={fmt(exampleBusiness.monthlyRevenue, c)} />
+        <Stat label="Monthly revenue" value={fmt(business.monthlyRevenue, c)} />
         <Stat
           label="Worst-case single event"
           value={fmt(Math.max(...rows.map((r) => r.revenue.totalImpact)), c)}

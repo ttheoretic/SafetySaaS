@@ -48,6 +48,12 @@ async function patch<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const res = await apiFetch(path, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) await readError(res, path);
+  return res.json() as Promise<T>;
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await apiFetch(path, { headers: authHeaders() });
   if (!res.ok) await readError(res, path);
@@ -95,6 +101,14 @@ export interface PredictionResponse {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+export interface BusinessInput {
+  monthlyRevenue: number;
+  activeUsers: number;
+  currency?: string;
+  peakCheckoutShare?: number;
+  slaCreditRatePerHour?: number;
 }
 
 export interface ReliabilityResponse {
@@ -174,6 +188,10 @@ export const api = {
     ),
   oauthAuthorizeUrl: (provider: string, projectId: string) =>
     get<{ url: string }>(`/oauth/${provider}/authorize?projectId=${projectId}`),
+  getBusiness: (projectId: string) =>
+    get<BusinessInput | null>(`/projects/${projectId}/business`),
+  updateBusiness: (projectId: string, body: BusinessInput) =>
+    put<BusinessInput>(`/projects/${projectId}/business`, body),
   listConnections: (projectId: string) =>
     get<Array<{ id: string; provider: string; status: string; metadata?: Record<string, unknown>; createdAt: string }>>(
       `/projects/${projectId}/connections`,

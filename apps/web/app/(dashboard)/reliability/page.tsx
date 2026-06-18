@@ -5,10 +5,10 @@ import { Network, Wrench, BookMarked } from 'lucide-react';
 import {
   reliabilityScore,
   buildRecommendations,
-  exampleGraph,
   SystemGraph,
 } from '@riscly/shared';
 import { PageHeader, Card, ScoreGauge, SeverityBadge, Stat } from '@/components/ui';
+import { useSystemGraph } from '@/lib/dashboard-store';
 
 function depths(graph: SystemGraph): Map<string, number> {
   const incoming = new Map<string, number>();
@@ -33,19 +33,20 @@ function depths(graph: SystemGraph): Map<string, number> {
 }
 
 export default function ReliabilityPage() {
-  const result = useMemo(() => reliabilityScore(exampleGraph), []);
+  const graph = useSystemGraph();
+  const result = useMemo(() => reliabilityScore(graph), [graph]);
   const recs = useMemo(() => buildRecommendations(result.findings), [result]);
   const [selected, setSelected] = useState<string | null>(null);
 
   const riskyNodes = new Set(result.findings.filter((f) => f.nodeId).map((f) => f.nodeId as string));
   const shownFindings = selected ? result.findings.filter((f) => f.nodeId === selected) : result.findings;
   const shownRecs = selected ? recs.filter((r) => r.nodeId === selected) : recs;
-  const selectedNode = exampleGraph.nodes.find((n) => n.id === selected);
+  const selectedNode = graph.nodes.find((n) => n.id === selected);
 
   // layout
-  const depth = depths(exampleGraph);
+  const depth = depths(graph);
   const columns = new Map<number, string[]>();
-  for (const n of exampleGraph.nodes) {
+  for (const n of graph.nodes) {
     const d = depth.get(n.id) ?? 0;
     columns.set(d, [...(columns.get(d) ?? []), n.id]);
   }
@@ -88,12 +89,12 @@ export default function ReliabilityPage() {
           </div>
           <div className="overflow-x-auto">
             <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ minWidth: 540, maxHeight: 380 }}>
-              {exampleGraph.edges.map((e, i) => {
+              {graph.edges.map((e, i) => {
                 const a = pos.get(e.from), b = pos.get(e.to);
                 if (!a || !b) return null;
                 return <line key={i} x1={a.x + 140} y1={a.y + 18} x2={b.x} y2={b.y + 18} stroke="var(--border)" strokeWidth={1.5} />;
               })}
-              {exampleGraph.nodes.map((n) => {
+              {graph.nodes.map((n) => {
                 const p = pos.get(n.id)!;
                 const risky = riskyNodes.has(n.id);
                 const isSel = selected === n.id;

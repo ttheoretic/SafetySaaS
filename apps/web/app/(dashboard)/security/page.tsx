@@ -1,7 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import { ShieldAlert, ShieldCheck, AlertTriangle, ArrowRight } from 'lucide-react';
-import { securitySimulation, exampleGraph } from '@riscly/shared';
+import { securitySimulation } from '@riscly/shared';
 import { PageHeader, ScoreGauge, SeverityBadge } from '@/components/ui';
+import { useSystemGraph } from '@/lib/dashboard-store';
 
 const ATTACK_LABEL: Record<string, string> = {
   ddos: 'DDoS / volumetric flood',
@@ -13,7 +16,8 @@ const ATTACK_LABEL: Record<string, string> = {
 };
 
 export default function SecurityPage() {
-  const result = securitySimulation(exampleGraph);
+  const graph = useSystemGraph();
+  const result = securitySimulation(graph);
   const exposed = result.exposures.filter((e) => e.exposed);
   const critical = result.findings.filter(
     (f) => f.severity === 'critical' || f.severity === 'high',

@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Bell, ChevronsUpDown, CircleDot, Command, Loader2, ScanLine,
 } from 'lucide-react';
-import type { SystemGraph } from '@riscly/shared';
+import { exampleBusiness, type BusinessContext, type SystemGraph } from '@riscly/shared';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-store';
 import { usePlan } from '@/lib/use-plan';
@@ -19,7 +19,7 @@ export function Topbar() {
   const qc = useQueryClient();
   const { token } = useAuth();
   const { plan } = usePlan();
-  const { source, setGraph, reset } = useDashboardStore();
+  const { source, setGraph, setBusiness, reset } = useDashboardStore();
   const [sourceOpen, setSourceOpen] = useState(false);
   const [running, setRunning] = useState(false);
 
@@ -29,9 +29,21 @@ export function Topbar() {
 
   const workspace = me.data?.activeOrg.name ?? 'Riscly';
 
+  /** Load a project's saved business context (falls back to demo numbers). */
+  async function loadBusiness(projectId: string) {
+    try {
+      const biz = await api.getBusiness(projectId);
+      setBusiness(biz ? ({ ...exampleBusiness, ...biz } as BusinessContext) : exampleBusiness);
+    } catch { /* keep current */ }
+  }
+
   async function pickSource(value: string) {
     setSourceOpen(false);
-    if (value === 'demo') return reset();
+    if (value === 'demo') {
+      reset();
+      setBusiness(exampleBusiness);
+      return;
+    }
     const project = projects.data?.find((p) => p.id === value);
     if (!project) return;
     try {
@@ -39,6 +51,7 @@ export function Topbar() {
       const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
       if (latest?.graph) setGraph(latest.graph as SystemGraph, project.name);
       else setGraph(useDashboardStore.getState().graph, `${project.name} (run a scan)`);
+      await loadBusiness(project.id);
     } catch { /* keep current */ }
   }
 

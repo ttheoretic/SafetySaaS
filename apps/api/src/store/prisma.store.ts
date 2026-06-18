@@ -39,10 +39,23 @@ export class PrismaStore extends Store {
     const row = await this.prisma.project.findUnique({ where: { id } });
     return row ? this.toProject(row) : undefined;
   }
+  async updateProject(id: string, patch: Partial<ProjectRecord>) {
+    const row = await this.prisma.project.update({
+      where: { id },
+      data: {
+        name: patch.name,
+        slug: patch.slug,
+        environment: patch.environment as any,
+        businessContext: patch.businessContext as any,
+      },
+    });
+    return this.toProject(row);
+  }
   private toProject(r: any): ProjectRecord {
     return {
       id: r.id, orgId: r.orgId, name: r.name, slug: r.slug,
       environment: r.environment, createdAt: r.createdAt.toISOString(),
+      businessContext: r.businessContext ?? null,
     };
   }
 

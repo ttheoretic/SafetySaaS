@@ -1,7 +1,7 @@
 'use client';
 
 import { Gauge } from 'lucide-react';
-import { reliabilityScore, simulateFailure, revenueImpact, exampleBusiness } from '@riscly/shared';
+import { reliabilityScore, simulateFailure, revenueImpact } from '@riscly/shared';
 import { PageHeader, Card, Stat } from '@/components/ui';
 import { useDashboardStore } from '@/lib/dashboard-store';
 import { money } from '@/lib/dashboard-data';
@@ -14,14 +14,15 @@ const TIERS = [
 
 export default function SlaPage() {
   const graph = useDashboardStore((s) => s.graph);
-  const c = exampleBusiness.currency ?? 'EUR';
+  const business = useDashboardStore((s) => s.business);
+  const c = business.currency ?? 'EUR';
   const rel = reliabilityScore(graph);
 
   // SLA credit exposure for a 24h breach at each tier's credit rate.
   const sim = simulateFailure(graph, 'dns');
   const exposure = TIERS.map((t) => ({
     ...t,
-    credit: revenueImpact(sim, { ...exampleBusiness, slaCreditRatePerHour: t.creditRate / 24 }, 24).slaCredits,
+    credit: revenueImpact(sim, { ...business, slaCreditRatePerHour: t.creditRate / 24 }, 24).slaCredits,
   }));
 
   // Modeled monthly downtime risk derived from the reliability score.

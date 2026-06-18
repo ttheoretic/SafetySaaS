@@ -209,6 +209,8 @@ model Project {
   slug        String
   environment Environment @default(production)
   createdAt   DateTime    @default(now())
+  /// Customer business context (MRR, active users, currency) for revenue impact.
+  businessContext Json?
 
   organization    Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   connections     Connection[]
