@@ -28,6 +28,8 @@ export interface RepoSignals {
   iac?: string[];
   /** Where the app appears to be deployed, if derivable. */
   hostProvider?: ProviderId;
+  /** Known vulnerabilities in this repo's resolved dependency tree (SCA). */
+  vulnerabilities?: import('../vulnerabilities').DependencyVulnerability[];
 }
 
 /** A cloud/hosting account and its notable resources. */

@@ -25,8 +25,12 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   for (const db of collection.databases ?? []) fragments.push(databaseFragment(db));
   for (const b of collection.billing ?? []) fragments.push(billingFragment(b));
 
-  const graph = mergeFragments(fragments);
-  return connectOrphans(graph);
+  const graph = connectOrphans(mergeFragments(fragments));
+
+  // Carry any SCA vulnerabilities discovered per repo up to the graph, so they
+  // flow through persistence and the dashboard with the topology.
+  const vulnerabilities = (collection.repos ?? []).flatMap((r) => r.vulnerabilities ?? []);
+  return vulnerabilities.length ? { ...graph, vulnerabilities } : graph;
 }
 
 /**

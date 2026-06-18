@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ShieldAlert, ShieldCheck, AlertTriangle, ArrowRight } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, AlertTriangle, ArrowRight, Bug } from 'lucide-react';
 import { securitySimulation } from '@riscly/shared';
 import { PageHeader, ScoreGauge, SeverityBadge } from '@/components/ui';
 import { useSystemGraph } from '@/lib/dashboard-store';
@@ -19,9 +19,11 @@ export default function SecurityPage() {
   const graph = useSystemGraph();
   const result = securitySimulation(graph);
   const exposed = result.exposures.filter((e) => e.exposed);
-  const critical = result.findings.filter(
-    (f) => f.severity === 'critical' || f.severity === 'high',
-  );
+  const vulns = graph.vulnerabilities ?? [];
+  const critical = [
+    ...result.findings.filter((f) => f.severity === 'critical' || f.severity === 'high'),
+    ...vulns.filter((v) => v.severity === 'critical' || v.severity === 'high'),
+  ];
 
   return (
     <>
@@ -95,6 +97,44 @@ export default function SecurityPage() {
               </span>
             </li>
           ))}
+        </ul>
+      </section>
+
+      {/* Dependency vulnerabilities (SCA from the connected repo's lockfiles) */}
+      <section className="mt-6 rounded-xl border border-border bg-surface">
+        <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Bug className="size-4 text-muted-foreground" /> Dependency vulnerabilities
+          </h2>
+          <span className="text-xs text-muted-foreground">{vulns.length} found</span>
+        </header>
+        <ul className="divide-y divide-border">
+          {vulns.map((v, i) => (
+            <li key={`${v.id}-${v.package}-${i}`} className="px-5 py-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-sm font-medium text-foreground">
+                  {v.package}@{v.version}
+                </span>
+                <SeverityBadge severity={v.severity} />
+              </div>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{v.summary}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="font-mono">{v.id}</span>
+                {v.fixedVersion ? (
+                  <span className="text-success">Fixed in {v.fixedVersion}</span>
+                ) : (
+                  <span className="text-warning">No fix published</span>
+                )}
+                <span className="opacity-70">{v.repo}</span>
+              </div>
+            </li>
+          ))}
+          {vulns.length === 0 && (
+            <li className="px-5 py-6 text-sm text-muted-foreground">
+              No known dependency vulnerabilities — or connect a GitHub repo and run a scan to check
+              your lockfiles against the OSV advisory database.
+            </li>
+          )}
         </ul>
       </section>
 

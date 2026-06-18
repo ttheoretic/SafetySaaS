@@ -66,6 +66,9 @@ export interface SystemEdge {
 export interface SystemGraph {
   nodes: SystemNode[];
   edges: SystemEdge[];
+  /** Known dependency vulnerabilities (SCA), when the scanner read the code.
+   *  Optional so topology-only graphs and the demo remain unaffected. */
+  vulnerabilities?: import('./vulnerabilities').DependencyVulnerability[];
 }
 
 /** Business context used by the revenue engine. */

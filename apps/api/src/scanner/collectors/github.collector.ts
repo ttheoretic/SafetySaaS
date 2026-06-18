@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { RepoSignals } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext } from './collector';
+import { auditRepoDependencies } from '../dependency-audit';
 
 const FRAMEWORK_DEP_MAP: Record<string, string> = {
   next: 'nextjs',
@@ -60,6 +61,17 @@ export class GithubCollector implements ProviderCollector {
     const pkg = await this.readJson(repo, 'package.json', ctx);
     if (!pkg) return undefined;
 
+    // Deep analysis: resolve the lockfiles and check them against OSV for known
+    // CVEs/advisories. Resilient — a failed audit never drops the repo signals.
+    let vulnerabilities;
+    if (ctx.token) {
+      try {
+        vulnerabilities = await auditRepoDependencies(repo, ctx);
+      } catch (err) {
+        this.logger.warn(`Dependency audit of ${repo} failed: ${(err as Error).message}`);
+      }
+    }
+
     const deps = {
       ...(pkg.dependencies ?? {}),
       ...(pkg.devDependencies ?? {}),
@@ -85,6 +97,7 @@ export class GithubCollector implements ProviderCollector {
       frameworks,
       hasDockerfile,
       hasKubernetes,
+      ...(vulnerabilities && vulnerabilities.length ? { vulnerabilities } : {}),
     };
   }
 
