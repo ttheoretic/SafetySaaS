@@ -1,0 +1,235 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import {
+  Send,
+  Bot,
+  ShieldCheck,
+  Sparkles,
+  WandSparkles,
+  CircleAlert,
+} from 'lucide-react'
+import { ScreenHeader } from '@/components/layout/screen-header'
+import { SeverityBadge } from '@/components/ui/severity'
+import { cn } from '@/lib/utils'
+
+type Msg = {
+  role: 'user' | 'assistant'
+  content: string
+  refs?: { id: string; severity: 'critical' | 'high' | 'medium'; title: string }[]
+  actions?: string[]
+}
+
+const suggestions = [
+  'What are my most urgent risks right now?',
+  'Why is orders-db marked critical?',
+  'Prioritize fixes by production impact',
+  'What happens if synthetics-api goes down?',
+]
+
+const seed: Msg[] = [
+  {
+    role: 'assistant',
+    content:
+      "I have the full architecture and risk model for shopist-platform loaded. There are 9 open risks — 3 critical, all reachable in production. Ask me about security, performance, reliability, or how a change would ripple through the system.",
+  },
+]
+
+function reply(q: string): Msg {
+  const lower = q.toLowerCase()
+  if (lower.includes('urgent') || lower.includes('prioritize') || lower.includes('most')) {
+    return {
+      role: 'assistant',
+      content:
+        'Ranked by production impact and exploitability, here is what I would fix first:',
+      refs: [
+        { id: 'RSK-1039', severity: 'critical', title: 'Publicly exposed Postgres (orders-db)' },
+        { id: 'RSK-1031', severity: 'critical', title: 'log4j RCE — CVE-2021-44228' },
+        { id: 'RSK-1042', severity: 'critical', title: 'HTTP request without timeout' },
+      ],
+      actions: ['Apply all 3 fixes', 'Open a remediation PR'],
+    }
+  }
+  if (lower.includes('orders-db') || lower.includes('database') || lower.includes('postgres')) {
+    return {
+      role: 'assistant',
+      content:
+        'orders-db is critical because security group sg-0a91 allows inbound 5432 from 0.0.0.0/0 (RSK-1039), exposing customer order data to the public internet. It also amplifies an N+1 query from return-completion (RSK-1014), so under load it becomes both a security and a reliability hot spot. Restricting ingress to the app subnet removes the exploitable path immediately.',
+      refs: [{ id: 'RSK-1039', severity: 'critical', title: 'Publicly exposed Postgres' }],
+      actions: ['Show fix', 'Run DB failure simulation'],
+    }
+  }
+  if (lower.includes('synthetics') || lower.includes('down') || lower.includes('outage')) {
+    return {
+      role: 'assistant',
+      content:
+        'If synthetics-api stalls, the dogmover worker hangs because requests.post has no timeout (RSK-1042). That exhausts the log-forwarder thread pool and back-pressures sms-service — a 3-service failure chain. Adding timeout=10 plus a try/except contains the blast radius. I can run the dependency-failure simulation to confirm.',
+      refs: [{ id: 'RSK-1042', severity: 'critical', title: 'HTTP request without timeout' }],
+      actions: ['Run dependency simulation', 'Apply timeout fix'],
+    }
+  }
+  return {
+    role: 'assistant',
+    content:
+      'Based on the current model, the dominant theme is unbounded failure propagation: missing timeouts, no rate limiting, and a publicly exposed database. Closing those three removes every exploitable path in production. Want me to draft a prioritized remediation plan?',
+    actions: ['Draft remediation plan'],
+  }
+}
+
+export function AssistantView() {
+  const [messages, setMessages] = useState<Msg[]>(seed)
+  const [input, setInput] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const send = (text: string) => {
+    if (!text.trim()) return
+    const next = [...messages, { role: 'user', content: text } as Msg]
+    setMessages(next)
+    setInput('')
+    setTimeout(() => {
+      setMessages((m) => [...m, reply(text)])
+      requestAnimationFrame(() =>
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }),
+      )
+    }, 280)
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <ScreenHeader
+        title="AI Assistant"
+        subtitle="Context-aware over your architecture, risks, simulations and code"
+      />
+
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+          <div className="flex flex-col gap-5">
+            {messages.map((m, i) => (
+              <Message key={i} msg={m} onAction={(a) => send(a)} />
+            ))}
+          </div>
+
+          {messages.length <= 1 && (
+            <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2.5 text-left text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                >
+                  <Sparkles className="size-3.5 shrink-0 text-primary" />
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* composer */}
+        <div className="border-t border-border bg-panel p-3">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              send(input)
+            }}
+            className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 focus-within:border-primary/50"
+          >
+            <Bot className="size-4 text-muted-foreground" />
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about risks, architecture, performance, simulations…"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+            />
+            <button
+              type="submit"
+              className="flex size-7 items-center justify-center rounded-sm bg-primary text-primary-foreground disabled:opacity-40"
+              disabled={!input.trim()}
+              aria-label="Send"
+            >
+              <Send className="size-3.5" />
+            </button>
+          </form>
+          <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">
+            Riscly AI can apply fixes and run simulations on your behalf. Review
+            before merging.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Message({ msg, onAction }: { msg: Msg; onAction: (a: string) => void }) {
+  const isUser = msg.role === 'user'
+  return (
+    <div className={cn('flex gap-3', isUser && 'flex-row-reverse')}>
+      <div
+        className={cn(
+          'flex size-7 shrink-0 items-center justify-center rounded-md',
+          isUser ? 'bg-secondary' : 'bg-primary text-primary-foreground',
+        )}
+      >
+        {isUser ? (
+          <span className="font-mono text-[11px] font-semibold">DO</span>
+        ) : (
+          <ShieldCheck className="size-4" />
+        )}
+      </div>
+      <div className={cn('min-w-0 max-w-[85%]', isUser && 'flex flex-col items-end')}>
+        <div
+          className={cn(
+            'rounded-md px-3 py-2 text-sm leading-relaxed',
+            isUser
+              ? 'bg-secondary text-foreground'
+              : 'border border-border bg-panel text-foreground/90',
+          )}
+        >
+          {msg.content}
+        </div>
+
+        {msg.refs && (
+          <div className="mt-2 flex flex-col gap-1.5">
+            {msg.refs.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5"
+              >
+                <CircleAlert
+                  className={cn(
+                    'size-3.5',
+                    r.severity === 'critical'
+                      ? 'text-critical'
+                      : r.severity === 'high'
+                        ? 'text-high'
+                        : 'text-medium',
+                  )}
+                />
+                <SeverityBadge severity={r.severity} />
+                <span className="truncate text-xs">{r.title}</span>
+                <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                  {r.id}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {msg.actions && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {msg.actions.map((a) => (
+              <button
+                key={a}
+                onClick={() => onAction(a)}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <WandSparkles className="size-3" />
+                {a}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
