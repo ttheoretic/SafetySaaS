@@ -137,7 +137,12 @@ export class GithubCollector implements ProviderCollector {
     const selected: string[] = Array.isArray(meta.selectedRepos)
       ? (meta.selectedRepos as string[])
       : [];
-    const repos = selected.length > 0 ? selected : all;
+    let repos = selected.length > 0 ? selected : all;
+    // Defense-in-depth: never scan more repos than the plan allows.
+    const maxRepos = ctx.entitlements?.maxRepos;
+    if (typeof maxRepos === 'number' && Number.isFinite(maxRepos)) {
+      repos = repos.slice(0, maxRepos);
+    }
 
     // Offline / no-token fallback: explicit signals provided in metadata.
     const provided = (meta.signals as RepoSignals[] | undefined) ?? undefined;

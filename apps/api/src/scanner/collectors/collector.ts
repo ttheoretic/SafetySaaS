@@ -29,6 +29,8 @@ export interface CollectorContext {
     sca?: boolean;
     /** Code / secret / IaC analysis (SAST family). */
     codeAudit?: boolean;
+    /** Max repositories to scan (plan limit). Infinity / undefined = unlimited. */
+    maxRepos?: number;
   };
 }
 

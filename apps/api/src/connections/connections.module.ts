@@ -1,7 +1,9 @@
 import {
-  Body, Controller, Get, Module, NotFoundException, Param, Patch, Post,
+  Body, Controller, ForbiddenException, Get, Module, NotFoundException,
+  Param, Patch, Post,
 } from '@nestjs/common';
 import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
+import { planLimits } from '@riscly/shared';
 import { Store, StoreModule, ProjectRecord } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
@@ -86,6 +88,16 @@ class ConnectionsController {
       throw new NotFoundException('Connection not found');
     }
     const merged = { ...conn.metadata, ...dto.metadata };
+    // Enforce the plan's repository limit on the scan selection.
+    if (Array.isArray(merged.selectedRepos)) {
+      const max = planLimits(auth.org.plan).maxRepos;
+      if (Number.isFinite(max) && merged.selectedRepos.length > max) {
+        throw new ForbiddenException(
+          `Your ${auth.org.plan} plan can scan ${max} ` +
+            `repositor${max === 1 ? 'y' : 'ies'}. Upgrade to connect more.`,
+        );
+      }
+    }
     const updated = await this.store.updateConnectionMetadata(connectionId, merged);
     void this.audit.record(auth, 'connection.update', { type: 'connection', id: connectionId }, {
       keys: Object.keys(dto.metadata),

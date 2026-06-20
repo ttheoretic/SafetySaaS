@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
-import { exampleGraph, hasFeature, Plan, SystemGraph } from '@riscly/shared';
+import { exampleGraph, hasFeature, planLimits, Plan, SystemGraph } from '@riscly/shared';
 import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
@@ -96,6 +96,7 @@ export class ScanProcessor implements OnModuleInit {
           ? {
               sca: hasFeature(job.plan, 'sca'),
               codeAudit: hasFeature(job.plan, 'sast'),
+              maxRepos: planLimits(job.plan).maxRepos,
             }
           : undefined;
         graph = connections.length
