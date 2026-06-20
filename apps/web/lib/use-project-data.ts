@@ -152,6 +152,36 @@ export function useRunScan() {
   return { run, isScanning, canScan: Boolean(projectId) }
 }
 
+/**
+ * Open a remediation-plan pull request for the active project's connected repo.
+ * Returns the action plus busy/error/url state for inline button feedback.
+ */
+export function useRemediationPr() {
+  const { projectId } = useActiveProject()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [url, setUrl] = useState<string | null>(null)
+
+  const open = useCallback(async () => {
+    if (!projectId || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await api.remediationPr(projectId)
+      setUrl(res.url)
+      if (res.url && typeof window !== 'undefined') {
+        window.open(res.url, '_blank', 'noopener,noreferrer')
+      }
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }, [projectId, busy])
+
+  return { open, busy, error, url, canOpen: Boolean(projectId) }
+}
+
 /** Trigger a browser download of a generated project report. */
 export async function downloadReport(
   projectId: string,

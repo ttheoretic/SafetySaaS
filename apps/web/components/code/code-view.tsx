@@ -18,7 +18,7 @@ import { SeverityBadge } from '@/components/ui/severity'
 import { fileTree, type CodeFile } from '@/lib/code-data'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
-import { useActiveProject } from '@/lib/use-project-data'
+import { useActiveProject, useRemediationPr } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 /** Best-effort language label from a file extension, for the header. */
@@ -136,6 +136,7 @@ function RealCodeView({
   const content = useRepoFileContent(projectId, repo, activePath)
   const { dir, name } = splitPath(activePath)
   const lang = langOf(activePath)
+  const remediation = useRemediationPr()
 
   return (
     <div className="flex h-full flex-col">
@@ -144,8 +145,16 @@ function RealCodeView({
         subtitle={`${dir}${name} · ${lang}`}
         actions={
           <>
-            <ActionButton>
-              <GitPullRequestArrow className="size-3.5" />
+            <ActionButton
+              onClick={remediation.open}
+              disabled={remediation.busy}
+              title="Open a remediation-plan pull request on your connected repo"
+            >
+              {remediation.busy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <GitPullRequestArrow className="size-3.5" />
+              )}
               Create PR
             </ActionButton>
             <ActionButton variant="primary" disabled>
@@ -322,6 +331,7 @@ function DemoCodeView() {
     () => fileTree.find((f) => f.id === activeId)!,
     [activeId],
   )
+  const remediation = useRemediationPr()
 
   return (
     <div className="flex h-full flex-col">
@@ -330,8 +340,20 @@ function DemoCodeView() {
         subtitle={`${active.path}${active.name} · ${active.lang}`}
         actions={
           <>
-            <ActionButton>
-              <GitPullRequestArrow className="size-3.5" />
+            <ActionButton
+              onClick={remediation.open}
+              disabled={!remediation.canOpen || remediation.busy}
+              title={
+                remediation.canOpen
+                  ? 'Open a remediation-plan pull request on your connected repo'
+                  : 'Connect a project to open a PR'
+              }
+            >
+              {remediation.busy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <GitPullRequestArrow className="size-3.5" />
+              )}
               Create PR
             </ActionButton>
             <ActionButton

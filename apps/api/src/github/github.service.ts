@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Store } from '../store/store.module';
 import { SecretBox } from '../crypto/secret-box';
 
@@ -149,6 +154,103 @@ export class GithubService {
       this.logger.warn(`listFiles ${repo}: ${(err as Error).message}`);
       return [];
     }
+  }
+
+  /**
+   * Open a pull request that adds/updates a single file on a new branch. Used
+   * to land a generated remediation plan in the connected repo. Returns the PR
+   * URL, or throws a clear error when the token lacks write access.
+   */
+  async openPullRequest(
+    projectId: string,
+    orgId: string,
+    opts: { path: string; content: string; title: string; body: string },
+  ): Promise<{ url: string; branch: string; repo: string }> {
+    const ctx = await this.context(projectId, orgId);
+    if (!ctx || ctx.repos.length === 0) {
+      throw new BadRequestException(
+        'No connected GitHub repository to open a pull request against.',
+      );
+    }
+    const repo = ctx.repos[0];
+    const h = this.headers(ctx.token);
+    const api = `https://api.github.com/repos/${repo}`;
+
+    const json = async (res: Response, action: string) => {
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new BadRequestException(
+          `GitHub ${action} failed (${res.status}). The connection may be read-only. ${detail.slice(0, 200)}`,
+        );
+      }
+      return res.json() as Promise<any>;
+    };
+
+    // 1. Resolve the default branch and its head commit.
+    const repoInfo = await json(
+      await this.fetchImpl(api, { headers: h }),
+      'repo lookup',
+    );
+    const base: string = repoInfo.default_branch ?? 'main';
+    const ref = await json(
+      await this.fetchImpl(`${api}/git/ref/heads/${base}`, { headers: h }),
+      'ref lookup',
+    );
+    const baseSha: string = ref.object?.sha;
+
+    // 2. Create a fresh branch off the default branch head.
+    const branch = `riscly/remediation-${Date.now()}`;
+    await json(
+      await this.fetchImpl(`${api}/git/refs`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }),
+      }),
+      'create branch',
+    );
+
+    // 3. Look up an existing file sha (so we can update rather than fail).
+    let existingSha: string | undefined;
+    const existing = await this.fetchImpl(
+      `${api}/contents/${opts.path}?ref=${branch}`,
+      { headers: h },
+    );
+    if (existing.ok) {
+      const body = (await existing.json()) as { sha?: string };
+      existingSha = body.sha;
+    }
+
+    // 4. Commit the file on the new branch.
+    await json(
+      await this.fetchImpl(`${api}/contents/${opts.path}`, {
+        method: 'PUT',
+        headers: h,
+        body: JSON.stringify({
+          message: opts.title,
+          content: Buffer.from(opts.content, 'utf8').toString('base64'),
+          branch,
+          ...(existingSha ? { sha: existingSha } : {}),
+        }),
+      }),
+      'commit file',
+    );
+
+    // 5. Open the pull request.
+    const pr = await json(
+      await this.fetchImpl(`${api}/pulls`, {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          title: opts.title,
+          head: branch,
+          base,
+          body: opts.body,
+        }),
+      }),
+      'open pull request',
+    );
+
+    return { url: pr.html_url ?? '', branch, repo };
   }
 
   /** Decoded UTF-8 content of a file, or null. */

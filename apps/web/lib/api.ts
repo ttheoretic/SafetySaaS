@@ -191,6 +191,12 @@ export const api = {
     get<Array<{ id: string; name: string; environment: string }>>('/projects'),
   createProject: (name: string) =>
     post<{ id: string; name: string }>('/projects', { name }),
+  /** Open a remediation-plan PR (from the latest scan) on the connected repo. */
+  remediationPr: (projectId: string) =>
+    post<{ url: string; branch: string; repo: string }>(
+      `/projects/${projectId}/remediation-pr`,
+      {},
+    ),
   startScan: (projectId: string) =>
     post<{ id: string; status: string; reliabilityScore?: number }>(
       `/projects/${projectId}/scans`,
