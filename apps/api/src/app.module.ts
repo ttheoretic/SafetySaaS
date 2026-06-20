@@ -10,6 +10,7 @@ import { OrgsModule } from './orgs/orgs.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ConnectionsModule } from './connections/connections.module';
+import { GithubModule } from './github/github.module';
 import { ScansModule } from './scans/scans.module';
 import { OAuthModule } from './oauth/oauth.module';
 import { ScenariosModule } from './scenarios/scenarios.module';
@@ -30,6 +31,7 @@ import { BillingModule } from './billing/billing.module';
     InvitationsModule,
     ProjectsModule,
     ConnectionsModule,
+    GithubModule,
     ScansModule,
     OAuthModule,
     ScenariosModule,

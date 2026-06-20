@@ -16,7 +16,7 @@ import {
   recentChanges,
   type HealthStatus,
 } from '@/lib/riscly-data'
-import { useRisks } from '@/lib/use-project-data'
+import { useRisks, useCommits, relativeTime } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 const statusTone: Record<HealthStatus, string> = {
@@ -110,6 +110,32 @@ const changeTone = {
 }
 
 export function RecentChangesPanel() {
+  const commits = useCommits()
+  const live = commits.data ?? []
+  const isLive = live.length > 0
+
+  const rows = isLive
+    ? live.map((c) => ({
+        id: c.sha,
+        author: c.author,
+        message: c.message,
+        repo: c.repo.split('/').pop() ?? c.repo,
+        time: relativeTime(c.date),
+        meta: c.sha,
+        url: c.url,
+        tone: 'text-muted-foreground',
+      }))
+    : recentChanges.map((c) => ({
+        id: c.id,
+        author: c.author,
+        message: c.message,
+        repo: c.repo,
+        time: c.time,
+        meta: c.delta,
+        url: undefined as string | undefined,
+        tone: changeTone[c.risk],
+      }))
+
   return (
     <Panel className="flex-1">
       <PanelHeader
@@ -117,22 +143,37 @@ export function RecentChangesPanel() {
         icon={<GitCommitHorizontal className="size-3.5 text-muted-foreground" />}
       />
       <div className="divide-y divide-border">
-        {recentChanges.map((c) => (
-          <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
-            <span className="flex size-6 items-center justify-center rounded-full bg-secondary font-mono text-[10px]">
-              {c.author.slice(0, 2)}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{c.message}</div>
-              <div className="font-mono text-[11px] text-muted-foreground">
-                {c.repo} · {c.time}
+        {rows.map((c) => {
+          const inner = (
+            <>
+              <span className="flex size-6 items-center justify-center rounded-full bg-secondary font-mono text-[10px]">
+                {c.author.slice(0, 2).toUpperCase()}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm">{c.message}</div>
+                <div className="font-mono text-[11px] text-muted-foreground">
+                  {c.repo} · {c.time}
+                </div>
               </div>
+              <span className={cn('font-mono text-[11px]', c.tone)}>{c.meta}</span>
+            </>
+          )
+          return c.url ? (
+            <a
+              key={c.id}
+              href={c.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40"
+            >
+              {inner}
+            </a>
+          ) : (
+            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
+              {inner}
             </div>
-            <span className={cn('font-mono text-[11px]', changeTone[c.risk])}>
-              {c.delta}
-            </span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </Panel>
   )

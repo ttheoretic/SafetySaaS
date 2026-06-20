@@ -196,6 +196,30 @@ export const api = {
       `/projects/${projectId}/scans`,
       {},
     ),
+  /** Recent commits across the project's connected GitHub repos. */
+  listCommits: (projectId: string, limit = 8) =>
+    get<
+      Array<{
+        sha: string
+        message: string
+        author: string
+        repo: string
+        date: string
+        url: string
+      }>
+    >(`/projects/${projectId}/commits?limit=${limit}`),
+  /** Repo file tree (blob paths) for the code explorer. */
+  listFiles: (projectId: string, repo?: string) =>
+    get<{
+      repo: string | null
+      repos: string[]
+      files: Array<{ path: string; size?: number }>
+    }>(`/projects/${projectId}/files${repo ? `?repo=${encodeURIComponent(repo)}` : ''}`),
+  /** Raw content of a single repo file. */
+  fileContent: (projectId: string, repo: string, path: string) =>
+    get<{ repo: string; path: string; content: string | null }>(
+      `/projects/${projectId}/files/content?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`,
+    ),
   listScans: (projectId: string) =>
     get<Array<{ id: string; status: string; graph?: unknown; reliabilityScore?: number; createdAt: string }>>(
       `/projects/${projectId}/scans`,

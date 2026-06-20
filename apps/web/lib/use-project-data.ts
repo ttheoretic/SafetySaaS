@@ -85,6 +85,17 @@ export function useSystemGraph(): {
   return { graph: null, isDemo: true, loading: scan.isLoading }
 }
 
+/** Recent commits for the active project's connected GitHub repos. */
+export function useCommits() {
+  const token = useAuth((s) => s.token)
+  const { projectId } = useActiveProject()
+  return useQuery({
+    queryKey: ['commits', projectId],
+    queryFn: () => api.listCommits(projectId!),
+    enabled: Boolean(token && projectId),
+  })
+}
+
 /** Human "x minutes ago" for a scan timestamp. */
 export function relativeTime(iso?: string): string {
   if (!iso) return 'never'
