@@ -11,7 +11,13 @@ import {
   Minus,
   Maximize,
 } from 'lucide-react'
-import { nodes, edges, type ServiceNode, type Severity } from '@/lib/riscly-data'
+import {
+  nodes as demoNodes,
+  edges as demoEdges,
+  type ServiceNode,
+  type Edge,
+  type Severity,
+} from '@/lib/riscly-data'
 import { cn } from '@/lib/utils'
 
 const nodeIcon = {
@@ -54,11 +60,14 @@ const CANVAS_H = 440
 export function ArchitectureGraph({
   selectedId,
   onSelect,
+  nodes = demoNodes,
+  edges = demoEdges,
 }: {
   selectedId: string | null
   onSelect: (n: ServiceNode) => void
+  nodes?: ServiceNode[]
+  edges?: Edge[]
 }) {
-  const byId = (id: string) => nodes.find((n) => n.id === id)!
   const viewportRef = useRef<HTMLDivElement>(null)
   const [tf, setTf] = useState({ x: 40, y: 30, scale: 1 })
   const pan = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
@@ -174,8 +183,9 @@ export function ArchitectureGraph({
         height={CANVAS_H}
       >
         {edges.map((e, i) => {
-          const a = byId(e.from)
-          const b = byId(e.to)
+          const a = nodes.find((n) => n.id === e.from)
+          const b = nodes.find((n) => n.id === e.to)
+          if (!a || !b) return null
           const x1 = a.x + W / 2
           const y1 = a.y + H / 2
           const x2 = b.x + W / 2

@@ -20,16 +20,104 @@ import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { SeverityBadge } from '@/components/ui/severity'
 import { cn } from '@/lib/utils'
 import {
-  domains,
+  domains as mockDomains,
   funnel,
   byService,
   byLibrary,
   byTeam,
-  securityIssues,
-  exposureStats,
+  securityIssues as mockSecurityIssues,
+  exposureStats as mockExposureStats,
   type SecurityDomain,
+  type SecurityIssue,
   type GroupRow,
 } from '@/lib/security-data'
+import { useActiveProject, useLatestScan, type ApiFinding } from '@/lib/use-project-data'
+import type { Severity } from '@/lib/riscly-data'
+
+type DomainMeta = (typeof mockDomains)[number]
+
+const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']
+
+function coerceSeverity(s: string): Severity {
+  const l = (s ?? '').toLowerCase()
+  return (SEVERITIES.includes(l as Severity) ? l : 'medium') as Severity
+}
+
+function classifyDomain(category: string): SecurityDomain {
+  const c = (category ?? '').toLowerCase()
+  if (c.includes('secret')) return 'secrets'
+  if (
+    c.includes('depend') ||
+    c.includes('sca') ||
+    c.includes('package') ||
+    c.includes('library') ||
+    c.includes('cve')
+  )
+    return 'sca'
+  if (
+    c.includes('infra') ||
+    c.includes('iac') ||
+    c.includes('terraform') ||
+    c.includes('network') ||
+    c.includes('cloud') ||
+    c.includes('k8s') ||
+    c.includes('kubernet')
+  )
+    return 'iac'
+  return 'sast'
+}
+
+/**
+ * The security page's data, wired to the active project's latest-scan findings
+ * when available, falling back to the curated mock data in demo/empty states.
+ */
+function useSecurityData(): {
+  domains: DomainMeta[]
+  issues: SecurityIssue[]
+  exposureStats: typeof mockExposureStats
+} {
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+  const findings: ApiFinding[] = scan.data?.findings ?? []
+
+  return useMemo(() => {
+    if (!projectId || findings.length === 0) {
+      return {
+        domains: mockDomains,
+        issues: mockSecurityIssues,
+        exposureStats: mockExposureStats,
+      }
+    }
+
+    const issues: SecurityIssue[] = findings.map((f, i) => ({
+      id: `SEC-${String(i + 1).padStart(4, '0')}`,
+      title: f.title,
+      severity: coerceSeverity(f.severity),
+      domain: classifyDomain(f.category),
+      rule: f.category,
+      location: f.nodeId ?? '—',
+      service: f.nodeId ?? '—',
+      // inProduction / exploitAvailable / exposed left undefined: not derivable
+    })) as SecurityIssue[]
+
+    // Override total + bySeverity on the mock domain metadata (keeps id/short/icons).
+    const domains: DomainMeta[] = mockDomains.map((d) => {
+      const domainIssues = issues.filter((i) => i.domain === d.id)
+      const bySeverity: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 }
+      for (const issue of domainIssues) bySeverity[issue.severity]++
+      return { ...d, total: domainIssues.length, bySeverity }
+    })
+
+    const exposureStats = {
+      exploitable: issues.filter((i) => i.severity === 'critical').length,
+      exposed: issues.filter((i) => i.severity === 'high').length,
+      fixAvailable: issues.length,
+      meanTimeToRemediate: mockExposureStats.meanTimeToRemediate,
+    }
+
+    return { domains, issues, exposureStats }
+  }, [projectId, findings])
+}
 
 const domainIcon: Record<SecurityDomain, React.ReactNode> = {
   sast: <CodeXml className="size-4" />,
@@ -51,9 +139,11 @@ export function SecurityView() {
   const [domain, setDomain] = useState<SecurityDomain>('sast')
   const [group, setGroup] = useState<GroupTab>('service')
 
+  const { domains, issues: allIssues, exposureStats } = useSecurityData()
+
   const issues = useMemo(
-    () => securityIssues.filter((i) => i.domain === domain),
-    [domain],
+    () => allIssues.filter((i) => i.domain === domain),
+    [allIssues, domain],
   )
 
   const groupRows: GroupRow[] =
@@ -160,7 +250,7 @@ export function SecurityView() {
             </div>
 
             {/* severity summary bar for active domain */}
-            <DomainSummary domain={domain} />
+            <DomainSummary domain={domain} domains={domains} />
 
             {/* issues list */}
             <div className="divide-y divide-border">
@@ -306,7 +396,13 @@ function Funnel() {
   )
 }
 
-function DomainSummary({ domain }: { domain: SecurityDomain }) {
+function DomainSummary({
+  domain,
+  domains,
+}: {
+  domain: SecurityDomain
+  domains: DomainMeta[]
+}) {
   const d = domains.find((x) => x.id === domain)!
   const order: (keyof typeof d.bySeverity)[] = ['critical', 'high', 'medium', 'low']
   const colors: Record<string, string> = {

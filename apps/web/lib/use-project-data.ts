@@ -66,6 +66,24 @@ export function useLatestScan(projectId: string | null) {
   })
 }
 
+/**
+ * The active project's latest-scan system graph, or null when there is no
+ * project/scan (callers fall back to their demo topology in that case).
+ */
+export function useSystemGraph(): {
+  graph: SystemGraph | null
+  isDemo: boolean
+  loading: boolean
+} {
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+  const graph = scan.data?.graph ?? null
+  if (projectId && graph && graph.nodes.length > 0) {
+    return { graph, isDemo: false, loading: false }
+  }
+  return { graph: null, isDemo: true, loading: scan.isLoading }
+}
+
 // --- Adapters: map the API's analysis output onto the view data shapes -------
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']

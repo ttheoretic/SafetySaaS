@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { SimulationType, SystemGraph } from '@riscly/shared'
 import {
   Play,
   Zap,
@@ -15,6 +16,8 @@ import {
 } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
+import { api } from '@/lib/api'
+import { useSystemGraph } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 type Scenario = {
@@ -31,6 +34,37 @@ const scenarios: Scenario[] = [
   { id: 'dbfail', label: 'Database failure', icon: Database, desc: 'orders-db primary down' },
   { id: 'depfail', label: 'Dependency failure', icon: Boxes, desc: 'synthetics-api timeout' },
 ]
+
+/**
+ * Map each UI scenario onto the closest backend SimulationType. The backend has
+ * no dedicated "DDoS" or "dependency" type, so we pick the nearest analogue: a
+ * DDoS L7 flood is modelled as the most extreme traffic surge (traffic_100x),
+ * and a service/dependency outage as a single-node infrastructure outage.
+ */
+const scenarioToType: Record<string, SimulationType> = {
+  traffic: 'traffic_10x',
+  ddos: 'traffic_100x',
+  outage: 'infra_server',
+  dbfail: 'db_lock',
+  depfail: 'infra_server',
+}
+
+/** The shape of POST /analyze/simulate — `{ result, revenue }`. */
+type SimulateResponse = {
+  result?: {
+    type?: string
+    impact?: 'none' | 'degraded' | 'partial_outage' | 'full_outage'
+    affectedNodeIds?: string[]
+    blastRadius?: number
+    fullOutage?: boolean
+    narrative?: string
+    mitigations?: string[]
+  }
+  revenue?: {
+    currency?: string
+    totalImpact?: number
+  }
+}
 
 type LogLine = { t: string; level: 'info' | 'warn' | 'error' | 'ok'; msg: string }
 
@@ -143,6 +177,135 @@ const results: Record<string, ScenarioResult> = {
   },
 }
 
+type Bottleneck = { node: string; risk: string; sev: string }
+
+/** A fully-resolved simulation render bundle, however it was produced. */
+type RunResult = {
+  result: ScenarioResult
+  logs: LogLine[]
+  bottlenecks: Bottleneck[]
+}
+
+/** The curated demo bundle for a scenario (used with no graph / on error). */
+function demoBundle(scenarioId: string): RunResult {
+  return {
+    result: results[scenarioId],
+    logs: scriptedLogs[scenarioId],
+    bottlenecks: bottlenecks[scenarioId],
+  }
+}
+
+const IMPACT_VERDICT: Record<string, 'failed' | 'degraded'> = {
+  full_outage: 'failed',
+  partial_outage: 'failed',
+  degraded: 'degraded',
+  none: 'degraded',
+}
+
+const IMPACT_PEAK = '100'
+
+/** Map a real /analyze/simulate response onto the view's render shapes. */
+function adaptResponse(
+  scenarioId: string,
+  res: SimulateResponse,
+  graph: SystemGraph,
+): RunResult {
+  const fallback = demoBundle(scenarioId)
+  const r = res.result
+  if (!r) return fallback
+
+  const impact = r.impact ?? 'degraded'
+  const verdict = IMPACT_VERDICT[impact] ?? 'degraded'
+  const affectedIds = Array.isArray(r.affectedNodeIds) ? r.affectedNodeIds : []
+  const mitigations = Array.isArray(r.mitigations) ? r.mitigations : []
+  const blastPct = Math.round((r.blastRadius ?? 0) * 100)
+
+  const nameById = new Map(graph.nodes.map((n) => [n.id, n.name] as const))
+  const label = (id: string) => nameById.get(id) ?? id
+
+  const scenario = scenarios.find((s) => s.id === scenarioId)
+  const headline =
+    verdict === 'failed'
+      ? `System ${impact === 'full_outage' ? 'failed' : 'partially failed'} under ${scenario?.label.toLowerCase() ?? 'fault'}`
+      : `Degraded but survived the ${scenario?.label.toLowerCase() ?? 'fault'}`
+  const summary =
+    r.narrative ??
+    `Blast radius ${blastPct}% across ${affectedIds.length} service${affectedIds.length === 1 ? '' : 's'}.`
+
+  // Revenue impact, when the backend computed it from business context.
+  const revenue =
+    typeof res.revenue?.totalImpact === 'number'
+      ? formatMoney(res.revenue.totalImpact, res.revenue.currency)
+      : null
+
+  const result: ScenarioResult = {
+    verdict,
+    headline,
+    summary: revenue ? `${summary} Estimated revenue impact ${revenue}.` : summary,
+    metrics: {
+      peakLatency: revenue ?? IMPACT_PEAK,
+      degraded: String(affectedIds.length),
+      chains: r.fullOutage ? '1' : affectedIds.length > 0 ? '1' : '0',
+    },
+    graph: blastCurve(blastPct, verdict),
+  }
+
+  // Build a deterministic, streamable log from the engine output.
+  const logs: LogLine[] = [
+    { t: '00.0s', level: 'info', msg: `Injecting fault: ${scenario?.desc ?? scenarioId}` },
+  ]
+  affectedIds.slice(0, 5).forEach((id, i) => {
+    logs.push({
+      t: `0${Math.min(9, i + 1)}.${i}s`,
+      level: verdict === 'failed' ? 'error' : 'warn',
+      msg: `${label(id)} impacted — reachable services degrading`,
+    })
+  })
+  logs.push({
+    t: '0' + Math.min(9, affectedIds.length + 1) + '.0s',
+    level: verdict === 'failed' ? 'error' : 'warn',
+    msg: `Blast radius ${blastPct}% · impact: ${impact.replace('_', ' ')}`,
+  })
+  if (revenue) {
+    logs.push({ t: '—', level: 'warn', msg: `Estimated revenue impact ${revenue}` })
+  }
+  logs.push({ t: '—', level: 'ok', msg: 'Simulation complete — engine result captured' })
+
+  // Surface affected nodes (with mitigations) as bottleneck rows.
+  const sevFor = (i: number): string =>
+    verdict === 'failed' ? (i === 0 ? 'critical' : 'high') : 'medium'
+  const bottleneckRows: Bottleneck[] = affectedIds.slice(0, 4).map((id, i) => ({
+    node: label(id),
+    risk: mitigations[i] ?? mitigations[0] ?? 'Reachable from a failed dependency',
+    sev: sevFor(i),
+  }))
+
+  return {
+    result,
+    logs: logs.length > 1 ? logs : fallback.logs,
+    bottlenecks: bottleneckRows.length > 0 ? bottleneckRows : fallback.bottlenecks,
+  }
+}
+
+function formatMoney(amount: number, currency?: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency ?? 'EUR',
+      maximumFractionDigits: 0,
+    }).format(amount)
+  } catch {
+    return `${Math.round(amount)} ${currency ?? 'EUR'}`
+  }
+}
+
+/** A latency-style sweep curve scaled by blast radius and verdict. */
+function blastCurve(blastPct: number, verdict: 'failed' | 'degraded'): number[] {
+  const peak = verdict === 'failed' ? Math.max(70, blastPct) : Math.max(50, blastPct)
+  const shape = [0.14, 0.22, 0.4, 0.62, 0.82, 1, 0.96, 0.82, 0.66]
+  return shape.map((f) => Math.round(Math.min(100, f * peak)))
+}
+
 const verdictStyle = {
   failed: {
     chip: 'bg-critical/15 text-critical',
@@ -172,26 +335,35 @@ const sevChip = {
 export function SimulationView() {
   const [active, setActive] = useState('dbfail')
   const [running, setRunning] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [visibleLogs, setVisibleLogs] = useState<LogLine[]>([])
   const [done, setDone] = useState(false)
   const [progress, setProgress] = useState(0)
+  // The resolved bundle (result + logs + bottlenecks) the view renders. Starts
+  // from the curated demo for the active scenario and is replaced by the real
+  // engine output when a run completes against a real graph.
+  const [bundle, setBundle] = useState<RunResult>(() => demoBundle('dbfail'))
   const scrollRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { graph } = useSystemGraph()
 
   const stopTimers = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     if (timerRef.current) clearTimeout(timerRef.current)
   }
 
-  const run = () => {
+  /** Animate a resolved bundle's logs + graph sweep (shared by demo & real). */
+  const playBundle = (b: RunResult) => {
     stopTimers()
+    setBundle(b)
     setRunning(true)
     setDone(false)
     setVisibleLogs([])
     setProgress(0)
 
-    const logs = scriptedLogs[active]
+    const logs = b.logs
     const stepMs = 320
     const startDelay = 200
     const duration = startDelay + logs.length * stepMs
@@ -222,6 +394,35 @@ export function SimulationView() {
     timerRef.current = setTimeout(tick, startDelay)
   }
 
+  /**
+   * Run the active scenario. With a real latest-scan graph, call the backend
+   * (api.simulate) and animate the engine result; with no graph or on error,
+   * fall back to the curated demo bundle so the designed experience is intact.
+   */
+  const run = async () => {
+    if (busy) return
+    if (!graph || graph.nodes.length === 0) {
+      playBundle(demoBundle(active))
+      return
+    }
+    setBusy(true)
+    const scenarioId = active
+    try {
+      const res = (await api.simulate(
+        graph,
+        scenarioToType[scenarioId] ?? 'infra_server',
+        undefined,
+        1,
+      )) as SimulateResponse
+      playBundle(adaptResponse(scenarioId, res, graph))
+    } catch {
+      // Network / backend error → keep the existing demo behavior.
+      playBundle(demoBundle(scenarioId))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   useEffect(() => () => stopTimers(), [])
 
   useEffect(() => {
@@ -229,7 +430,7 @@ export function SimulationView() {
   }, [visibleLogs])
 
   const current = scenarios.find((s) => s.id === active)!
-  const result = results[active]
+  const result = bundle.result
 
   return (
     <div className="flex h-full flex-col">
@@ -244,9 +445,9 @@ export function SimulationView() {
                 Re-run after fix
               </ActionButton>
             )}
-            <ActionButton variant="primary" onClick={run} disabled={running}>
+            <ActionButton variant="primary" onClick={run} disabled={running || busy}>
               <Play className="size-3.5" />
-              {running ? 'Running…' : 'Run scenario'}
+              {busy ? 'Preparing…' : running ? 'Running…' : 'Run scenario'}
             </ActionButton>
           </>
         }
@@ -267,6 +468,7 @@ export function SimulationView() {
                   onClick={() => {
                     stopTimers()
                     setActive(s.id)
+                    setBundle(demoBundle(s.id))
                     setVisibleLogs([])
                     setDone(false)
                     setRunning(false)
@@ -393,7 +595,7 @@ export function SimulationView() {
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {bottlenecks[active].map((b) => (
+                  {bundle.bottlenecks.map((b) => (
                     <div
                       key={b.node}
                       className="rounded-md border border-border bg-background p-2.5"

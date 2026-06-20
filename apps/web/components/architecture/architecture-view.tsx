@@ -1,21 +1,159 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { SystemGraph, NodeKind } from '@riscly/shared'
 import { Share2, RefreshCw, PanelRightOpen, X, Boxes } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { ArchitectureGraph } from './architecture-graph'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { SeverityBadge, SeverityDot } from '@/components/ui/severity'
-import { nodes, risks, type ServiceNode } from '@/lib/riscly-data'
+import {
+  nodes as demoNodes,
+  edges as demoEdges,
+  risks as demoRisks,
+  type Edge,
+  type Risk,
+  type Severity,
+  type ServiceNode,
+} from '@/lib/riscly-data'
+import {
+  useSystemGraph,
+  useActiveProject,
+  useLatestScan,
+  findingsToRisks,
+  type ApiFinding,
+} from '@/lib/use-project-data'
+
+/** Maps an API NodeKind onto the graph's visual type + a human tech label. */
+const KIND_MAP: Record<
+  NodeKind,
+  { type: ServiceNode['type']; tech: string }
+> = {
+  frontend: { type: 'external', tech: 'Web client' },
+  api: { type: 'gateway', tech: 'API' },
+  service: { type: 'service', tech: 'Service' },
+  database: { type: 'database', tech: 'Database' },
+  cache: { type: 'database', tech: 'Cache' },
+  queue: { type: 'queue', tech: 'Queue' },
+  external_api: { type: 'external', tech: 'External API' },
+  cdn: { type: 'external', tech: 'CDN' },
+  dns: { type: 'external', tech: 'DNS' },
+  storage: { type: 'database', tech: 'Storage' },
+}
+
+/** Which layout column a kind belongs to: 0=edge/clients, 1=services, 2=data. */
+const KIND_COLUMN: Record<NodeKind, number> = {
+  frontend: 0,
+  cdn: 0,
+  dns: 0,
+  api: 1,
+  service: 1,
+  external_api: 1,
+  database: 2,
+  cache: 2,
+  queue: 2,
+  storage: 2,
+}
+
+const SEV_RANK: Record<Severity, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+}
+
+function worstSeverity(findings: ApiFinding[]): Severity | 'ok' {
+  let best: Severity | 'ok' = 'ok'
+  for (const f of findings) {
+    const s = (f.severity ?? '').toLowerCase() as Severity
+    if (!(s in SEV_RANK)) continue
+    if (best === 'ok' || SEV_RANK[s] < SEV_RANK[best]) best = s
+  }
+  return best
+}
+
+// Layout constants matching the graph's coordinate space (W=150, H=56).
+const COL_X = [80, 460, 840]
+const ROW_TOP = 60
+const ROW_GAP = 100
+
+/** Transform the real API graph + findings into ServiceNode[] + Edge[] with a
+ *  deterministic layered layout (columns by kind, rows stacked within column). */
+function buildGraphData(
+  graph: SystemGraph,
+  findings: ApiFinding[],
+): { nodes: ServiceNode[]; edges: Edge[] } {
+  // Group findings per node id for severity / riskCount.
+  const byNode = new Map<string, ApiFinding[]>()
+  for (const f of findings) {
+    if (!f.nodeId) continue
+    const arr = byNode.get(f.nodeId) ?? []
+    arr.push(f)
+    byNode.set(f.nodeId, arr)
+  }
+
+  // Assign each node to a column, then stack them within the column.
+  const colCounts = [0, 0, 0]
+  const nodes: ServiceNode[] = graph.nodes.map((n) => {
+    const map = KIND_MAP[n.kind] ?? {
+      type: 'service' as const,
+      tech: String(n.kind),
+    }
+    const col = KIND_COLUMN[n.kind] ?? 1
+    const row = colCounts[col]++
+    const nodeFindings = byNode.get(n.id) ?? []
+    return {
+      id: n.id,
+      label: n.name,
+      type: map.type,
+      tech: map.tech,
+      x: COL_X[col],
+      y: ROW_TOP + row * ROW_GAP,
+      severity: worstSeverity(nodeFindings),
+      riskCount: nodeFindings.length,
+    }
+  })
+
+  // Vertically center each column so the layout looks balanced.
+  const maxRows = Math.max(1, ...colCounts)
+  const byCol: Record<number, ServiceNode[]> = { 0: [], 1: [], 2: [] }
+  nodes.forEach((node, i) => byCol[KIND_COLUMN[graph.nodes[i].kind] ?? 1].push(node))
+  for (const col of [0, 1, 2]) {
+    const list = byCol[col]
+    const offset = ((maxRows - list.length) * ROW_GAP) / 2
+    list.forEach((node) => (node.y += offset))
+  }
+
+  // Severity of an edge = worst of its two endpoints' severities.
+  const sevById = new Map(nodes.map((n) => [n.id, n.severity]))
+  const edgeSev = (a: string, b: string): Severity | 'ok' => {
+    const sa = sevById.get(a) ?? 'ok'
+    const sb = sevById.get(b) ?? 'ok'
+    if (sa === 'ok') return sb
+    if (sb === 'ok') return sa
+    return SEV_RANK[sa] <= SEV_RANK[sb] ? sa : sb
+  }
+  const edges: Edge[] = graph.edges.map((e) => ({
+    from: e.from,
+    to: e.to,
+    severity: edgeSev(e.from, e.to),
+  }))
+
+  return { nodes, edges }
+}
 
 function NodeInspector({
   node,
+  risks,
   onClose,
 }: {
   node: ServiceNode
+  risks: Risk[]
   onClose: () => void
 }) {
-  const nodeRisks = risks.filter((r) => r.components.includes(node.label))
+  const nodeRisks = risks.filter(
+    (r) => r.components.includes(node.label) || r.components.includes(node.id),
+  )
   const [openRisk, setOpenRisk] = useState<string | null>(null)
   const active = risks.find((r) => r.id === openRisk)
 
@@ -91,6 +229,18 @@ function NodeInspector({
 
 export function ArchitectureView() {
   const [selected, setSelected] = useState<ServiceNode | null>(null)
+  const { graph } = useSystemGraph()
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+
+  const { nodes, edges, risks } = useMemo(() => {
+    if (graph) {
+      const findings = scan.data?.findings ?? []
+      const { nodes, edges } = buildGraphData(graph, findings)
+      return { nodes, edges, risks: findingsToRisks(findings) }
+    }
+    return { nodes: demoNodes, edges: demoEdges, risks: demoRisks }
+  }, [graph, scan.data])
 
   return (
     <div className="flex h-full flex-col">
@@ -126,12 +276,18 @@ export function ArchitectureView() {
           <ArchitectureGraph
             selectedId={selected?.id ?? null}
             onSelect={setSelected}
+            nodes={nodes}
+            edges={edges}
           />
         </div>
 
         <div className="w-80 shrink-0 border-l border-border">
           {selected ? (
-            <NodeInspector node={selected} onClose={() => setSelected(null)} />
+            <NodeInspector
+              node={selected}
+              risks={risks}
+              onClose={() => setSelected(null)}
+            />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
               <Boxes className="size-8 text-muted-foreground/40" />
