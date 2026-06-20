@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Send,
   Bot,
@@ -83,7 +83,8 @@ export function AssistantView() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const { projectId } = useActiveProject()
+  const seeded = useRef(false)
+  const { projectId, isLoading } = useActiveProject()
 
   const scrollToEnd = () =>
     requestAnimationFrame(() =>
@@ -121,6 +122,21 @@ export function AssistantView() {
       scrollToEnd()
     }, 280)
   }
+
+  // Seed a question passed via ?q= (e.g. the risk inspector's "Ask AI"), once
+  // the active project has resolved so the chat is grounded against it.
+  useEffect(() => {
+    if (seeded.current || isLoading) return
+    const q =
+      typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search).get('q')
+        : null
+    if (q) {
+      seeded.current = true
+      send(q)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading])
 
   return (
     <div className="flex h-full flex-col">

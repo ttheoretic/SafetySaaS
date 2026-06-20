@@ -104,6 +104,10 @@ export type SecurityIssue = {
   exploitAvailable: boolean
   exposed: boolean
   cve?: string
+  /** Short description of the risk. */
+  description?: string
+  /** Recommended remediation. */
+  fix?: string
 }
 
 export const securityIssues: SecurityIssue[] = [

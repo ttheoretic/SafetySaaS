@@ -39,6 +39,10 @@ export type Risk = {
   inProduction?: boolean
   fix: string
   status: 'open' | 'in-progress' | 'fixed'
+  /** Estimated reliability gain from applying the fix. */
+  riskReductionPct?: number
+  /** Cited best-practice references grounding the fix. */
+  references?: { title: string; source: string; url: string }[]
 }
 
 export const risks: Risk[] = [

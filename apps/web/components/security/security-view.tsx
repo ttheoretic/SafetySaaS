@@ -38,6 +38,7 @@ import {
   useSystemGraph,
   useRunScan,
   useScanMeta,
+  recommendationFor,
   type ApiFinding,
 } from '@/lib/use-project-data'
 import { Loader2 } from 'lucide-react'
@@ -124,6 +125,7 @@ function useSecurityData(): {
     const issues: SecurityIssue[] = findings.map((f, i) => {
       const node = f.nodeId ? nodeById.get(f.nodeId) : undefined
       const service = node?.name ?? f.nodeId ?? '—'
+      const rec = recommendationFor(f)
       return {
         id: `SEC-${String(i + 1).padStart(4, '0')}`,
         title: f.title,
@@ -135,6 +137,8 @@ function useSecurityData(): {
         inProduction: Boolean(f.nodeId),
         exploitAvailable: coerceSeverity(f.severity) === 'critical',
         exposed: isExposed(f),
+        description: f.description,
+        fix: rec?.fix,
       }
     }) as SecurityIssue[]
 
@@ -358,6 +362,20 @@ export function SecurityView() {
                       <span className="text-muted-foreground/40">·</span>
                       <span className="truncate">{issue.location}</span>
                     </div>
+                    {issue.description && (
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        {issue.description}
+                      </p>
+                    )}
+                    {issue.fix && (
+                      <p className="mt-1.5 flex items-start gap-1.5 rounded-sm border border-ok/20 bg-ok/5 px-2 py-1 text-[11px] leading-relaxed text-foreground/90">
+                        <ShieldCheck className="mt-0.5 size-3 shrink-0 text-ok" />
+                        <span>
+                          <span className="font-medium text-ok">Fix: </span>
+                          {issue.fix}
+                        </span>
+                      </p>
+                    )}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <Tag icon={<Server className="size-3" />} label={issue.service} />
                       {issue.inProduction && (

@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { SystemGraph } from '@riscly/shared'
+import { buildRecommendations, type SystemGraph } from '@riscly/shared'
 import { api } from './api'
 import { useAuth } from './auth-store'
 import {
@@ -221,21 +221,48 @@ function coerceCategory(c: string): RiskCategory {
   return (CATEGORIES.includes(t as RiskCategory) ? t : 'Reliability') as RiskCategory
 }
 
-/** Turn engine findings into the Risk rows the UI renders. */
+/**
+ * Recommendation (impact + concrete fix + risk reduction + cited references) for
+ * a single finding, via the shared recommendations engine. Deterministic + pure.
+ */
+export function recommendationFor(f: ApiFinding) {
+  try {
+    return buildRecommendations([
+      {
+        category: f.category as never,
+        severity: f.severity as never,
+        title: f.title,
+        description: f.description ?? '',
+        nodeId: f.nodeId,
+        weight: f.weight ?? 0,
+      },
+    ])[0]
+  } catch {
+    return undefined
+  }
+}
+
+/** Turn engine findings into the Risk rows the UI renders, enriched with the
+ *  impact analysis, recommended fix and cited references. */
 export function findingsToRisks(findings: ApiFinding[]): Risk[] {
   return findings
-    .map((f, i) => ({
-      id: `RSK-${String(i + 1).padStart(4, '0')}`,
-      title: f.title,
-      category: coerceCategory(f.category),
-      severity: coerceSeverity(f.severity),
-      description: f.description ?? '',
-      impact: '',
-      components: f.nodeId ? [f.nodeId] : [],
-      rule: f.category,
-      fix: '',
-      status: 'open' as const,
-    }))
+    .map((f, i) => {
+      const rec = recommendationFor(f)
+      return {
+        id: `RSK-${String(i + 1).padStart(4, '0')}`,
+        title: f.title,
+        category: coerceCategory(f.category),
+        severity: coerceSeverity(f.severity),
+        description: f.description ?? '',
+        impact: rec?.businessImpact ?? '',
+        components: f.nodeId ? [f.nodeId] : [],
+        rule: f.category,
+        fix: rec?.fix ?? '',
+        riskReductionPct: rec?.riskReductionPct,
+        references: rec?.references,
+        status: 'open' as const,
+      }
+    })
     .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 }
 
