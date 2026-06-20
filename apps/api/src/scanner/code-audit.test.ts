@@ -53,4 +53,39 @@ describe('auditRepoCode', () => {
     const fetchImpl = fakeRepo(['.env'], { '.env': 'x=1' });
     expect(await auditRepoCode('acme/web', { fetchImpl })).toEqual({ findings: [], issues: [] });
   });
+
+  it('finds source-level vulnerabilities with line numbers', async () => {
+    const py = [
+      'import requests',
+      'r = requests.get(url)',           // line 2: missing timeout
+      'data = pickle.loads(blob)',        // line 3: insecure deserialization
+    ].join('\n');
+    const ts = [
+      'export function run(input) {',
+      '  return eval(input)',             // line 2: eval
+      '}',
+    ].join('\n');
+    const fetchImpl = fakeRepo(['src/app.py', 'src/run.ts'], {
+      'src/app.py': py,
+      'src/run.ts': ts,
+    });
+    const { issues } = await auditRepoCode('acme/web', ctx(fetchImpl));
+    const timeout = issues.find((i) => i.rule === 'py/requests-timeout');
+    expect(timeout?.file).toBe('src/app.py');
+    expect(timeout?.line).toBe(2);
+    expect(issues.some((i) => i.rule === 'py/pickle' && i.line === 3)).toBe(true);
+    expect(issues.some((i) => i.rule === 'js/eval' && i.file === 'src/run.ts' && i.line === 2)).toBe(true);
+  });
+
+  it('skips vendored / build directories', async () => {
+    const fetchImpl = fakeRepo(
+      ['node_modules/x/index.js', 'dist/bundle.js'],
+      {
+        'node_modules/x/index.js': 'eval("x")',
+        'dist/bundle.js': 'eval("y")',
+      },
+    );
+    const { issues } = await auditRepoCode('acme/web', ctx(fetchImpl));
+    expect(issues).toEqual([]);
+  });
 });
