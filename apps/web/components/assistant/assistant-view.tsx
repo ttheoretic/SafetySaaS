@@ -12,6 +12,8 @@ import {
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { SeverityBadge } from '@/components/ui/severity'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
+import { useActiveProject } from '@/lib/use-project-data'
 
 type Msg = {
   role: 'user' | 'assistant'
@@ -79,18 +81,44 @@ function reply(q: string): Msg {
 export function AssistantView() {
   const [messages, setMessages] = useState<Msg[]>(seed)
   const [input, setInput] = useState('')
+  const [busy, setBusy] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const { projectId } = useActiveProject()
 
-  const send = (text: string) => {
-    if (!text.trim()) return
-    const next = [...messages, { role: 'user', content: text } as Msg]
-    setMessages(next)
+  const scrollToEnd = () =>
+    requestAnimationFrame(() =>
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }),
+    )
+
+  const send = async (text: string) => {
+    if (!text.trim() || busy) return
+    const history = [...messages, { role: 'user', content: text } as Msg]
+    setMessages(history)
     setInput('')
+    scrollToEnd()
+
+    // Grounded chat against the project's latest scan when a project exists;
+    // fall back to the local demo responder otherwise (no backend / demo mode).
+    if (projectId) {
+      setBusy(true)
+      try {
+        const res = await api.tenantChat(
+          projectId,
+          history.map((m) => ({ role: m.role, content: m.content })),
+        )
+        setMessages((m) => [...m, { role: 'assistant', content: res.reply }])
+      } catch {
+        setMessages((m) => [...m, reply(text)])
+      } finally {
+        setBusy(false)
+        scrollToEnd()
+      }
+      return
+    }
+
     setTimeout(() => {
       setMessages((m) => [...m, reply(text)])
-      requestAnimationFrame(() =>
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }),
-      )
+      scrollToEnd()
     }, 280)
   }
 
@@ -138,13 +166,18 @@ export function AssistantView() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about risks, architecture, performance, simulations…"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
+              placeholder={
+                busy
+                  ? 'Riscly is thinking…'
+                  : 'Ask about risks, architecture, performance, simulations…'
+              }
+              disabled={busy}
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
             />
             <button
               type="submit"
               className="flex size-7 items-center justify-center rounded-sm bg-primary text-primary-foreground disabled:opacity-40"
-              disabled={!input.trim()}
+              disabled={!input.trim() || busy}
               aria-label="Send"
             >
               <Send className="size-3.5" />

@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import {
   ShieldAlert,
@@ -12,9 +14,9 @@ import { SeverityBadge } from '@/components/ui/severity'
 import {
   healthMetrics,
   recentChanges,
-  risks,
   type HealthStatus,
 } from '@/lib/riscly-data'
+import { useRisks } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 const statusTone: Record<HealthStatus, string> = {
@@ -56,6 +58,7 @@ export function HealthGrid() {
 }
 
 export function CriticalRisksPanel() {
+  const { risks } = useRisks()
   const top = [...risks]
     .filter((r) => r.severity === 'critical' || r.severity === 'high')
     .slice(0, 5)

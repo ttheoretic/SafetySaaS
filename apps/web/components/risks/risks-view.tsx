@@ -12,12 +12,8 @@ import {
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { SeverityBadge } from '@/components/ui/severity'
 import { RiskInspector } from '@/components/shared/risk-inspector'
-import {
-  risks,
-  severityOrder,
-  type Severity,
-  type Risk,
-} from '@/lib/riscly-data'
+import { severityOrder, type Severity, type Risk } from '@/lib/riscly-data'
+import { useRisks } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 const filters: { key: Severity | 'all'; label: string }[] = [
@@ -29,15 +25,16 @@ const filters: { key: Severity | 'all'; label: string }[] = [
 ]
 
 export function RisksView() {
+  const { risks } = useRisks()
   const [filter, setFilter] = useState<Severity | 'all'>('all')
   const [query, setQuery] = useState('')
-  const [selectedId, setSelectedId] = useState<string>(risks[0].id)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 }
     risks.forEach((r) => (c[r.severity] += 1))
     return c
-  }, [])
+  }, [risks])
 
   const filtered = useMemo(() => {
     return risks
@@ -50,9 +47,10 @@ export function RisksView() {
           : true,
       )
       .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
-  }, [filter, query])
+  }, [risks, filter, query])
 
-  const selected = risks.find((r) => r.id === selectedId) ?? filtered[0]
+  const selected =
+    risks.find((r) => r.id === selectedId) ?? filtered[0] ?? risks[0]
 
   return (
     <div className="flex h-full flex-col">
