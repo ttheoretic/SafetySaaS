@@ -2,7 +2,11 @@
 
 import { useCallback, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { buildRecommendations, type SystemGraph } from '@riscly/shared'
+import {
+  buildRecommendations,
+  type CodeIssue,
+  type SystemGraph,
+} from '@riscly/shared'
 import { api } from './api'
 import { useAuth } from './auth-store'
 import {
@@ -83,6 +87,44 @@ export function useSystemGraph(): {
     return { graph, isDemo: false, loading: false }
   }
   return { graph: null, isDemo: true, loading: scan.isLoading }
+}
+
+export interface AffectedFile {
+  repo: string
+  file: string
+  issues: CodeIssue[]
+  worst: 'critical' | 'high' | 'medium' | 'low'
+}
+
+const SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1 } as const
+
+/** Files with code issues from the active project's latest scan, for the code
+ *  view (only affected files are shown). */
+export function useCodeIssues(): { files: AffectedFile[]; loading: boolean } {
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+  const graph = scan.data?.graph as SystemGraph | undefined
+  const issues = graph?.codeIssues ?? []
+
+  const byFile = new Map<string, AffectedFile>()
+  for (const i of issues) {
+    const repo = i.repo ?? ''
+    const key = `${repo}::${i.file}`
+    const sev = (['critical', 'high', 'medium', 'low'] as const).includes(
+      i.severity as never,
+    )
+      ? (i.severity as AffectedFile['worst'])
+      : 'low'
+    const entry =
+      byFile.get(key) ?? { repo, file: i.file, issues: [], worst: 'low' }
+    entry.issues.push(i)
+    if (SEV_RANK[sev] > SEV_RANK[entry.worst]) entry.worst = sev
+    byFile.set(key, entry)
+  }
+  const files = [...byFile.values()].sort(
+    (a, b) => SEV_RANK[b.worst] - SEV_RANK[a.worst],
+  )
+  return { files, loading: scan.isLoading }
 }
 
 /** Recent commits for the active project's connected GitHub repos. */

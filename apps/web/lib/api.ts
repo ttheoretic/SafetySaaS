@@ -226,6 +226,40 @@ export const api = {
     get<{ repo: string; path: string; content: string | null }>(
       `/projects/${projectId}/files/content?repo=${encodeURIComponent(repo)}&path=${encodeURIComponent(path)}`,
     ),
+  /** Generate an AI fix for a located code issue (preview). */
+  codeFix: (
+    projectId: string,
+    body: {
+      repo: string
+      file: string
+      line?: number
+      rule: string
+      title: string
+      description?: string
+    },
+  ) =>
+    post<{
+      original: string
+      aiEnabled: boolean
+      fixed: string | null
+      explanation: string | null
+    }>(`/projects/${projectId}/code/fix`, body),
+  /** Apply an AI fix by opening a pull request with the corrected file. */
+  codeFixPr: (
+    projectId: string,
+    body: {
+      repo: string
+      file: string
+      line?: number
+      rule: string
+      title: string
+      description?: string
+    },
+  ) =>
+    post<{ url: string; branch: string; repo: string }>(
+      `/projects/${projectId}/code/fix/pr`,
+      body,
+    ),
   listScans: (projectId: string) =>
     get<Array<{ id: string; status: string; graph?: unknown; reliabilityScore?: number; createdAt: string }>>(
       `/projects/${projectId}/scans`,

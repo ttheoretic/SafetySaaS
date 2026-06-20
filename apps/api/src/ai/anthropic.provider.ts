@@ -4,6 +4,8 @@ import type { Prediction } from '@riscly/shared';
 import {
   AiProvider,
   ChatRequest,
+  CodeFixRequest,
+  CodeFixResult,
   PredictRequest,
   PREDICTION_SCHEMA,
 } from './ai-provider';
@@ -139,6 +141,49 @@ export class AnthropicProvider implements AiProvider {
     } catch (err) {
       this.logger.warn(`AI chat unavailable: ${(err as Error).message}`);
       return 'The assistant is temporarily unavailable. Please try again in a moment.';
+    }
+  }
+
+  async generateCodeFix(req: CodeFixRequest): Promise<CodeFixResult | null> {
+    try {
+      // Bound the file we send so a fix is feasible and cheap.
+      if (req.content.length > 24_000) return null;
+      const model = req.model ?? this.model;
+      const tier = req.tier ?? 'opus';
+      const maxTokens = tier === 'basic' ? 2048 : tier === 'sonnet' ? 4096 : 8192;
+      const response = await this.client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        system:
+          'You are a senior security engineer fixing exactly one issue in one ' +
+          'file. Reply with (1) a single short sentence explaining the fix, then ' +
+          '(2) the COMPLETE corrected file inside one fenced code block. Change ' +
+          'only what is needed to resolve the issue — never invent unrelated ' +
+          'edits. For committed secrets, remove the literal value and read it ' +
+          'from an environment variable.',
+        messages: [
+          {
+            role: 'user',
+            content:
+              `Issue: ${req.title} (rule ${req.rule}) at ${req.file}:${req.line}\n` +
+              `${req.description}\n\nFile (${req.file}):\n\`\`\`\n${req.content}\n\`\`\``,
+          },
+        ],
+      });
+      if (response.stop_reason === 'refusal') return null;
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n');
+      const fenced = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)```/);
+      if (!fenced) return null;
+      const fixed = fenced[1].replace(/\n$/, '');
+      const explanation =
+        text.slice(0, text.indexOf('```')).trim() || 'Applied the recommended fix.';
+      return { fixed, explanation };
+    } catch (err) {
+      this.logger.warn(`AI code fix unavailable: ${(err as Error).message}`);
+      return null;
     }
   }
 

@@ -74,6 +74,32 @@ export class PredictionService {
     const reply = await this.ai.chat({ graph, heuristics, messages, model, tier });
     return { aiEnabled: this.ai.enabled, provider: this.ai.name, reply };
   }
+
+  /**
+   * Generate a corrected version of a file for a located code issue, using the
+   * org's plan-selected model. Returns aiEnabled=false (and no fix) when no AI
+   * key is configured or the model couldn't produce one.
+   */
+  async fixCode(
+    input: {
+      file: string
+      content: string
+      line: number
+      rule: string
+      title: string
+      description: string
+    },
+    opts: { plan?: Plan } = {},
+  ): Promise<{ aiEnabled: boolean; fixed: string | null; explanation: string | null }> {
+    const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
+    const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
+    const result = await this.ai.generateCodeFix({ ...input, model, tier })
+    return {
+      aiEnabled: this.ai.enabled,
+      fixed: result?.fixed ?? null,
+      explanation: result?.explanation ?? null,
+    }
+  }
 }
 
 /** Drop AI predictions that restate a heuristic (by normalized title). */

@@ -20,4 +20,8 @@ export class NullAiProvider implements AiProvider {
       'assistant will answer your questions once a key is set.'
     );
   }
+
+  async generateCodeFix(): Promise<null> {
+    return null;
+  }
 }

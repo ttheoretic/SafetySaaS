@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Module,
@@ -7,11 +8,23 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { BillingService } from '../billing/billing.service';
+import { AiModule } from '../ai/ai.module';
+import { PredictionService } from '../ai/prediction.service';
 import { GithubService } from './github.service';
 import { buildRemediationMarkdown } from './remediation';
+
+class CodeFixDto {
+  @IsString() repo!: string;
+  @IsString() file!: string;
+  @IsOptional() @IsInt() @Min(1) line?: number;
+  @IsString() rule!: string;
+  @IsString() title!: string;
+  @IsOptional() @IsString() description?: string;
+}
 
 @Controller('projects/:projectId')
 class GithubController {
@@ -19,7 +32,84 @@ class GithubController {
     private readonly github: GithubService,
     private readonly store: Store,
     private readonly billing: BillingService,
+    private readonly ai: PredictionService,
   ) {}
+
+  /** Generate an AI fix for a located code issue (preview: original + fixed). */
+  @Post('code/fix')
+  @RequirePermission('project:read')
+  async codeFix(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Body() dto: CodeFixDto,
+  ) {
+    this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI fix generation');
+    const content = await this.github.readFile(
+      projectId,
+      auth.org.id,
+      dto.repo,
+      dto.file,
+    );
+    if (content == null) {
+      throw new BadRequestException('Could not read the file from the repo.');
+    }
+    const result = await this.ai.fixCode(
+      {
+        file: dto.file,
+        content,
+        line: dto.line ?? 1,
+        rule: dto.rule,
+        title: dto.title,
+        description: dto.description ?? '',
+      },
+      { plan: auth.org.plan },
+    );
+    return { original: content, ...result };
+  }
+
+  /** Apply an AI fix by opening a pull request with the corrected file. */
+  @Post('code/fix/pr')
+  @RequirePermission('connection:write')
+  async codeFixPr(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Body() dto: CodeFixDto,
+  ) {
+    this.billing.assertHasFeature(auth.org, 'prExport', 'AI PR export');
+    const content = await this.github.readFile(
+      projectId,
+      auth.org.id,
+      dto.repo,
+      dto.file,
+    );
+    if (content == null) {
+      throw new BadRequestException('Could not read the file from the repo.');
+    }
+    const result = await this.ai.fixCode(
+      {
+        file: dto.file,
+        content,
+        line: dto.line ?? 1,
+        rule: dto.rule,
+        title: dto.title,
+        description: dto.description ?? '',
+      },
+      { plan: auth.org.plan },
+    );
+    if (!result.fixed) {
+      throw new BadRequestException(
+        'Could not generate a fix to apply. The AI may be unavailable.',
+      );
+    }
+    return this.github.openPullRequest(projectId, auth.org.id, {
+      path: dto.file,
+      content: result.fixed,
+      title: `Riscly fix: ${dto.title}`,
+      body:
+        `Automated fix for **${dto.title}** (\`${dto.rule}\`) in \`${dto.file}\`.\n\n` +
+        `${result.explanation ?? ''}\n\nReview carefully before merging.`,
+    });
+  }
 
   /**
    * Open a pull request adding a remediation plan (built from the latest scan's
@@ -97,7 +187,7 @@ class GithubController {
 }
 
 @Module({
-  imports: [StoreModule],
+  imports: [StoreModule, AiModule],
   controllers: [GithubController],
   providers: [GithubService],
   exports: [GithubService],

@@ -35,12 +35,35 @@ export interface ChatRequest {
  * empty list (or a graceful message for chat) on any failure so the pipeline
  * degrades gracefully to the deterministic heuristics.
  */
+export interface CodeFixRequest {
+  /** Repo-relative path, for context. */
+  file: string;
+  rule: string;
+  title: string;
+  description: string;
+  /** The full current file content to fix. */
+  content: string;
+  /** 1-based line of the issue. */
+  line: number;
+  model?: string;
+  tier?: AiTier;
+}
+
+export interface CodeFixResult {
+  /** The full corrected file content. */
+  fixed: string;
+  /** Short human explanation of the change. */
+  explanation: string;
+}
+
 export interface AiProvider {
   readonly name: string;
   readonly enabled: boolean;
   predict(req: PredictRequest): Promise<Prediction[]>;
   /** Grounded Q&A about the user's architecture and risks. */
   chat(req: ChatRequest): Promise<string>;
+  /** Generate a corrected version of a file for a code issue, or null. */
+  generateCodeFix(req: CodeFixRequest): Promise<CodeFixResult | null>;
 }
 
 /** JSON schema the model's structured output must satisfy. */

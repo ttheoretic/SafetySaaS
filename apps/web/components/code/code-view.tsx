@@ -12,13 +12,20 @@ import {
   Check,
   TriangleAlert,
   Loader2,
+  ShieldCheck,
+  ExternalLink,
 } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { SeverityBadge } from '@/components/ui/severity'
 import { fileTree, type CodeFile } from '@/lib/code-data'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
-import { useActiveProject, useRemediationPr } from '@/lib/use-project-data'
+import {
+  useActiveProject,
+  useRemediationPr,
+  useCodeIssues,
+  type AffectedFile,
+} from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 /** Best-effort language label from a file extension, for the header. */
@@ -90,22 +97,360 @@ function useRepoFileContent(
  * project has files, otherwise fall back to the curated demo file tree.
  */
 export function CodeView() {
-  const { projectId, data, isLoading } = useRepoFiles()
-  const hasRealFiles = Boolean(projectId && (data?.files?.length ?? 0) > 0)
+  const { projectId } = useActiveProject()
+  const { files: affected } = useCodeIssues()
 
-  if (hasRealFiles) {
+  // Issue-driven: only the files (and regions) that actually have problems.
+  if (affected.length > 0) {
+    return <IssueCodeView projectId={projectId!} files={affected} />
+  }
+  // Real project but a clean last scan → explicit "all clear" state.
+  if (projectId) {
     return (
-      <RealCodeView
-        projectId={projectId!}
-        repo={data!.repo}
-        files={data!.files.map((f) => f.path)}
-      />
+      <div className="flex h-full flex-col">
+        <ScreenHeader
+          title="Code Analysis"
+          subtitle="Security & quality issues located in your code"
+        />
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+          <ShieldCheck className="size-8 text-ok" />
+          <p className="text-sm font-medium">No code issues in the last scan</p>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Riscly found no committed secrets or insecure configuration. Run a
+            scan after changes to re-check.
+          </p>
+        </div>
+      </div>
     )
   }
-  // While the first listFiles request is in flight for a real project, keep the
-  // demo experience rather than flashing an empty shell; it swaps in on load.
-  void isLoading
+  // Demo workspace (no project) → the curated showcase.
   return <DemoCodeView />
+}
+
+// ---------------------------------------------------------------------------
+// Issue-driven view: only affected files + regions, red issues / green fix
+// ---------------------------------------------------------------------------
+
+type DiffRow = { type: 'same' | 'add' | 'del'; text: string }
+
+/** Minimal LCS line diff so we can render removed (red) / added (green) lines. */
+function lineDiff(a: string[], b: string[]): DiffRow[] {
+  const n = a.length
+  const m = b.length
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] =
+        a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+  const out: DiffRow[] = []
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (a[i] === b[j]) {
+      out.push({ type: 'same', text: a[i] })
+      i++
+      j++
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      out.push({ type: 'del', text: a[i++] })
+    } else {
+      out.push({ type: 'add', text: b[j++] })
+    }
+  }
+  while (i < n) out.push({ type: 'del', text: a[i++] })
+  while (j < m) out.push({ type: 'add', text: b[j++] })
+  return out
+}
+
+interface FixState {
+  original: string
+  fixed: string | null
+  explanation: string | null
+  aiEnabled: boolean
+}
+
+function IssueCodeView({
+  projectId,
+  files,
+}: {
+  projectId: string
+  files: AffectedFile[]
+}) {
+  const [activeKey, setActiveKey] = useState(`${files[0].repo}::${files[0].file}`)
+  const active =
+    files.find((f) => `${f.repo}::${f.file}` === activeKey) ?? files[0]
+  const issue = active.issues[0]
+  const fileQuery = useRepoFileContent(projectId, active.repo, active.file)
+  const content = fileQuery.data?.content ?? null
+
+  const [fix, setFix] = useState<FixState | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [prBusy, setPrBusy] = useState(false)
+  const [prUrl, setPrUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // Reset the fix state whenever the selected file changes.
+  useEffect(() => {
+    setFix(null)
+    setPrUrl(null)
+    setError(null)
+  }, [activeKey])
+
+  const issueLines = useMemo(() => {
+    const s = new Set<number>()
+    for (const i of active.issues)
+      for (let l = i.line; l <= (i.endLine ?? i.line); l++) s.add(l)
+    return s
+  }, [active])
+
+  const fixPayload = {
+    repo: active.repo,
+    file: active.file,
+    line: issue.line,
+    rule: issue.rule,
+    title: issue.title,
+    description: issue.description,
+  }
+
+  async function generate() {
+    setGenerating(true)
+    setError(null)
+    setFix(null)
+    try {
+      const res = await api.codeFix(projectId, fixPayload)
+      setFix(res)
+      if (!res.fixed) {
+        setError(
+          res.aiEnabled
+            ? 'The AI could not produce a fix for this file.'
+            : 'AI fixes are not enabled on this server (no API key).',
+        )
+      }
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  async function applyPr() {
+    setPrBusy(true)
+    setError(null)
+    try {
+      const res = await api.codeFixPr(projectId, fixPayload)
+      setPrUrl(res.url)
+      if (res.url) window.open(res.url, '_blank', 'noopener,noreferrer')
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setPrBusy(false)
+    }
+  }
+
+  const diff =
+    fix?.fixed && content
+      ? lineDiff(content.split('\n'), fix.fixed.split('\n'))
+      : null
+  const { dir, name } = splitPath(active.file)
+
+  return (
+    <div className="flex h-full flex-col">
+      <ScreenHeader
+        title="Code Analysis"
+        subtitle={`${dir}${name} · ${active.issues.length} issue${active.issues.length === 1 ? '' : 's'}`}
+        actions={
+          <>
+            <ActionButton
+              onClick={generate}
+              disabled={generating || prBusy}
+            >
+              {generating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              {generating ? 'Generating…' : 'Generate fix'}
+            </ActionButton>
+            <ActionButton
+              variant="primary"
+              onClick={applyPr}
+              disabled={prBusy || generating}
+              title="Open a pull request with the AI-generated fix"
+            >
+              {prBusy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <GitPullRequestArrow className="size-3.5" />
+              )}
+              Apply fix → PR
+            </ActionButton>
+          </>
+        }
+      />
+
+      <div className="flex min-h-0 flex-1">
+        {/* affected files */}
+        <div className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
+          <div className="flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <FolderOpen className="size-3.5" />
+            Affected files ({files.length})
+          </div>
+          {files.map((f) => {
+            const key = `${f.repo}::${f.file}`
+            const fname = splitPath(f.file).name
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveKey(key)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-accent/50',
+                  key === activeKey && 'bg-accent/60',
+                )}
+              >
+                <span className={cn('size-1.5 shrink-0 rounded-full', sevDot[f.worst])} />
+                <File className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{fname}</span>
+                <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                  {f.issues.length}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* code / diff */}
+        <div className="min-w-0 flex-1 overflow-auto bg-background font-mono text-xs">
+          {fileQuery.isLoading ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : diff ? (
+            <DiffView rows={diff} />
+          ) : content ? (
+            <SourceView content={content} issueLines={issueLines} />
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center text-muted-foreground">
+              Couldn’t load this file from the repo.
+            </div>
+          )}
+        </div>
+
+        {/* issue inspector */}
+        <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
+          <div className="border-b border-border px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Issues in this file
+          </div>
+          <div className="divide-y divide-border">
+            {active.issues.map((i) => (
+              <div key={i.id} className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <SeverityBadge severity={i.severity} />
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {i.file.split('/').pop()}:{i.line}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm font-medium leading-snug">{i.title}</p>
+                <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                  rule: {i.rule}
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                  {i.description}
+                </p>
+                {i.snippet && (
+                  <pre className="mt-2 overflow-x-auto rounded-sm border border-critical/20 bg-critical/5 px-2 py-1 font-mono text-[11px] text-critical">
+                    {i.snippet}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {fix?.explanation && (
+            <div className="border-t border-border px-4 py-3">
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
+                <WandSparkles className="size-3" />
+                Suggested fix
+              </div>
+              <p className="text-xs leading-relaxed text-foreground/90">
+                {fix.explanation}
+              </p>
+            </div>
+          )}
+          {prUrl && (
+            <a
+              href={prUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-4 my-3 inline-flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-1.5 text-xs font-medium text-ok hover:bg-ok/20"
+            >
+              <ExternalLink className="size-3.5" /> View pull request
+            </a>
+          )}
+          {error && <p className="px-4 py-2 text-xs text-destructive">{error}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SourceView({
+  content,
+  issueLines,
+}: {
+  content: string
+  issueLines: Set<number>
+}) {
+  return (
+    <div className="min-w-max">
+      {content.split('\n').map((line, idx) => {
+        const ln = idx + 1
+        const flagged = issueLines.has(ln)
+        return (
+          <div
+            key={ln}
+            className={cn(
+              'flex',
+              flagged && 'border-l-2 border-critical bg-critical/10',
+            )}
+          >
+            <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground/50">
+              {ln}
+            </span>
+            <span className="whitespace-pre px-2">{line || ' '}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function DiffView({ rows }: { rows: DiffRow[] }) {
+  return (
+    <div className="min-w-max">
+      {rows.map((r, idx) => (
+        <div
+          key={idx}
+          className={cn(
+            'flex',
+            r.type === 'add' && 'border-l-2 border-ok bg-ok/10',
+            r.type === 'del' && 'border-l-2 border-critical bg-critical/10',
+          )}
+        >
+          <span className="w-6 shrink-0 select-none px-1 text-center text-muted-foreground/50">
+            {r.type === 'add' ? '+' : r.type === 'del' ? '−' : ''}
+          </span>
+          <span
+            className={cn(
+              'whitespace-pre px-2',
+              r.type === 'add' && 'text-ok',
+              r.type === 'del' && 'text-critical',
+            )}
+          >
+            {r.text || ' '}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
