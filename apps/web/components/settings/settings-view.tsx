@@ -29,6 +29,7 @@ import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
+import { useActiveProject } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 type Section =
@@ -569,7 +570,37 @@ function BillingPanel() {
   )
 }
 
+// Catalog name → backend connection provider slug. Entries not listed here have
+// no backend provider yet and keep their static (design-only) connect button.
+const NAME_TO_PROVIDER: Record<string, string> = {
+  GitHub: 'github',
+  GitLab: 'gitlab',
+  Vercel: 'vercel',
+  Render: 'render',
+  AWS: 'aws',
+  Supabase: 'supabase',
+  Neon: 'neon',
+  Stripe: 'stripe',
+}
+// Providers connected via an OAuth redirect rather than a pasted token.
+const OAUTH_PROVIDERS = new Set(['github', 'gitlab'])
+
 function IntegrationsPanel() {
+  const { projectId } = useActiveProject()
+  const token = useAuth((s) => s.token)
+  const qc = useQueryClient()
+
+  const connections = useQuery({
+    queryKey: ['connections', projectId],
+    queryFn: () => api.listConnections(projectId!),
+    enabled: Boolean(token && projectId),
+  })
+  const connectedProviders = new Set(
+    (connections.data ?? []).map((c) => c.provider),
+  )
+  const refresh = () =>
+    qc.invalidateQueries({ queryKey: ['connections', projectId] })
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start gap-2.5 rounded-md border border-border bg-panel px-3 py-2.5">
@@ -583,13 +614,37 @@ function IntegrationsPanel() {
         </p>
       </div>
 
+      {!projectId && (
+        <div className="flex items-start gap-2.5 rounded-md border border-medium/30 bg-medium/10 px-3 py-2.5">
+          <Plug className="mt-0.5 size-4 shrink-0 text-medium" />
+          <p className="text-xs leading-relaxed text-foreground">
+            Create a project first to connect integrations — finish onboarding to
+            set one up.
+          </p>
+        </div>
+      )}
+
       {integrationCatalog.map((group) => (
         <Panel key={group.category}>
           <PanelHeader title={group.category} icon={<Plug className="size-3.5 text-primary" />} />
           <div className="divide-y divide-border">
-            {group.items.map((i) => (
-              <IntegrationCard key={i.name} integration={i} />
-            ))}
+            {group.items.map((i) => {
+              const provider = NAME_TO_PROVIDER[i.name] ?? null
+              // Real status overrides the static flag for backed providers.
+              const isConnected = provider
+                ? connectedProviders.has(provider)
+                : i.connected
+              return (
+                <IntegrationCard
+                  key={i.name}
+                  integration={i}
+                  provider={provider}
+                  isConnected={isConnected}
+                  projectId={projectId}
+                  onChanged={refresh}
+                />
+              )
+            })}
           </div>
         </Panel>
       ))}
@@ -597,8 +652,50 @@ function IntegrationsPanel() {
   )
 }
 
-function IntegrationCard({ integration: i }: { integration: Integration }) {
+function IntegrationCard({
+  integration: i,
+  provider,
+  isConnected,
+  projectId,
+  onChanged,
+}: {
+  integration: Integration
+  provider: string | null
+  isConnected: boolean
+  projectId: string | null
+  onChanged: () => void
+}) {
   const [open, setOpen] = useState(false)
+  const [tokenInput, setTokenInput] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const canConnect = Boolean(provider && projectId && !isConnected)
+  const isOAuth = provider ? OAUTH_PROVIDERS.has(provider) : false
+
+  async function connect() {
+    if (!provider || !projectId) return
+    setBusy(true)
+    setError(null)
+    try {
+      if (isOAuth) {
+        const { url } = await api.oauthAuthorizeUrl(provider, projectId, '/settings')
+        window.location.href = url
+        return
+      }
+      await api.createConnection(projectId, {
+        provider,
+        token: tokenInput || undefined,
+      })
+      setTokenInput('')
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div>
       <button
@@ -612,10 +709,10 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{i.name}</p>
           <p className="truncate text-xs text-muted-foreground">
-            {i.connected && i.detail ? i.detail : i.credential}
+            {isConnected && i.detail ? i.detail : i.credential}
           </p>
         </div>
-        {i.connected ? (
+        {isConnected ? (
           <span className="inline-flex items-center gap-1 rounded-full border border-low/30 bg-low/10 px-2 py-0.5 text-[11px] font-medium text-low">
             <Check className="size-3" /> Connected
           </span>
@@ -669,10 +766,33 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
             <p className="text-[11px] leading-relaxed text-foreground">{i.note}</p>
           </div>
 
-          {!i.connected && (
-            <button className="mt-3 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
-              Connect {i.name}
-            </button>
+          {!isConnected && (
+            <div className="mt-3">
+              {provider && !isOAuth && projectId && (
+                <input
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder={`${i.name} API token (optional for demo)`}
+                  className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                />
+              )}
+              <button
+                onClick={connect}
+                disabled={!canConnect || busy}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                title={
+                  !provider
+                    ? 'No backend provider yet'
+                    : !projectId
+                      ? 'Create a project first'
+                      : undefined
+                }
+              >
+                {busy && <Loader2 className="size-3.5 animate-spin" />}
+                {isOAuth ? `Connect ${i.name}` : `Connect ${i.name}`}
+              </button>
+              {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+            </div>
           )}
         </div>
       )}
