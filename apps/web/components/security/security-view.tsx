@@ -21,19 +21,21 @@ import { SeverityBadge } from '@/components/ui/severity'
 import { cn } from '@/lib/utils'
 import {
   domains as mockDomains,
-  funnel,
-  byService,
+  funnel as mockFunnel,
+  byService as mockByService,
   byLibrary,
   byTeam,
   securityIssues as mockSecurityIssues,
   exposureStats as mockExposureStats,
   type SecurityDomain,
   type SecurityIssue,
+  type FunnelStage,
   type GroupRow,
 } from '@/lib/security-data'
 import {
   useActiveProject,
   useLatestScan,
+  useSystemGraph,
   useRunScan,
   useScanMeta,
   type ApiFinding,
@@ -78,13 +80,25 @@ function classifyDomain(category: string): SecurityDomain {
  * The security page's data, wired to the active project's latest-scan findings
  * when available, falling back to the curated mock data in demo/empty states.
  */
+// Graph node kinds that sit on an attacker-reachable, internet-facing path.
+const INTERNET_FACING = new Set([
+  'frontend',
+  'cdn',
+  'dns',
+  'api',
+  'external_api',
+])
+
 function useSecurityData(): {
   domains: DomainMeta[]
   issues: SecurityIssue[]
   exposureStats: typeof mockExposureStats
+  funnel: FunnelStage[]
+  byService: GroupRow[]
 } {
   const { projectId } = useActiveProject()
   const scan = useLatestScan(projectId)
+  const { graph } = useSystemGraph()
   const findings: ApiFinding[] = scan.data?.findings ?? []
 
   return useMemo(() => {
@@ -93,19 +107,36 @@ function useSecurityData(): {
         domains: mockDomains,
         issues: mockSecurityIssues,
         exposureStats: mockExposureStats,
+        funnel: mockFunnel,
+        byService: mockByService,
       }
     }
 
-    const issues: SecurityIssue[] = findings.map((f, i) => ({
-      id: `SEC-${String(i + 1).padStart(4, '0')}`,
-      title: f.title,
-      severity: coerceSeverity(f.severity),
-      domain: classifyDomain(f.category),
-      rule: f.category,
-      location: f.nodeId ?? '—',
-      service: f.nodeId ?? '—',
-      // inProduction / exploitAvailable / exposed left undefined: not derivable
-    })) as SecurityIssue[]
+    // Map a finding's nodeId to its graph node (name + kind) for service/exposure.
+    const nodeById = new Map(
+      (graph?.nodes ?? []).map((n) => [n.id, n] as const),
+    )
+    const isExposed = (f: ApiFinding) => {
+      const node = f.nodeId ? nodeById.get(f.nodeId) : undefined
+      return node ? INTERNET_FACING.has(node.kind) : false
+    }
+
+    const issues: SecurityIssue[] = findings.map((f, i) => {
+      const node = f.nodeId ? nodeById.get(f.nodeId) : undefined
+      const service = node?.name ?? f.nodeId ?? '—'
+      return {
+        id: `SEC-${String(i + 1).padStart(4, '0')}`,
+        title: f.title,
+        severity: coerceSeverity(f.severity),
+        domain: classifyDomain(f.category),
+        rule: f.category,
+        location: service,
+        service,
+        inProduction: Boolean(f.nodeId),
+        exploitAvailable: coerceSeverity(f.severity) === 'critical',
+        exposed: isExposed(f),
+      }
+    }) as SecurityIssue[]
 
     // Override total + bySeverity on the mock domain metadata (keeps id/short/icons).
     const domains: DomainMeta[] = mockDomains.map((d) => {
@@ -116,14 +147,50 @@ function useSecurityData(): {
     })
 
     const exposureStats = {
-      exploitable: issues.filter((i) => i.severity === 'critical').length,
-      exposed: issues.filter((i) => i.severity === 'high').length,
+      exploitable: issues.filter((i) => i.exploitAvailable).length,
+      exposed: issues.filter((i) => i.exposed).length,
       fixAvailable: issues.length,
       meanTimeToRemediate: mockExposureStats.meanTimeToRemediate,
     }
 
-    return { domains, issues, exposureStats }
-  }, [projectId, findings])
+    // Attack-surface funnel, derived and kept monotonically non-increasing.
+    const inProd = issues.filter((i) => i.inProduction).length
+    const exploit = issues.filter((i) => i.exploitAvailable).length
+    const exposed = issues.filter((i) => i.exposed).length
+    const funnel: FunnelStage[] = [
+      { id: 'branch', label: 'Default branch', desc: 'All open findings', count: issues.length },
+      { id: 'prod', label: 'In production', desc: 'Reachable in a mapped service', count: Math.min(inProd, issues.length) },
+      { id: 'exploit', label: 'Exploit available', desc: 'Critical, weaponizable', count: Math.min(exploit, inProd) },
+      { id: 'exposed', label: 'Internet exposed', desc: 'On an internet-facing path', count: Math.min(exposed, exploit, inProd) },
+    ]
+
+    // Group by mapped service (graph node). No library/team source → those stay demo.
+    const byServiceMap = new Map<string, GroupRow>()
+    for (const f of findings) {
+      const node = f.nodeId ? nodeById.get(f.nodeId) : undefined
+      const name = node?.name ?? f.nodeId
+      if (!name) continue
+      const meta = node?.kind ? node.kind.replace(/_/g, ' ') : 'service'
+      const row =
+        byServiceMap.get(name) ?? { name, meta, critical: 0, high: 0, medium: 0 }
+      const sev = coerceSeverity(f.severity)
+      if (sev === 'critical') row.critical++
+      else if (sev === 'high') row.high++
+      else if (sev === 'medium') row.medium++
+      byServiceMap.set(name, row)
+    }
+    const byService = [...byServiceMap.values()].sort(
+      (a, b) => b.critical - a.critical || b.high - a.high,
+    )
+
+    return {
+      domains,
+      issues,
+      exposureStats,
+      funnel,
+      byService: byService.length > 0 ? byService : mockByService,
+    }
+  }, [projectId, findings, graph])
 }
 
 const domainIcon: Record<SecurityDomain, React.ReactNode> = {
@@ -146,7 +213,13 @@ export function SecurityView() {
   const [domain, setDomain] = useState<SecurityDomain>('sast')
   const [group, setGroup] = useState<GroupTab>('service')
 
-  const { domains, issues: allIssues, exposureStats } = useSecurityData()
+  const {
+    domains,
+    issues: allIssues,
+    exposureStats,
+    funnel,
+    byService,
+  } = useSecurityData()
   const { lastScanLabel } = useScanMeta()
   const { run, isScanning, canScan } = useRunScan()
 
@@ -218,7 +291,7 @@ export function SecurityView() {
               <p className="mb-3 text-xs text-muted-foreground">
                 Prioritise findings that are actually reachable and weaponizable, not just the raw count.
               </p>
-              <Funnel />
+              <Funnel stages={funnel} />
             </div>
           </Panel>
 
@@ -366,14 +439,16 @@ function StatCard({
   )
 }
 
-function Funnel() {
-  const maxCount = funnel[0].count
+function Funnel({ stages }: { stages: FunnelStage[] }) {
+  const maxCount = stages[0]?.count || 1
   return (
     <div className="flex flex-col gap-2">
-      {funnel.map((stage, i) => {
+      {stages.map((stage, i) => {
         const pct = (stage.count / maxCount) * 100
         const dropFromPrev =
-          i > 0 ? Math.round((1 - stage.count / funnel[i - 1].count) * 100) : null
+          i > 0 && stages[i - 1].count > 0
+            ? Math.round((1 - stage.count / stages[i - 1].count) * 100)
+            : null
         const tone =
           i === 0
             ? 'bg-muted-foreground/40'
