@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { RepoSignals, DependencyVulnerability, Finding } from '@riscly/shared';
+import type {
+  RepoSignals,
+  DependencyVulnerability,
+  Finding,
+  ProviderId,
+} from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext } from './collector';
 import { auditRepoDependencies } from '../dependency-audit';
@@ -57,6 +62,51 @@ function parseGoDeps(raw: string): string[] {
   return out;
 }
 
+/** Dependency names from a pyproject.toml (PEP 621 + Poetry), lowercased. */
+function parsePyprojectDeps(raw: string): string[] {
+  const out: string[] = [];
+  // PEP 621: dependencies = ["fastapi>=0.1", "redis", ...]
+  const arr = raw.match(/dependencies\s*=\s*\[([\s\S]*?)\]/i);
+  if (arr) {
+    for (const m of arr[1].matchAll(/["']([A-Za-z0-9._-]+)/g)) {
+      out.push(m[1].toLowerCase());
+    }
+  }
+  // Poetry: [tool.poetry.dependencies] block of `name = "..."` lines.
+  const poetry = raw.match(/\[tool\.poetry\.dependencies\]([\s\S]*?)(\n\[|$)/i);
+  if (poetry) {
+    for (const line of poetry[1].split('\n')) {
+      const m = line.match(/^\s*([A-Za-z0-9._-]+)\s*=/);
+      if (m && m[1].toLowerCase() !== 'python') out.push(m[1].toLowerCase());
+    }
+  }
+  return out;
+}
+
+/**
+ * Infra services declared in a docker-compose file, mapped to tokens the shared
+ * SERVICE_HINTS recognize. Lets us surface Redis/Postgres/RabbitMQ/… that exist
+ * as compose services rather than app dependencies.
+ */
+function detectComposeServices(yaml: string): string[] {
+  const text = yaml.toLowerCase();
+  const map: Array<[RegExp, string]> = [
+    [/postgres|postgis|pgvector|timescale/, 'postgres'],
+    [/\bmysql\b|mariadb/, 'mysql'],
+    [/\bmongo/, 'mongodb'],
+    [/\bredis\b|valkey/, 'redis'],
+    [/memcached/, 'memcached'],
+    [/rabbitmq|amqp/, 'rabbitmq'],
+    [/\bkafka\b/, 'kafkajs'],
+    [/elasticsearch|opensearch/, 'elasticsearch'],
+    [/\bminio\b/, 's3'],
+    [/clickhouse/, 'clickhouse'],
+  ];
+  const out: string[] = [];
+  for (const [re, token] of map) if (re.test(text)) out.push(token);
+  return out;
+}
+
 /** Variable names declared in a .env.example (values never read). */
 function parseEnvKeys(raw: string): string[] {
   const out: string[] = [];
@@ -110,30 +160,90 @@ export class GithubCollector implements ProviderCollector {
     repo: string,
     ctx: CollectorContext,
   ): Promise<RepoSignals | undefined> {
-    // Detect modules/tools across ecosystems — not just package.json — so
-    // Python/Go/Ruby services are mapped too.
-    const dependencies: string[] = [];
-    const pkg = await this.readJson(repo, 'package.json', ctx);
-    if (pkg) {
-      dependencies.push(...Object.keys({ ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }));
-    }
-    const requirements = await this.readText(repo, 'requirements.txt', ctx);
-    if (requirements) dependencies.push(...parsePyDeps(requirements));
-    const goMod = await this.readText(repo, 'go.mod', ctx);
-    if (goMod) dependencies.push(...parseGoDeps(goMod));
+    // Read the repo tree once so we can find manifests across a monorepo and
+    // detect config/hosting files without one HTTP call per guess.
+    const tree = await this.listTree(repo, ctx);
+    const baseName = (p: string) => p.split('/').pop() ?? p;
+    const hasFile = (name: string) => tree.some((p) => baseName(p) === name);
 
-    // Env-var names hint at integrations (and auth/db) without reading values.
-    const envExample =
-      (await this.readText(repo, '.env.example', ctx)) ??
-      (await this.readText(repo, '.env.sample', ctx));
-    const envVars = envExample ? parseEnvKeys(envExample) : [];
+    // Manifests across the whole repo (root + workspaces), not just the root —
+    // so monorepos where deps live in apps/* or packages/* are mapped too.
+    const dependencies: string[] = [];
+    const manifests = tree
+      .filter((p) => !p.includes('node_modules/'))
+      .filter((p) =>
+        ['package.json', 'requirements.txt', 'go.mod', 'pyproject.toml'].includes(
+          baseName(p),
+        ),
+      )
+      .slice(0, 40);
+    // Fall back to the root files if the tree couldn't be read.
+    const manifestPaths = manifests.length
+      ? manifests
+      : ['package.json', 'requirements.txt', 'go.mod'];
+    for (const path of manifestPaths) {
+      const name = baseName(path);
+      if (name === 'package.json') {
+        const pkg = await this.readJson(repo, path, ctx);
+        if (pkg) {
+          dependencies.push(
+            ...Object.keys({
+              ...(pkg.dependencies ?? {}),
+              ...(pkg.devDependencies ?? {}),
+            }),
+          );
+        }
+      } else if (name === 'requirements.txt') {
+        const txt = await this.readText(repo, path, ctx);
+        if (txt) dependencies.push(...parsePyDeps(txt));
+      } else if (name === 'go.mod') {
+        const txt = await this.readText(repo, path, ctx);
+        if (txt) dependencies.push(...parseGoDeps(txt));
+      } else if (name === 'pyproject.toml') {
+        const txt = await this.readText(repo, path, ctx);
+        if (txt) dependencies.push(...parsePyprojectDeps(txt));
+      }
+    }
+
+    // Infra services declared in docker-compose surface as pseudo-deps so the
+    // shared SERVICE_HINTS pick them up (redis, postgres, rabbitmq, …).
+    const composePath = tree.find((p) =>
+      /(^|\/)(docker-compose|compose)\.ya?ml$/.test(p),
+    );
+    if (composePath) {
+      const compose = await this.readText(repo, composePath, ctx);
+      if (compose) dependencies.push(...detectComposeServices(compose));
+    }
+
+    // Env-var names hint at integrations (Stripe, Redis, …) without reading
+    // values. Read every committed example env file, root or nested.
+    const envFiles = (
+      tree.length
+        ? tree.filter((p) => /(^|\/)\.env\.(example|sample|template)$/.test(p))
+        : ['.env.example', '.env.sample']
+    ).slice(0, 6);
+    const envVars: string[] = [];
+    for (const path of envFiles) {
+      const txt = await this.readText(repo, path, ctx);
+      if (txt) envVars.push(...parseEnvKeys(txt));
+    }
 
     const frameworks = detectFrameworks(dependencies.map((d) => d.toLowerCase()));
 
-    const hasDockerfile = await this.exists(repo, 'Dockerfile', ctx);
+    // Hosting platform from its config file — sets the frontend/api provider.
+    let hostProvider: ProviderId | undefined;
+    if (hasFile('vercel.json')) hostProvider = 'vercel';
+    else if (hasFile('render.yaml') || hasFile('render.yml')) hostProvider = 'render';
+    else if (hasFile('railway.json') || hasFile('railway.toml')) hostProvider = 'railway';
+
+    const hasDockerfile =
+      hasFile('Dockerfile') ||
+      (tree.length === 0 && (await this.exists(repo, 'Dockerfile', ctx)));
     const hasKubernetes =
-      (await this.exists(repo, 'k8s', ctx)) ||
-      (await this.exists(repo, 'kubernetes', ctx));
+      tree.some((p) => /(^|\/)(k8s|kubernetes|helm|charts)\//.test(p)) ||
+      (tree.length === 0 &&
+        ((await this.exists(repo, 'k8s', ctx)) ||
+          (await this.exists(repo, 'kubernetes', ctx))));
 
     // Deep analysis: lockfiles → OSV (SCA), and the file tree for committed
     // secrets / insecure config (SAST). Resilient — a failure never drops signals.
@@ -176,9 +286,29 @@ export class GithubCollector implements ProviderCollector {
       ...(envVars.length ? { envVars } : {}),
       hasDockerfile,
       hasKubernetes,
+      ...(hostProvider ? { hostProvider } : {}),
       ...(vulnerabilities && vulnerabilities.length ? { vulnerabilities } : {}),
       ...(codeFindings && codeFindings.length ? { codeFindings } : {}),
     };
+  }
+
+  /** All blob paths in the repo's default branch (best-effort). */
+  private async listTree(repo: string, ctx: CollectorContext): Promise<string[]> {
+    try {
+      const res = await ctx.fetchImpl(
+        `https://api.github.com/repos/${repo}/git/trees/HEAD?recursive=1`,
+        { headers: this.headers(ctx) },
+      );
+      if (!res.ok) return [];
+      const body = (await res.json()) as {
+        tree?: Array<{ path?: string; type?: string }>;
+      };
+      return (body.tree ?? [])
+        .filter((t) => t.type === 'blob' && t.path)
+        .map((t) => t.path as string);
+    } catch {
+      return [];
+    }
   }
 
   private async readText(
