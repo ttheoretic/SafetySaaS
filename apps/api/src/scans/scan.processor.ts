@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
-import { exampleGraph, SystemGraph } from '@riscly/shared';
+import { exampleGraph, hasFeature, Plan, SystemGraph } from '@riscly/shared';
 import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
@@ -12,6 +12,8 @@ export interface ScanJob {
   scanId: string;
   projectId: string;
   graph?: SystemGraph;
+  /** The org's plan, so deep analysis (SCA / code audit) can be gated. */
+  plan?: Plan;
 }
 
 /**
@@ -90,8 +92,14 @@ export class ScanProcessor implements OnModuleInit {
             }
           }
         }
+        const entitlements = job.plan
+          ? {
+              sca: hasFeature(job.plan, 'sca'),
+              codeAudit: hasFeature(job.plan, 'sast'),
+            }
+          : undefined;
         graph = connections.length
-          ? await this.scanner.scan(connections, { tokens })
+          ? await this.scanner.scan(connections, { tokens, entitlements })
           : exampleGraph;
       }
       const analysis = this.analyze.reliability(graph);

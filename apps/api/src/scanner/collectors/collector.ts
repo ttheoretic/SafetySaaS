@@ -20,6 +20,16 @@ export interface CollectorContext {
   token?: string;
   /** Injected so collectors are testable without hitting the network. */
   fetchImpl: typeof fetch;
+  /**
+   * Plan entitlements gating deep analysis. Undefined defaults to enabled, so
+   * tests and the public analyze path keep full behavior.
+   */
+  entitlements?: {
+    /** Dependency scanning (SCA). */
+    sca?: boolean;
+    /** Code / secret / IaC analysis (SAST family). */
+    codeAudit?: boolean;
+  };
 }
 
 export const EMPTY: Partial<ScanCollection> = {};

@@ -18,31 +18,44 @@ describe('plan limits', () => {
   });
 
   it('caps scans per day per tier', () => {
-    expect(canScanToday('starter', 4)).toBe(true);
-    expect(canScanToday('starter', 5)).toBe(false);
-    expect(canScanToday('growth', 49)).toBe(true);
-    expect(canScanToday('growth', 50)).toBe(false);
+    expect(canScanToday('starter', 1)).toBe(true);
+    expect(canScanToday('starter', 2)).toBe(false);
+    expect(canScanToday('growth', 9)).toBe(true);
+    expect(canScanToday('growth', 10)).toBe(false);
   });
 
-  it('gives every paid tier AI predictions but gates richer features below growth', () => {
+  it('matches the pricing table: features unlock per tier', () => {
+    // Starter: architecture + risk triage only (no deep analysis).
     expect(hasFeature('starter', 'aiPredictions')).toBe(true);
-    expect(hasFeature('starter', 'simulations')).toBe(true);
-    expect(hasFeature('starter', 'reports')).toBe(false);
-    expect(hasFeature('starter', 'scenarioLab')).toBe(false);
-    expect(hasFeature('starter', 'revenueImpact')).toBe(false);
-    expect(hasFeature('growth', 'reports')).toBe(true);
-    expect(hasFeature('growth', 'revenueImpact')).toBe(true);
-    expect(hasFeature('pro', 'revenueImpact')).toBe(true);
+    expect(hasFeature('starter', 'sast')).toBe(false);
+    expect(hasFeature('starter', 'sca')).toBe(false);
+    expect(hasFeature('starter', 'simulations')).toBe(false);
+    expect(hasFeature('starter', 'prExport')).toBe(false);
+    // Growth: SAST + SCA + AI PR export, but no secrets/IaC/simulation.
+    expect(hasFeature('growth', 'sast')).toBe(true);
+    expect(hasFeature('growth', 'sca')).toBe(true);
+    expect(hasFeature('growth', 'prExport')).toBe(true);
+    expect(hasFeature('growth', 'secretScanning')).toBe(false);
+    expect(hasFeature('growth', 'iac')).toBe(false);
+    expect(hasFeature('growth', 'simulations')).toBe(false);
+    // Pro: full security suite + failure simulation + SSO.
+    expect(hasFeature('pro', 'secretScanning')).toBe(true);
+    expect(hasFeature('pro', 'iac')).toBe(true);
+    expect(hasFeature('pro', 'simulations')).toBe(true);
+    expect(hasFeature('pro', 'scenarioLab')).toBe(true);
+    expect(hasFeature('pro', 'sso')).toBe(true);
   });
 
   it('escalates monitoring, alerts and history with the tier', () => {
-    expect(planLimits('starter').monitoring).toBe('daily');
-    expect(planLimits('growth').monitoring).toBe('hourly');
+    expect(planLimits('starter').monitoring).toBe('weekly');
+    expect(planLimits('growth').monitoring).toBe('daily');
     expect(planLimits('pro').monitoring).toBe('continuous');
     expect(planLimits('starter').alerts).toBe('email');
     expect(planLimits('pro').alerts).toBe('slack_teams');
-    expect(planLimits('starter').historyDays).toBe(30);
-    expect(planLimits('pro').historyDays).toBe(Infinity);
+    expect(planLimits('starter').historyDays).toBe(7);
+    expect(planLimits('growth').historyDays).toBe(90);
+    expect(planLimits('pro').historyDays).toBe(365);
+    expect(planLimits('enterprise').historyDays).toBe(Infinity);
   });
 
   it('escalates the AI model with the tier', () => {

@@ -2,10 +2,16 @@
  * Subscription plans and their enforced limits. Pure config + helpers so the
  * API, the billing UI and tests all agree on what each tier allows.
  *
- * Projects are deliberately NOT a tier lever — a paid subscription covers one
- * project, and a second project means a second subscription. Tiers differ on
- * scans/day, the AI model that powers predictions, and which features
- * (Live View, Scenario Lab, Reports, Revenue Impact) are unlocked.
+ * The canonical, customer-facing source of truth is the pricing comparison
+ * table (apps/web pricing page). These limits mirror that table so entitlements
+ * match what customers are sold:
+ *   - Starter  $29  · Haiku  · architecture + risk triage only
+ *   - Growth   $99  · Sonnet · + SAST/SCA + AI PR export
+ *   - Pro      $299 · Opus   · + secrets/IaC + failure simulation + SSO
+ *   - Enterprise     · Opus+ · everything, custom
+ *
+ * A paid subscription covers one project; a second project means a second
+ * subscription. Repositories per project scale with the tier (maxRepos).
  */
 
 export type Plan = 'starter' | 'growth' | 'pro' | 'enterprise';
@@ -14,7 +20,7 @@ export type Plan = 'starter' | 'growth' | 'pro' | 'enterprise';
 export type AiTier = 'basic' | 'sonnet' | 'opus';
 
 /** How often automated monitoring re-scans the architecture. */
-export type MonitoringTier = 'daily' | 'hourly' | 'continuous';
+export type MonitoringTier = 'weekly' | 'daily' | 'hourly' | 'continuous';
 
 /** Alerting destinations available per tier. */
 export type AlertsTier = 'email' | 'slack' | 'slack_teams' | 'custom';
@@ -25,24 +31,34 @@ export type Feature =
   | 'simulations'
   | 'scenarioLab'
   | 'reports'
-  | 'revenueImpact';
+  | 'revenueImpact'
+  | 'sast'
+  | 'sca'
+  | 'secretScanning'
+  | 'iac'
+  | 'prExport'
+  | 'sso';
 
 export interface PlanLimits {
-  /** Monthly price in euros (null = custom). */
+  /** Monthly price (null = custom). Currency is USD, matching the pricing table. */
   priceEur: number | null;
   /** Projects per subscription. One for everyone except enterprise. */
   maxProjects: number; // Infinity for unlimited
+  /** Repositories that can be connected/scanned per project. */
+  maxRepos: number; // Infinity for unlimited
   /** Hard cap on scans started per UTC day. */
   maxScansPerDay: number; // Infinity for unlimited
   /** AI model tier used for failure prediction. */
   aiTier: AiTier;
+  /** Monthly AI fix-suggestion quota. */
+  aiFixesPerMonth: number; // Infinity for unlimited
   /** Automated monitoring cadence. */
   monitoring: MonitoringTier;
   /** Alerting destinations. */
   alerts: AlertsTier;
   /** How long scan history is retained, in days (Infinity = unlimited). */
   historyDays: number;
-  /** Whether the AI (LLM) prediction layer is available. */
+  /** Whether the AI (LLM) prediction/assistant layer is available. */
   aiPredictions: boolean;
   /** Failure simulations (the core deterministic engine). */
   simulations: boolean;
@@ -52,6 +68,18 @@ export interface PlanLimits {
   reports: boolean;
   /** Revenue / business-impact scoring. */
   revenueImpact: boolean;
+  /** Static application security testing (code analysis). */
+  sast: boolean;
+  /** Software composition analysis (dependency scanning). */
+  sca: boolean;
+  /** Secret scanning. */
+  secretScanning: boolean;
+  /** Infrastructure-as-Code scanning. */
+  iac: boolean;
+  /** One-click AI fix / remediation PR export. */
+  prExport: boolean;
+  /** SSO / SAML. */
+  sso: boolean;
   /** Maximum team members. */
   maxMembers: number;
 }
@@ -67,53 +95,79 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   starter: {
     priceEur: 29,
     maxProjects: 1,
-    maxScansPerDay: 5,
+    maxRepos: 1,
+    maxScansPerDay: 2,
     aiTier: 'basic',
-    monitoring: 'daily',
+    aiFixesPerMonth: 25,
+    monitoring: 'weekly',
     alerts: 'email',
-    historyDays: 30,
+    historyDays: 7,
     aiPredictions: true,
-    simulations: true,
+    simulations: false,
     scenarioLab: false,
     reports: false,
     revenueImpact: false,
-    maxMembers: 2,
+    sast: false,
+    sca: false,
+    secretScanning: false,
+    iac: false,
+    prExport: false,
+    sso: false,
+    maxMembers: 1,
   },
   growth: {
     priceEur: 99,
     maxProjects: 1,
-    maxScansPerDay: 50,
+    maxRepos: 10,
+    maxScansPerDay: 10,
     aiTier: 'sonnet',
-    monitoring: 'hourly',
+    aiFixesPerMonth: 500,
+    monitoring: 'daily',
     alerts: 'slack',
+    historyDays: 90,
+    aiPredictions: true,
+    simulations: false,
+    scenarioLab: false,
+    reports: true,
+    revenueImpact: true,
+    sast: true,
+    sca: true,
+    secretScanning: false,
+    iac: false,
+    prExport: true,
+    sso: false,
+    maxMembers: 15,
+  },
+  pro: {
+    priceEur: 299,
+    maxProjects: 1,
+    maxRepos: Infinity,
+    maxScansPerDay: Infinity,
+    aiTier: 'opus',
+    aiFixesPerMonth: Infinity,
+    monitoring: 'continuous',
+    alerts: 'slack_teams',
     historyDays: 365,
     aiPredictions: true,
     simulations: true,
     scenarioLab: true,
     reports: true,
     revenueImpact: true,
-    maxMembers: 10,
-  },
-  pro: {
-    priceEur: 399,
-    maxProjects: 1,
-    maxScansPerDay: 500,
-    aiTier: 'opus',
-    monitoring: 'continuous',
-    alerts: 'slack_teams',
-    historyDays: Infinity,
-    aiPredictions: true,
-    simulations: true,
-    scenarioLab: true,
-    reports: true,
-    revenueImpact: true,
-    maxMembers: 50,
+    sast: true,
+    sca: true,
+    secretScanning: true,
+    iac: true,
+    prExport: true,
+    sso: true,
+    maxMembers: 100,
   },
   enterprise: {
     priceEur: null,
     maxProjects: Infinity,
+    maxRepos: Infinity,
     maxScansPerDay: Infinity,
     aiTier: 'opus',
+    aiFixesPerMonth: Infinity,
     monitoring: 'continuous',
     alerts: 'custom',
     historyDays: Infinity,
@@ -122,6 +176,12 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     scenarioLab: true,
     reports: true,
     revenueImpact: true,
+    sast: true,
+    sca: true,
+    secretScanning: true,
+    iac: true,
+    prExport: true,
+    sso: true,
     maxMembers: Infinity,
   },
 };
@@ -138,6 +198,11 @@ export function canCreateProject(plan: Plan, currentCount: number): boolean {
 
 export function canAddMember(plan: Plan, currentCount: number): boolean {
   return currentCount < PLAN_LIMITS[plan].maxMembers;
+}
+
+/** Whether another repo may be connected given how many are already connected. */
+export function canAddRepo(plan: Plan, currentCount: number): boolean {
+  return currentCount < PLAN_LIMITS[plan].maxRepos;
 }
 
 /** Whether another scan may be started today given how many already ran. */
@@ -167,14 +232,15 @@ export const AI_TIER_LABEL: Record<AiTier, string> = {
   opus: 'Opus',
 };
 
-/** AI tier label including the concrete Claude version. */
+/** AI tier label including the concrete Claude model, matching the table. */
 export const AI_TIER_LABEL_LONG: Record<AiTier, string> = {
-  basic: 'Basis AI · Haiku 4.5',
-  sonnet: 'Claude Sonnet 4.6',
-  opus: 'Claude Opus 4.8',
+  basic: 'Claude Haiku',
+  sonnet: 'Claude Sonnet',
+  opus: 'Claude Opus',
 };
 
 export const MONITORING_LABEL: Record<MonitoringTier, string> = {
+  weekly: 'Weekly',
   daily: 'Daily',
   hourly: 'Hourly',
   continuous: 'Continuous',

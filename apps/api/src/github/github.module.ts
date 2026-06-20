@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { BillingService } from '../billing/billing.service';
 import { GithubService } from './github.service';
 import { buildRemediationMarkdown } from './remediation';
 
@@ -17,6 +18,7 @@ class GithubController {
   constructor(
     private readonly github: GithubService,
     private readonly store: Store,
+    private readonly billing: BillingService,
   ) {}
 
   /**
@@ -30,6 +32,8 @@ class GithubController {
     @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
   ) {
+    // One-click PR export unlocks on growth+ (matches the pricing table).
+    this.billing.assertHasFeature(auth.org, 'prExport', 'AI PR export');
     const scans = await this.store.listScans(projectId);
     const latest = scans.find((s) => s.status === 'succeeded') ?? scans[0];
     if (!latest) {

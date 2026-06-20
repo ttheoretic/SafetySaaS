@@ -3,32 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Check, Loader2, ShieldCheck, LogOut } from 'lucide-react'
-import {
-  PLAN_LIMITS,
-  AI_TIER_LABEL_LONG,
-  MONITORING_LABEL,
-  type Plan,
-} from '@riscly/shared'
+import { ArrowRight, Check, Loader2, ShieldCheck, LogOut } from 'lucide-react'
+import { type Plan } from '@riscly/shared'
 import { api, type MeResponse } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
+import { plans } from '@/lib/pricing-data'
 
-/** Build the feature bullets for a plan from the shared limits config. */
-function featuresFor(plan: Plan): string[] {
-  const l = PLAN_LIMITS[plan]
-  const members =
-    l.maxMembers === Infinity
-      ? 'Unlimited members'
-      : `Up to ${l.maxMembers} members`
-  return [
-    AI_TIER_LABEL_LONG[l.aiTier],
-    `${MONITORING_LABEL[l.monitoring]} monitoring`,
-    ...(l.scenarioLab ? ['Scenario Lab'] : []),
-    ...(l.revenueImpact ? ['Revenue impact scoring'] : []),
-    ...(l.reports ? ['PDF & Excel reports'] : []),
-    members,
-  ]
-}
+// The self-serve, checkout-able plans, in the canonical pricing-table order.
+const CHECKOUT_PLANS = plans.filter((p) => p.id !== 'enterprise')
 
 export default function BillingPage() {
   const router = useRouter()
@@ -90,45 +72,60 @@ export default function BillingPage() {
         )}
 
         <div className="grid gap-4 md:grid-cols-3">
-          {(['starter', 'growth', 'pro'] as Plan[]).map((plan) => {
-            const limits = PLAN_LIMITS[plan]
-            return (
-              <div
-                key={plan}
-                className={`flex flex-col rounded-2xl border p-6 ${
-                  plan === 'growth' ? 'border-primary' : 'border-border'
-                } bg-card`}
-              >
-                {plan === 'growth' && (
-                  <span className="mb-2 inline-block w-fit rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
-                    Most popular
-                  </span>
-                )}
-                <h2 className="text-lg font-semibold capitalize">{plan}</h2>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="font-mono text-3xl font-semibold">
-                    €{limits.priceEur}
-                  </span>
-                  <span className="text-sm text-muted-foreground">/ month</span>
-                </div>
-                <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
-                  {featuresFor(plan).map((f) => (
-                    <li key={f} className="flex items-center gap-2">
-                      <Check className="size-4 shrink-0 text-primary" /> {f}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => subscribe(plan)}
-                  disabled={!!busy}
-                  className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
-                  {busy === plan && <Loader2 className="size-4 animate-spin" />}
-                  Subscribe
-                </button>
+          {CHECKOUT_PLANS.map((plan) => (
+            <div
+              key={plan.id}
+              className={`flex flex-col rounded-2xl border p-6 ${
+                plan.highlight ? 'border-primary' : 'border-border'
+              } bg-card`}
+            >
+              {plan.highlight && (
+                <span className="mb-2 inline-block w-fit rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground">
+                  Most popular
+                </span>
+              )}
+              <h2 className="text-lg font-semibold">{plan.name}</h2>
+              <div className="mt-2 flex items-baseline gap-1">
+                <span className="font-mono text-3xl font-semibold">
+                  {plan.price}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {plan.priceSuffix}
+                </span>
               </div>
-            )
-          })}
+              <p className="mt-2 min-h-10 text-sm text-muted-foreground">
+                {plan.tagline}
+              </p>
+              <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                  {plan.aiModel} AI model
+                </li>
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-4 shrink-0 text-primary" /> {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => subscribe(plan.id as Plan)}
+                disabled={!!busy}
+                className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {busy === plan.id && <Loader2 className="size-4 animate-spin" />}
+                Subscribe
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 flex justify-center">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-sm font-medium transition-colors hover:border-muted-foreground/40"
+          >
+            Compare all plans &amp; features <ArrowRight className="size-4" />
+          </Link>
         </div>
 
         <div className="mt-6 flex items-center justify-center gap-4 text-sm text-muted-foreground">

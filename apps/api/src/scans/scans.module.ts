@@ -73,7 +73,12 @@ class ScansController {
 
     // Enqueue the work. With the inline queue this completes synchronously;
     // with BullMQ it is processed out of band and the client polls for status.
-    await this.processor.enqueue({ scanId: scan.id, projectId, graph: dto.graph });
+    await this.processor.enqueue({
+      scanId: scan.id,
+      projectId,
+      graph: dto.graph,
+      plan: auth.org.plan,
+    });
     void this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, { projectId });
 
     return this.store.getScan(scan.id);

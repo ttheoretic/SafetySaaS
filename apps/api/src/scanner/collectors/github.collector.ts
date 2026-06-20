@@ -140,15 +140,23 @@ export class GithubCollector implements ProviderCollector {
     let vulnerabilities: DependencyVulnerability[] | undefined;
     let codeFindings: Finding[] | undefined;
     if (ctx.token) {
+      // Deep analysis is plan-gated: SCA and code/secret analysis unlock on
+      // growth+. Undefined entitlements default to enabled (tests / public path).
+      const scaEnabled = ctx.entitlements?.sca !== false;
+      const codeEnabled = ctx.entitlements?.codeAudit !== false;
       const [vulns, code] = await Promise.all([
-        auditRepoDependencies(repo, ctx).catch((err) => {
-          this.logger.warn(`Dependency audit of ${repo} failed: ${(err as Error).message}`);
-          return undefined;
-        }),
-        auditRepoCode(repo, ctx).catch((err) => {
-          this.logger.warn(`Code audit of ${repo} failed: ${(err as Error).message}`);
-          return undefined;
-        }),
+        scaEnabled
+          ? auditRepoDependencies(repo, ctx).catch((err) => {
+              this.logger.warn(`Dependency audit of ${repo} failed: ${(err as Error).message}`);
+              return undefined;
+            })
+          : Promise.resolve(undefined),
+        codeEnabled
+          ? auditRepoCode(repo, ctx).catch((err) => {
+              this.logger.warn(`Code audit of ${repo} failed: ${(err as Error).message}`);
+              return undefined;
+            })
+          : Promise.resolve(undefined),
       ]);
       vulnerabilities = vulns;
       codeFindings = code;

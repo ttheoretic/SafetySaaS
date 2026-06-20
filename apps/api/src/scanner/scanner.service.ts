@@ -38,6 +38,8 @@ export class ScannerService {
       /** Fallback token applied to every connection (back-compat / tests). */
       token?: string;
       fetchImpl?: typeof fetch;
+      /** Plan entitlements gating deep analysis (SCA / code audit). */
+      entitlements?: CollectorContext['entitlements'];
     } = {},
   ): Promise<SystemGraph> {
     const fetchImpl = opts.fetchImpl ?? fetch;
@@ -48,6 +50,7 @@ export class ScannerService {
         const ctx: CollectorContext = {
           token: opts.tokens?.[conn.id] ?? opts.token,
           fetchImpl,
+          entitlements: opts.entitlements,
         };
         try {
           return await collector.collect(conn, ctx);

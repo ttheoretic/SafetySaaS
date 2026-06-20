@@ -229,7 +229,7 @@ describe('Riscly API (e2e)', () => {
 
   it('enforces the per-day scan cap and gates AI by plan tier', async () => {
     const EVE = `Bearer ${devToken({ sub: 'eve-1', email: 'eve@plan.io', name: 'Eve' })}`;
-    // Eve is on the starter plan (5 scans/day, basic AI tier).
+    // Eve is on the starter plan (2 scans/day, basic AI tier).
     const me = await request(app.getHttpServer()).get('/me').set('Authorization', EVE);
     expect(me.body.subscription.plan).toBe('starter');
 
@@ -240,8 +240,8 @@ describe('Riscly API (e2e)', () => {
         .send({ name: 'Eve Project' })
     ).body;
 
-    // The first five scans of the day succeed; the sixth is rejected (429).
-    for (let i = 0; i < 5; i++) {
+    // The first two scans of the day succeed; the third is rejected (429).
+    for (let i = 0; i < 2; i++) {
       const ok = await request(app.getHttpServer())
         .post(`/projects/${project.id}/scans`)
         .set('Authorization', EVE)
