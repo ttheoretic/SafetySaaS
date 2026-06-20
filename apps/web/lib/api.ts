@@ -82,6 +82,27 @@ export interface BillingResponse {
   usage: { projects: number; members: number; scansToday: number };
 }
 
+export interface BillingInvoice {
+  id: string;
+  number?: string;
+  date: string;
+  amount: string;
+  status: string;
+  url?: string;
+}
+
+export interface PaymentMethodInfo {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+export interface BillingDetailsResponse {
+  invoices: BillingInvoice[];
+  paymentMethod: PaymentMethodInfo | null;
+}
+
 export interface PredictionResponse {
   aiEnabled: boolean;
   provider: string;
@@ -161,6 +182,7 @@ export const api = {
   updateProfile: (name: string) =>
     patch<{ id: string; email: string; name?: string }>('/me', { name }),
   billing: () => get<BillingResponse>('/billing'),
+  billingDetails: () => get<BillingDetailsResponse>('/billing/details'),
   checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
   /** Confirm a Stripe Checkout Session on return so access is granted at once. */
   confirmCheckout: (sessionId: string) =>

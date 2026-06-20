@@ -38,4 +38,35 @@ export interface BillingProvider {
    * normalized `plan_changed` event when the session is paid, else null.
    */
   confirmCheckout(sessionId: string): Promise<BillingEvent | null>;
+  /**
+   * Recent invoices and the default payment method for a customer. Optional —
+   * providers that can't surface this (the local provider) omit it.
+   */
+  billingDetails?(stripeCustomerId: string): Promise<BillingDetails>;
+}
+
+/** A past invoice for the billing customer. */
+export interface BillingInvoice {
+  id: string;
+  number?: string;
+  /** ISO timestamp of when the invoice was created. */
+  date: string;
+  /** Pre-formatted amount with currency, e.g. "$499.00". */
+  amount: string;
+  status: string;
+  /** Hosted invoice page or PDF, when available. */
+  url?: string;
+}
+
+/** The default card on file for the billing customer. */
+export interface PaymentMethodInfo {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+export interface BillingDetails {
+  invoices: BillingInvoice[];
+  paymentMethod: PaymentMethodInfo | null;
 }

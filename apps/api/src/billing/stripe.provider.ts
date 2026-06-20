@@ -1,7 +1,12 @@
 import { Logger } from '@nestjs/common';
 import Stripe from 'stripe';
 import { PLAN_LIMITS, Plan } from '@riscly/shared';
-import { BillingEvent, BillingProvider, CheckoutResult } from './billing-provider';
+import {
+  BillingDetails,
+  BillingEvent,
+  BillingProvider,
+  CheckoutResult,
+} from './billing-provider';
 
 /**
  * Stripe-backed billing. Creates Checkout Sessions for plan upgrades and
@@ -75,6 +80,57 @@ export class StripeBillingProvider implements BillingProvider {
     }
   }
 
+  /** Recent invoices + default card for the Stripe customer. */
+  async billingDetails(stripeCustomerId: string): Promise<BillingDetails> {
+    const [invoiceList, customer] = await Promise.all([
+      this.stripe.invoices.list({ customer: stripeCustomerId, limit: 6 }),
+      this.stripe.customers.retrieve(stripeCustomerId, {
+        expand: ['invoice_settings.default_payment_method'],
+      }),
+    ]);
+
+    const invoices = invoiceList.data.map((inv) => ({
+      id: inv.id,
+      number: inv.number ?? undefined,
+      date: new Date((inv.created ?? 0) * 1000).toISOString(),
+      amount: formatMoney(inv.total ?? 0, inv.currency ?? 'usd'),
+      status: inv.status ?? 'open',
+      url: inv.hosted_invoice_url ?? inv.invoice_pdf ?? undefined,
+    }));
+
+    let paymentMethod = null as BillingDetails['paymentMethod'];
+    // Structural shape avoids the SDK's namespace types (which vary by version).
+    const cust = customer as {
+      deleted?: boolean;
+      invoice_settings?: {
+        default_payment_method?:
+          | string
+          | {
+              card?: {
+                brand: string;
+                last4: string;
+                exp_month: number;
+                exp_year: number;
+              };
+            }
+          | null;
+      };
+    };
+    const pm = cust?.deleted
+      ? null
+      : cust?.invoice_settings?.default_payment_method;
+    if (pm && typeof pm !== 'string' && pm.card) {
+      paymentMethod = {
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        expMonth: pm.card.exp_month,
+        expYear: pm.card.exp_year,
+      };
+    }
+
+    return { invoices, paymentMethod };
+  }
+
   parseWebhook(rawBody: string, signature?: string): BillingEvent | null {
     // We only read a few fields, so a minimal shape keeps us decoupled from the
     // SDK's deep generic event types.
@@ -144,5 +200,17 @@ export class StripeBillingProvider implements BillingProvider {
       };
     }
     return null;
+  }
+}
+
+/** Format a Stripe minor-unit amount (cents) as a currency string. */
+function formatMoney(minor: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+    }).format(minor / 100);
+  } catch {
+    return `${(minor / 100).toFixed(2)} ${currency.toUpperCase()}`;
   }
 }

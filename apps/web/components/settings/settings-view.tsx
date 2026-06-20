@@ -459,13 +459,6 @@ function AccountPanel() {
   )
 }
 
-const invoices = [
-  { id: 'INV-2026-006', date: 'Jun 1, 2026', amount: '$499.00', status: 'Paid' },
-  { id: 'INV-2026-005', date: 'May 1, 2026', amount: '$499.00', status: 'Paid' },
-  { id: 'INV-2026-004', date: 'Apr 1, 2026', amount: '$499.00', status: 'Paid' },
-  { id: 'INV-2026-003', date: 'Mar 1, 2026', amount: '$320.00', status: 'Paid' },
-]
-
 function BillingPanel() {
   const router = useRouter()
   const token = useAuth((s) => s.token)
@@ -474,9 +467,17 @@ function BillingPanel() {
     queryFn: api.me,
     enabled: Boolean(token),
   })
+  const details = useQuery({
+    queryKey: ['billing-details'],
+    queryFn: api.billingDetails,
+    enabled: Boolean(token),
+  })
   const planLabel = me.data?.activeOrg.plan ?? me.data?.subscription.plan ?? 'Team'
   const active = me.data?.subscription.active ?? true
   const status = me.data?.subscription.status
+  const invoices = details.data?.invoices ?? []
+  const card = details.data?.paymentMethod ?? null
+  const billingEmail = me.data?.user.email ?? ''
 
   return (
     <div className="flex flex-col gap-4">
@@ -527,44 +528,75 @@ function BillingPanel() {
       <Panel>
         <PanelHeader title="Payment method" icon={<CreditCard className="size-3.5 text-primary" />} />
         <SettingRow
-          title="Visa ending in 4242"
-          desc="Expires 09 / 2028"
+          title={
+            card
+              ? `${card.brand[0].toUpperCase()}${card.brand.slice(1)} ending in ${card.last4}`
+              : 'No card on file'
+          }
+          desc={
+            card
+              ? `Expires ${String(card.expMonth).padStart(2, '0')} / ${card.expYear}`
+              : 'Add a card from the billing portal'
+          }
           control={
-            <button className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-              Update
+            <button
+              onClick={() => router.push('/billing')}
+              className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {card ? 'Update' : 'Add'}
             </button>
           }
         />
         <SettingRow
           title="Billing email"
-          desc="finance@shopist.io"
+          desc={billingEmail || '—'}
           control={
-            <button className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-              <Mail className="size-3.5" /> Edit
-            </button>
+            <span className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              <Mail className="size-3.5" /> Account email
+            </span>
           }
         />
       </Panel>
 
       <Panel>
         <PanelHeader title="Invoices" icon={<Download className="size-3.5 text-primary" />} />
-        <div className="divide-y divide-border">
-          {invoices.map((inv) => (
-            <div key={inv.id} className="flex items-center gap-3 px-3 py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="font-mono text-xs font-medium">{inv.id}</p>
-                <p className="text-xs text-muted-foreground">{inv.date}</p>
+        {invoices.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+            {details.isLoading ? 'Loading invoices…' : 'No invoices yet.'}
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {invoices.map((inv) => (
+              <div key={inv.id} className="flex items-center gap-3 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="font-mono text-xs font-medium">
+                    {inv.number ?? inv.id}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(inv.date).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full border border-low/30 bg-low/10 px-2 py-0.5 text-[11px] font-medium text-low capitalize">
+                  <Check className="size-3" /> {inv.status}
+                </span>
+                <span className="w-20 text-right font-mono text-xs">{inv.amount}</span>
+                {inv.url ? (
+                  <a
+                    href={inv.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Download invoice"
+                  >
+                    <Download className="size-4" />
+                  </a>
+                ) : (
+                  <span className="w-4" />
+                )}
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full border border-low/30 bg-low/10 px-2 py-0.5 text-[11px] font-medium text-low">
-                <Check className="size-3" /> {inv.status}
-              </span>
-              <span className="w-16 text-right font-mono text-xs">{inv.amount}</span>
-              <button className="text-muted-foreground hover:text-foreground" aria-label="Download invoice">
-                <Download className="size-4" />
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Panel>
     </div>
   )

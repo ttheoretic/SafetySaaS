@@ -40,6 +40,13 @@ class BillingController {
     return this.billing.summary(auth.org);
   }
 
+  /** Recent invoices + default payment method for the billing settings page. */
+  @Get('details')
+  @RequirePermission('project:read')
+  details(@Auth() auth: AuthContext) {
+    return this.billing.billingDetails(auth.org);
+  }
+
   // (checkout/webhook below)
 
   @Post('checkout')

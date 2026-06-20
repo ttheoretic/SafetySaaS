@@ -3,7 +3,12 @@ import {
 } from '@nestjs/common';
 import { planLimits, Plan, PlanLimits, Feature, hasFeature } from '@riscly/shared';
 import { Store, OrganizationRecord } from '../store/store.module';
-import { BILLING_PROVIDER, BillingProvider, BillingEvent } from './billing-provider';
+import {
+  BILLING_PROVIDER,
+  BillingProvider,
+  BillingEvent,
+  BillingDetails,
+} from './billing-provider';
 
 export interface BillingSummary {
   plan: Plan;
@@ -37,6 +42,23 @@ export class BillingService {
 
   createCheckout(org: OrganizationRecord, plan: Plan, email: string) {
     return this.provider.createCheckout(org.id, plan, email);
+  }
+
+  /**
+   * Recent invoices and the default payment method for the org's billing
+   * customer. Empty when there's no Stripe customer yet or the provider can't
+   * surface it (local provider).
+   */
+  async billingDetails(org: OrganizationRecord): Promise<BillingDetails> {
+    const empty: BillingDetails = { invoices: [], paymentMethod: null };
+    if (!this.provider.billingDetails) return empty;
+    const sub = await this.store.getSubscription(org.id);
+    if (!sub?.stripeCustomerId) return empty;
+    try {
+      return await this.provider.billingDetails(sub.stripeCustomerId);
+    } catch {
+      return empty;
+    }
   }
 
   parseWebhook(rawBody: string, signature?: string): BillingEvent | null {
