@@ -3,27 +3,37 @@
 import { usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
+import { AuthGuard } from '@/components/auth/auth-guard'
 
-// Routes that render outside the dashboard chrome (no sidebar / top nav).
-const BARE_ROUTES = ['/landing', '/pricing']
+// Public marketing routes — rendered full-bleed, no chrome, no auth.
+const MARKETING_ROUTES = ['/landing', '/pricing']
+// Auth-flow routes — full-bleed, no chrome; they manage their own auth/redirects.
+const AUTH_ROUTES = ['/login', '/get-started', '/billing']
+
+function matches(routes: string[], pathname: string) {
+  return routes.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isBare = BARE_ROUTES.some(
-    (r) => pathname === r || pathname.startsWith(`${r}/`),
-  )
 
-  if (isBare) {
-    return <div className="min-h-dvh bg-background text-foreground">{children}</div>
+  // Bare routes render without the dashboard sidebar / top nav.
+  if (matches(MARKETING_ROUTES, pathname) || matches(AUTH_ROUTES, pathname)) {
+    return (
+      <div className="min-h-dvh bg-background text-foreground">{children}</div>
+    )
   }
 
+  // Everything else is the authenticated dashboard.
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopNav />
-        <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+    <AuthGuard>
+      <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopNav />
+          <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   )
 }
