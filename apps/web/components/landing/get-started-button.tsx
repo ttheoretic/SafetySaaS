@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { useAuth } from '@/lib/auth-store'
+import { useOnboardingState } from '@/lib/use-onboarding-state'
 
 /**
- * Landing CTA whose destination depends on whether the visitor already has a
- * session. Returning, signed-in users get "Open dashboard"; everyone else gets
- * "Get started", which begins the sign-up + onboarding flow.
+ * Landing CTA whose destination reflects how far the visitor has gotten:
+ * "Get started" for anonymous visitors, "Continue setup" for signed-in users who
+ * haven't bought a plan / finished onboarding, and "Open dashboard" only once
+ * they're fully provisioned.
  */
 export function GetStartedButton({
   className,
@@ -16,15 +17,11 @@ export function GetStartedButton({
   className?: string
   showArrow?: boolean
 }) {
-  const { token, hydrated } = useAuth()
-  const authed = hydrated && Boolean(token)
+  const { nextHref, ctaLabel } = useOnboardingState()
 
   return (
-    <Link
-      href={authed ? '/dashboard' : '/login?mode=signup'}
-      className={className}
-    >
-      {authed ? 'Open dashboard' : 'Get started'}
+    <Link href={nextHref} className={className}>
+      {ctaLabel}
       {showArrow && <ArrowRight className="size-3.5" />}
     </Link>
   )
