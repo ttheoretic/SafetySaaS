@@ -168,7 +168,7 @@ export default function GetStartedPage() {
           }
           if (cancelled) return
           if (scanned) {
-            router.replace('/')
+            router.replace('/dashboard')
             return
           }
           setProjectId(existing.id)
@@ -318,7 +318,7 @@ export default function GetStartedPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="flex h-16 items-center px-6">
-        <Link href="/landing" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
             <ShieldCheck className="size-4 text-primary" />
           </div>
@@ -553,7 +553,7 @@ export default function GetStartedPage() {
                   </div>
                 )}
                 <button
-                  onClick={() => router.push('/')}
+                  onClick={() => router.push('/dashboard')}
                   className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:opacity-90"
                 >
                   Go to your dashboard <ArrowRight className="size-4" />

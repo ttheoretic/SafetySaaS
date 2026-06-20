@@ -1,31 +1,26 @@
-import { OverviewHeader } from '@/components/overview/overview-header'
-import { OverviewScore } from '@/components/overview/overview-score'
-import { PostureFunnel } from '@/components/overview/posture-funnel'
-import {
-  HealthGrid,
-  CriticalRisksPanel,
-  RecentChangesPanel,
-} from '@/components/overview/overview-panels'
+import { LandingNav } from '@/components/landing/landing-nav'
+import { LandingHero } from '@/components/landing/landing-hero'
+import { LandingProof } from '@/components/landing/landing-proof'
+import { LandingFeatures } from '@/components/landing/landing-features'
+import { LandingHow } from '@/components/landing/landing-how'
+import { LandingPricing } from '@/components/landing/landing-pricing'
+import { LandingFaq } from '@/components/landing/landing-faq'
+import { LandingCta, LandingFooter } from '@/components/landing/landing-footer'
 
-export default function OverviewPage() {
+export default function LandingPage() {
   return (
-    <div className="flex h-full flex-col">
-      <OverviewHeader />
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_1fr]">
-            <OverviewScore />
-            <PostureFunnel />
-          </div>
-
-          <HealthGrid />
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <CriticalRisksPanel />
-            <RecentChangesPanel />
-          </div>
-        </div>
-      </div>
+    <div className="min-h-dvh">
+      <LandingNav />
+      <main>
+        <LandingHero />
+        <LandingProof />
+        <LandingFeatures />
+        <LandingHow />
+        <LandingPricing />
+        <LandingFaq />
+        <LandingCta />
+      </main>
+      <LandingFooter />
     </div>
   )
 }

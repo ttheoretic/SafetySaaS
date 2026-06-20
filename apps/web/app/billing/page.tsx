@@ -51,7 +51,7 @@ export default function BillingPage() {
       .me()
       .then((m) => {
         // Already subscribed → no reason to sit on the paywall.
-        if (m.subscription.active) router.replace('/')
+        if (m.subscription.active) router.replace('/dashboard')
         else setMe(m)
       })
       .catch(() => {})
@@ -156,7 +156,7 @@ export default function BillingPage() {
           </p>
         )}
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          <Link href="/landing" className="hover:text-foreground">
+          <Link href="/" className="hover:text-foreground">
             ← Back to riscly.ai
           </Link>
         </p>

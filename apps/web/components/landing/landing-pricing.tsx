@@ -55,7 +55,7 @@ export function LandingPricing() {
             </p>
 
             <Link
-              href="/"
+              href="/login?mode=signup"
               className={cn(
                 'mt-5 inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
                 plan.highlight

@@ -46,7 +46,7 @@ export default function LoginPage() {
         { id: me.user.id, email: me.user.email, name: me.user.name },
         me.activeOrg.id,
       )
-      router.push(mode === 'signup' ? '/get-started' : '/')
+      router.push(mode === 'signup' ? '/get-started' : '/dashboard')
     } catch (err) {
       setError((err as Error).message)
       setLoading(false)
@@ -59,7 +59,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="flex h-16 items-center px-6">
-        <Link href="/landing" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
             <ShieldCheck className="size-4 text-primary" />
           </div>

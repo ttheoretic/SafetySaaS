@@ -17,7 +17,7 @@ export default function PricingPage() {
       <main>
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <Link
-            href="/landing#pricing"
+            href="/#pricing"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-4" />

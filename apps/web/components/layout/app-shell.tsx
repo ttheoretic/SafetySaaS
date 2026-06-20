@@ -6,7 +6,8 @@ import { TopNav } from './top-nav'
 import { AuthGuard } from '@/components/auth/auth-guard'
 
 // Public marketing routes — rendered full-bleed, no chrome, no auth.
-const MARKETING_ROUTES = ['/landing', '/pricing']
+// '/' is the marketing landing page; the dashboard lives under /dashboard.
+const MARKETING_ROUTES = ['/', '/pricing']
 // Auth-flow routes — full-bleed, no chrome; they manage their own auth/redirects.
 const AUTH_ROUTES = ['/login', '/get-started', '/billing']
 

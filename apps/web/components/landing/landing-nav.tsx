@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ShieldCheck, ArrowRight, Menu, X } from 'lucide-react'
+import { ShieldCheck, Menu, X } from 'lucide-react'
+import { GetStartedButton } from './get-started-button'
 
 const links = [
-  { label: 'Platform', href: '/landing#platform' },
-  { label: 'How it works', href: '/landing#how' },
-  { label: 'Capabilities', href: '/landing#capabilities' },
+  { label: 'Platform', href: '/#platform' },
+  { label: 'How it works', href: '/#how' },
+  { label: 'Capabilities', href: '/#capabilities' },
   { label: 'Pricing', href: '/pricing' },
 ]
 
@@ -17,7 +18,7 @@ export function LandingNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <Link href="/landing" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
             <ShieldCheck className="size-4 text-primary" />
           </span>
@@ -38,17 +39,12 @@ export function LandingNav() {
 
         <div className="ml-auto hidden items-center gap-2 md:flex">
           <Link
-            href="/"
+            href="/login"
             className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Sign in
           </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Open console <ArrowRight className="size-3.5" />
-          </Link>
+          <GetStartedButton className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90" />
         </div>
 
         <button
@@ -73,12 +69,7 @@ export function LandingNav() {
                 {l.label}
               </a>
             ))}
-            <Link
-              href="/"
-              className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            >
-              Open console <ArrowRight className="size-3.5" />
-            </Link>
+            <GetStartedButton className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground" />
           </nav>
         </div>
       )}

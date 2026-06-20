@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { ShieldCheck, ArrowRight } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
+import { GetStartedButton } from './get-started-button'
 
 const columns = [
   {
@@ -33,12 +34,7 @@ export function LandingCta() {
             posture in minutes. Free for your first project.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/"
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
-            >
-              Open the console <ArrowRight className="size-4" />
-            </Link>
+            <GetStartedButton className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto" />
             <a
               href="#capabilities"
               className="inline-flex w-full items-center justify-center rounded-md border border-border bg-background px-5 py-2.5 text-sm font-medium transition-colors hover:border-muted-foreground/40 sm:w-auto"
@@ -58,7 +54,7 @@ export function LandingFooter() {
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div>
-            <Link href="/landing" className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
                 <ShieldCheck className="size-4 text-primary" />
               </span>
