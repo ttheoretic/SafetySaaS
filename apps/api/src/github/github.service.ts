@@ -39,14 +39,18 @@ type FetchLike = typeof fetch;
 @Injectable()
 export class GithubService {
   private readonly logger = new Logger(GithubService.name);
-  private readonly fetchImpl: FetchLike;
+  // Not a constructor param so Nest's DI doesn't try to resolve it; overridable
+  // in tests via the setter below.
+  private fetchImpl: FetchLike = fetch;
 
   constructor(
     private readonly store: Store,
     private readonly secrets: SecretBox,
-    fetchImpl?: FetchLike,
-  ) {
-    this.fetchImpl = fetchImpl ?? fetch;
+  ) {}
+
+  /** Test seam: swap the fetch implementation. */
+  setFetch(fetchImpl: FetchLike) {
+    this.fetchImpl = fetchImpl;
   }
 
   /** Resolve token + repos for a project's GitHub connection (tenant-checked). */
