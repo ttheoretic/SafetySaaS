@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepare": "tsc -p tsconfig.json",
+    "prepare": "tsc -p tsconfig.json || echo 'shared prebuild skipped (will be built by the build step)'",
     "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "test": "vitest run",
     "test:watch": "vitest",
