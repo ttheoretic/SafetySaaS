@@ -33,10 +33,14 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   const repos = collection.repos ?? [];
   const vulnerabilities = repos.flatMap((r) => r.vulnerabilities ?? []);
   const codeFindings = repos.flatMap((r) => r.codeFindings ?? []);
+  const codeIssues = repos.flatMap((r) =>
+    (r.codeIssues ?? []).map((c) => ({ ...c, repo: c.repo ?? r.repo })),
+  );
   return {
     ...graph,
     ...(vulnerabilities.length ? { vulnerabilities } : {}),
     ...(codeFindings.length ? { codeFindings } : {}),
+    ...(codeIssues.length ? { codeIssues } : {}),
   };
 }
 

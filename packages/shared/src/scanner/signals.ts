@@ -32,6 +32,8 @@ export interface RepoSignals {
   vulnerabilities?: import('../vulnerabilities').DependencyVulnerability[];
   /** Code-level security findings (committed secrets, insecure config, …). */
   codeFindings?: import('../findings').Finding[];
+  /** Line-located code issues (file + line + rule + snippet) for the code view. */
+  codeIssues?: import('../findings').CodeIssue[];
 }
 
 /** A cloud/hosting account and its notable resources. */

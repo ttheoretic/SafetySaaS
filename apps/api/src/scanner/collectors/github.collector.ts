@@ -3,6 +3,7 @@ import type {
   RepoSignals,
   DependencyVulnerability,
   Finding,
+  CodeIssue,
   ProviderId,
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
@@ -254,6 +255,7 @@ export class GithubCollector implements ProviderCollector {
     // secrets / insecure config (SAST). Resilient — a failure never drops signals.
     let vulnerabilities: DependencyVulnerability[] | undefined;
     let codeFindings: Finding[] | undefined;
+    let codeIssues: CodeIssue[] | undefined;
     if (ctx.token) {
       // Deep analysis is plan-gated: SCA and code/secret analysis unlock on
       // growth+. Undefined entitlements default to enabled (tests / public path).
@@ -274,7 +276,8 @@ export class GithubCollector implements ProviderCollector {
           : Promise.resolve(undefined),
       ]);
       vulnerabilities = vulns;
-      codeFindings = code;
+      codeFindings = code?.findings;
+      codeIssues = code?.issues.map((i) => ({ ...i, repo }));
     }
 
     // Skip a repo only when there's genuinely nothing to say about it.
@@ -291,6 +294,7 @@ export class GithubCollector implements ProviderCollector {
       ...(envVars.length ? { envVars } : {}),
       hasDockerfile,
       hasKubernetes,
+      ...(codeIssues && codeIssues.length ? { codeIssues } : {}),
       ...(hostProvider ? { hostProvider } : {}),
       ...(vulnerabilities && vulnerabilities.length ? { vulnerabilities } : {}),
       ...(codeFindings && codeFindings.length ? { codeFindings } : {}),

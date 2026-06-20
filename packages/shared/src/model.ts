@@ -71,6 +71,8 @@ export interface SystemGraph {
   vulnerabilities?: import('./vulnerabilities').DependencyVulnerability[];
   /** Code-level security findings (committed secrets, insecure config, …). */
   codeFindings?: import('./findings').Finding[];
+  /** Line-located code issues for the code view (file + line + rule + snippet). */
+  codeIssues?: import('./findings').CodeIssue[];
 }
 
 /** Business context used by the revenue engine. */
