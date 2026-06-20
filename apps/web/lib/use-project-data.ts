@@ -1,6 +1,7 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SystemGraph } from '@riscly/shared'
 import { api } from './api'
 import { useAuth } from './auth-store'
@@ -82,6 +83,79 @@ export function useSystemGraph(): {
     return { graph, isDemo: false, loading: false }
   }
   return { graph: null, isDemo: true, loading: scan.isLoading }
+}
+
+/** Human "x minutes ago" for a scan timestamp. */
+export function relativeTime(iso?: string): string {
+  if (!iso) return 'never'
+  const ms = Date.now() - new Date(iso).getTime()
+  if (Number.isNaN(ms)) return 'never'
+  const s = Math.round(ms / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.round(s / 60)
+  if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`
+  const h = Math.round(m / 60)
+  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`
+  const d = Math.round(h / 24)
+  return `${d} day${d === 1 ? '' : 's'} ago`
+}
+
+/** Metadata about the active project's latest scan (for headers/subtitles). */
+export function useScanMeta(): { lastScanAt?: string; lastScanLabel: string } {
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+  const at = scan.data?.createdAt
+  return { lastScanAt: at, lastScanLabel: relativeTime(at) }
+}
+
+/**
+ * Start a scan for the active project, poll until it settles, then refresh the
+ * cached project/scan queries so every wired view updates.
+ */
+export function useRunScan() {
+  const qc = useQueryClient()
+  const { projectId } = useActiveProject()
+  const [isScanning, setIsScanning] = useState(false)
+
+  const run = useCallback(async () => {
+    if (!projectId || isScanning) return
+    setIsScanning(true)
+    try {
+      const scan = await api.startScan(projectId)
+      // The engine is usually synchronous, but poll briefly in case it isn't.
+      if (scan.status !== 'succeeded' && scan.status !== 'failed') {
+        for (let i = 0; i < 15; i++) {
+          await new Promise((r) => setTimeout(r, 1000))
+          const scans = (await api.listScans(projectId)) as ScanRecord[]
+          const s = scans.find((x) => x.id === scan.id)
+          if (!s || s.status === 'succeeded' || s.status === 'failed') break
+        }
+      }
+      await qc.invalidateQueries({ queryKey: ['scans', projectId] })
+      await qc.invalidateQueries({ queryKey: ['projects'] })
+    } finally {
+      setIsScanning(false)
+    }
+  }, [projectId, isScanning, qc])
+
+  return { run, isScanning, canScan: Boolean(projectId) }
+}
+
+/** Trigger a browser download of a generated project report. */
+export async function downloadReport(
+  projectId: string,
+  type = 'full',
+  format = 'pdf',
+) {
+  const blob = await api.downloadReport(projectId, type, format)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `riscly-${type}-report.${format}`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 // --- Adapters: map the API's analysis output onto the view data shapes -------

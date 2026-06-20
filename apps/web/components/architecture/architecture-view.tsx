@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import type { SystemGraph, NodeKind } from '@riscly/shared'
-import { Share2, RefreshCw, PanelRightOpen, X, Boxes } from 'lucide-react'
+import { RefreshCw, PanelRightOpen, X, Boxes } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { ArchitectureGraph } from './architecture-graph'
 import { RiskInspector } from '@/components/shared/risk-inspector'
@@ -20,9 +20,12 @@ import {
   useSystemGraph,
   useActiveProject,
   useLatestScan,
+  useRunScan,
+  downloadReport,
   findingsToRisks,
   type ApiFinding,
 } from '@/lib/use-project-data'
+import { Loader2, Download } from 'lucide-react'
 
 /** Maps an API NodeKind onto the graph's visual type + a human tech label. */
 const KIND_MAP: Record<
@@ -229,9 +232,21 @@ function NodeInspector({
 
 export function ArchitectureView() {
   const [selected, setSelected] = useState<ServiceNode | null>(null)
+  const [exporting, setExporting] = useState(false)
   const { graph } = useSystemGraph()
   const { projectId } = useActiveProject()
   const scan = useLatestScan(projectId)
+  const { run, isScanning, canScan } = useRunScan()
+
+  async function exportReport() {
+    if (!projectId || exporting) return
+    setExporting(true)
+    try {
+      await downloadReport(projectId, 'full', 'pdf')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const { nodes, edges, risks } = useMemo(() => {
     if (graph) {
@@ -249,12 +264,20 @@ export function ArchitectureView() {
         subtitle={`${nodes.length} services mapped · risk-weighted topology`}
         actions={
           <>
-            <ActionButton>
-              <RefreshCw className="size-3.5" />
-              Re-map
+            <ActionButton onClick={run} disabled={!canScan || isScanning}>
+              {isScanning ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3.5" />
+              )}
+              {isScanning ? 'Re-mapping…' : 'Re-map'}
             </ActionButton>
-            <ActionButton>
-              <Share2 className="size-3.5" />
+            <ActionButton onClick={exportReport} disabled={!projectId || exporting}>
+              {exporting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5" />
+              )}
               Export
             </ActionButton>
           </>

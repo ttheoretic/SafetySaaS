@@ -31,7 +31,14 @@ import {
   type SecurityIssue,
   type GroupRow,
 } from '@/lib/security-data'
-import { useActiveProject, useLatestScan, type ApiFinding } from '@/lib/use-project-data'
+import {
+  useActiveProject,
+  useLatestScan,
+  useRunScan,
+  useScanMeta,
+  type ApiFinding,
+} from '@/lib/use-project-data'
+import { Loader2 } from 'lucide-react'
 import type { Severity } from '@/lib/riscly-data'
 
 type DomainMeta = (typeof mockDomains)[number]
@@ -140,6 +147,8 @@ export function SecurityView() {
   const [group, setGroup] = useState<GroupTab>('service')
 
   const { domains, issues: allIssues, exposureStats } = useSecurityData()
+  const { lastScanLabel } = useScanMeta()
+  const { run, isScanning, canScan } = useRunScan()
 
   const issues = useMemo(
     () => allIssues.filter((i) => i.domain === domain),
@@ -156,8 +165,15 @@ export function SecurityView() {
         subtitle="Vulnerabilities across code, dependencies, secrets and infrastructure"
         actions={
           <>
-            <ActionButton>Last scan 4m ago</ActionButton>
-            <ActionButton variant="primary">Run scan</ActionButton>
+            <ActionButton disabled>Last scan {lastScanLabel}</ActionButton>
+            <ActionButton
+              variant="primary"
+              onClick={run}
+              disabled={!canScan || isScanning}
+            >
+              {isScanning && <Loader2 className="size-3.5 animate-spin" />}
+              {isScanning ? 'Scanning…' : 'Run scan'}
+            </ActionButton>
           </>
         }
       />

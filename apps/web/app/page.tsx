@@ -1,5 +1,4 @@
-import { ScanLine, FlaskConical } from 'lucide-react'
-import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
+import { OverviewHeader } from '@/components/overview/overview-header'
 import { OverviewScore } from '@/components/overview/overview-score'
 import { PostureFunnel } from '@/components/overview/posture-funnel'
 import {
@@ -11,22 +10,7 @@ import {
 export default function OverviewPage() {
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader
-        title="Overview"
-        subtitle="riscly / shopist-platform · main · last scan 4 minutes ago"
-        actions={
-          <>
-            <ActionButton>
-              <ScanLine className="size-3.5" />
-              Run scan
-            </ActionButton>
-            <ActionButton variant="primary">
-              <FlaskConical className="size-3.5" />
-              Run simulation
-            </ActionButton>
-          </>
-        }
-      />
+      <OverviewHeader />
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="mx-auto flex max-w-7xl flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_1fr]">
