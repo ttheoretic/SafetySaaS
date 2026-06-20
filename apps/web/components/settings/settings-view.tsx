@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Database,
   Server,
@@ -12,6 +14,8 @@ import {
   Plug,
   SlidersHorizontal,
   Check,
+  Loader2,
+  LogOut,
   UserRound,
   CreditCard,
   Mail,
@@ -23,6 +27,8 @@ import {
 } from 'lucide-react'
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
+import { api } from '@/lib/api'
+import { useAuth } from '@/lib/auth-store'
 import { cn } from '@/lib/utils'
 
 type Section =
@@ -303,49 +309,107 @@ export function SettingsView() {
   )
 }
 
-function Field({
-  label,
-  value,
-  type = 'text',
-}: {
-  label: string
-  value: string
-  type?: string
-}) {
-  return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <input
-        type={type}
-        defaultValue={value}
-        className="rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none transition-colors focus:border-primary/50"
-      />
-    </label>
-  )
+function initialsOf(nameOrEmail: string): string {
+  const parts = nameOrEmail.trim().split(/[\s@.]+/).filter(Boolean)
+  return (parts[0]?.[0] ?? '?').concat(parts[1]?.[0] ?? '').toUpperCase()
 }
 
 function AccountPanel() {
+  const router = useRouter()
+  const qc = useQueryClient()
+  const { token, user, signOut, updateUser } = useAuth()
+
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: api.me,
+    enabled: Boolean(token),
+  })
+
+  const email = me.data?.user.email ?? user?.email ?? ''
+  const serverName = me.data?.user.name ?? user?.name ?? ''
+  const orgName = me.data?.activeOrg.name ?? ''
+
+  const [name, setName] = useState<string | null>(null)
+  const value = name ?? serverName
+  const dirty = name !== null && name.trim() !== serverName
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function saveName() {
+    if (!dirty || saving) return
+    setSaving(true)
+    setSaved(false)
+    try {
+      const updated = await api.updateProfile(value.trim())
+      updateUser({ name: updated.name })
+      qc.invalidateQueries({ queryKey: ['me'] })
+      setName(null)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      /* surfaced inline by leaving the field dirty */
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <Panel>
         <PanelHeader title="Profile" icon={<UserRound className="size-3.5 text-primary" />} />
         <div className="flex items-center gap-4 px-3 py-4">
           <div className="flex size-14 items-center justify-center rounded-full bg-primary/15 text-lg font-semibold text-primary">
-            AR
+            {initialsOf(serverName || email || '?')}
           </div>
-          <div>
-            <p className="text-sm font-medium">Alex Rivera</p>
-            <p className="text-xs text-muted-foreground">Security Engineer · Platform team</p>
-            <button className="mt-1.5 text-xs font-medium text-primary hover:underline">
-              Change avatar
-            </button>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">{serverName || email || 'Your account'}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {orgName ? `${orgName} workspace` : 'Riscly workspace'}
+            </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 px-3 pb-4">
-          <Field label="Full name" value="Alex Rivera" />
-          <Field label="Job title" value="Security Engineer" />
-          <Field label="Email" value="alex.rivera@shopist.io" type="email" />
-          <Field label="Timezone" value="UTC−05:00 (Eastern)" />
+        <div className="grid grid-cols-2 gap-3 px-3 pb-3">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Full name</span>
+            <input
+              value={value}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              className="rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none transition-colors focus:border-primary/50"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Email</span>
+            <input
+              type="email"
+              value={email}
+              readOnly
+              className="rounded-md border border-border bg-secondary px-2.5 py-2 text-sm text-muted-foreground outline-none"
+            />
+          </label>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2.5">
+          <button
+            onClick={() => {
+              signOut()
+              router.replace('/login')
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <LogOut className="size-3.5" /> Sign out
+          </button>
+          <button
+            onClick={saveName}
+            disabled={!dirty || saving}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+          >
+            {saving ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : saved ? (
+              <Check className="size-3.5" />
+            ) : null}
+            {saved ? 'Saved' : 'Save changes'}
+          </button>
         </div>
       </Panel>
 
@@ -402,6 +466,17 @@ const invoices = [
 ]
 
 function BillingPanel() {
+  const router = useRouter()
+  const token = useAuth((s) => s.token)
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: api.me,
+    enabled: Boolean(token),
+  })
+  const planLabel = me.data?.activeOrg.plan ?? me.data?.subscription.plan ?? 'Team'
+  const active = me.data?.subscription.active ?? true
+  const status = me.data?.subscription.status
+
   return (
     <div className="flex flex-col gap-4">
       <Panel>
@@ -409,17 +484,29 @@ function BillingPanel() {
         <div className="flex items-start justify-between gap-4 px-3 py-4">
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-base font-semibold">Team</p>
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
-                Active
+              <p className="text-base font-semibold capitalize">{planLabel}</p>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                  active
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-high/15 text-high',
+                )}
+              >
+                {active ? 'Active' : status ?? 'Inactive'}
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              $499 / month · billed monthly · renews Jul 1, 2026
+              {active
+                ? 'Subscription active · billed monthly'
+                : 'No active subscription'}
             </p>
           </div>
-          <button className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
-            Upgrade <ArrowUpRight className="size-3.5" />
+          <button
+            onClick={() => router.push('/billing')}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {active ? 'Change plan' : 'Choose plan'} <ArrowUpRight className="size-3.5" />
           </button>
         </div>
         <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
