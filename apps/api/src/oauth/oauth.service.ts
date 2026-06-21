@@ -62,7 +62,7 @@ export class OAuthService {
       JSON.stringify({
         ...ctx,
         provider: providerName,
-        exp: Date.now() + 10 * 60 * 1000,
+        exp: Date.now() + 30 * 60 * 1000,
       } satisfies OAuthState),
     );
     return provider.authorizeUrl(state, this.redirectUri(providerName));
@@ -78,7 +78,7 @@ export class OAuthService {
       JSON.stringify({
         ...ctx,
         provider: 'github',
-        exp: Date.now() + 10 * 60 * 1000,
+        exp: Date.now() + 30 * 60 * 1000,
       } satisfies OAuthState),
     );
     return githubAppInstallUrl(state);

@@ -53,17 +53,24 @@ class OAuthController {
     @Query('installation_id') installationId: string,
     @Res() res: Response,
   ) {
-    // GitHub App installs return an installation_id (no code) — handle that path
-    // first; otherwise fall back to the OAuth authorization-code exchange.
-    const result =
-      provider === 'github' && installationId
-        ? await this.oauth.handleGithubAppInstall(installationId, state)
-        : await this.exchangeOAuthCode(provider, code, state);
     const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
-    const dest = safeNext(result.next) ?? '/settings';
-    res.redirect(
-      `${appUrl}${dest}?connected=${provider}&project=${result.projectId}`,
-    );
+    try {
+      // GitHub App installs return an installation_id (no code) — handle that
+      // path first; otherwise fall back to the OAuth authorization-code exchange.
+      const result =
+        provider === 'github' && installationId
+          ? await this.oauth.handleGithubAppInstall(installationId, state)
+          : await this.exchangeOAuthCode(provider, code, state);
+      const dest = safeNext(result.next) ?? '/settings';
+      res.redirect(
+        `${appUrl}${dest}?connected=${provider}&project=${result.projectId}`,
+      );
+    } catch {
+      // The flow was abandoned or the signed state expired (e.g. the user took a
+      // long detour on the provider, like a password reset). Don't dump a raw
+      // 400 JSON on them — send them back into onboarding to retry.
+      res.redirect(`${appUrl}/get-started?connect_error=${provider}`);
+    }
   }
 
   private exchangeOAuthCode(provider: string, code: string, state: string) {

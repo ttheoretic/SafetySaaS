@@ -16,7 +16,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

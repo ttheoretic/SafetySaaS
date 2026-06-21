@@ -126,7 +126,14 @@ export default function GetStartedPage() {
         const upgraded = params.get('upgraded') === '1'
         const sessionId = params.get('session_id')
         const connectedProvider = params.get('connected')
+        const connectError = params.get('connect_error')
         if (connectedProvider) setConnected(connectedProvider)
+        // The provider connect was abandoned/expired (e.g. a password-reset
+        // detour). Surface it so the user simply retries instead of being stuck.
+        if (connectError)
+          setError(
+            `The ${connectError} connection wasn’t completed. Please click “Connect ${connectError === 'github' ? 'GitHub' : connectError}” again.`,
+          )
         if (upgraded && sessionId) {
           for (let i = 0; i < 4; i++) {
             try {
