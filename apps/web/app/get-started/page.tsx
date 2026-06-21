@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-store'
 import { api } from '@/lib/api'
+import { useActiveProjectStore } from '@/lib/active-project'
 import type { SystemGraph } from '@riscly/shared'
 
 type Step = 'workspace' | 'connect' | 'review' | 'scan' | 'result'
@@ -73,6 +74,7 @@ function Gauge({ score }: { score: number }) {
 export default function GetStartedPage() {
   const router = useRouter()
   const { token, hydrated } = useAuth()
+  const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
   const [ready, setReady] = useState(false)
   const [step, setStep] = useState<Step>('workspace')
   const [workspace, setWorkspace] = useState('')
@@ -127,6 +129,8 @@ export default function GetStartedPage() {
         const sessionId = params.get('session_id')
         const connectedProvider = params.get('connected')
         const connectError = params.get('connect_error')
+        // "Add repository": always create a NEW project/repo, don't resume.
+        const isNew = params.get('new') === '1' && !connectedProvider
         if (connectedProvider) setConnected(connectedProvider)
         // The provider connect was abandoned/expired (e.g. a password-reset
         // detour). Surface it so the user simply retries instead of being stuck.
@@ -161,10 +165,11 @@ export default function GetStartedPage() {
 
         setWorkspace(me.activeOrg.name)
 
-        // Only skip the wizard once a project has actually been scanned.
+        // Only skip the wizard once a project has actually been scanned —
+        // unless we're explicitly adding a new repository (start fresh).
         const projects = await api.listProjects()
         if (cancelled) return
-        if (projects.length > 0) {
+        if (!isNew && projects.length > 0) {
           const existing = projects[0]
           let scanned = false
           try {
@@ -214,6 +219,7 @@ export default function GetStartedPage() {
     try {
       const p = await api.createProject(projectName.trim() || 'My SaaS')
       setProjectId(p.id)
+      setActiveProject(p.id)
       setStep('connect')
     } catch (err) {
       setError((err as Error).message)

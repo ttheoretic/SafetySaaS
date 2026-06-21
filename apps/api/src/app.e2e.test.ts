@@ -182,8 +182,8 @@ describe('Riscly API (e2e)', () => {
     expect(run.body.totalRevenueImpact).toBeGreaterThanOrEqual(0);
   });
 
-  it('covers one project per subscription, lifted only on enterprise', async () => {
-    // Carol starts on the starter plan: one project per subscription.
+  it('caps projects (= repositories) at the plan limit, lifted by upgrading', async () => {
+    // Carol starts on the starter plan: one repository/project.
     const summary = await request(app.getHttpServer())
       .get('/billing')
       .set('Authorization', CAROL);
@@ -194,37 +194,26 @@ describe('Riscly API (e2e)', () => {
     const first = await request(app.getHttpServer())
       .post('/projects')
       .set('Authorization', CAROL)
-      .send({ name: 'Carol Project 1' });
+      .send({ name: 'Carol Repo 1' });
     expect(first.status).toBe(201);
 
-    // Second project exceeds the one-per-subscription cap — even on a paid tier
-    // a second project means a second subscription.
+    // A second project exceeds the starter cap (1 repository).
     const second = await request(app.getHttpServer())
       .post('/projects')
       .set('Authorization', CAROL)
-      .send({ name: 'Carol Project 2' });
+      .send({ name: 'Carol Repo 2' });
     expect(second.status).toBe(403);
 
     const me = await request(app.getHttpServer()).get('/me').set('Authorization', CAROL);
-    // Upgrading to pro keeps the one-project cap.
+    // Upgrading to growth lifts the cap to 10 repositories/projects.
     await request(app.getHttpServer())
       .post('/billing/webhook')
-      .send({ orgId: me.body.activeOrg.id, plan: 'pro' });
-    const afterPro = await request(app.getHttpServer())
+      .send({ orgId: me.body.activeOrg.id, plan: 'growth' });
+    const afterGrowth = await request(app.getHttpServer())
       .post('/projects')
       .set('Authorization', CAROL)
-      .send({ name: 'Carol Project 2' });
-    expect(afterPro.status).toBe(403);
-
-    // Only enterprise (custom) lifts the project cap.
-    await request(app.getHttpServer())
-      .post('/billing/webhook')
-      .send({ orgId: me.body.activeOrg.id, plan: 'enterprise' });
-    const afterEnterprise = await request(app.getHttpServer())
-      .post('/projects')
-      .set('Authorization', CAROL)
-      .send({ name: 'Carol Project 2' });
-    expect(afterEnterprise.status).toBe(201);
+      .send({ name: 'Carol Repo 2' });
+    expect(afterGrowth.status).toBe(201);
   });
 
   it('enforces the per-day scan cap and gates AI by plan tier', async () => {

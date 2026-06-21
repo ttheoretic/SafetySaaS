@@ -117,8 +117,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   growth: {
     priceEur: 99,
-    maxProjects: 1,
-    maxRepos: 10,
+    maxProjects: 10,
+    maxRepos: 1,
     maxScansPerDay: 10,
     aiTier: 'sonnet',
     aiFixesPerMonth: 500,
@@ -140,8 +140,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   },
   pro: {
     priceEur: 299,
-    maxProjects: 1,
-    maxRepos: Infinity,
+    maxProjects: Infinity,
+    maxRepos: 1,
     maxScansPerDay: Infinity,
     aiTier: 'opus',
     aiFixesPerMonth: Infinity,
@@ -164,7 +164,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   enterprise: {
     priceEur: null,
     maxProjects: Infinity,
-    maxRepos: Infinity,
+    maxRepos: 1,
     maxScansPerDay: Infinity,
     aiTier: 'opus',
     aiFixesPerMonth: Infinity,

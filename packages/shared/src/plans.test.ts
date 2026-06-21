@@ -5,10 +5,13 @@ import {
 } from './plans';
 
 describe('plan limits', () => {
-  it('covers exactly one project per subscription (except enterprise)', () => {
+  it('allows projects (= repositories) up to the plan limit', () => {
+    // Each repo is its own project; the project cap equals the repo count.
     expect(canCreateProject('starter', 0)).toBe(true);
     expect(canCreateProject('starter', 1)).toBe(false);
-    expect(canCreateProject('pro', 1)).toBe(false);
+    expect(canCreateProject('growth', 9)).toBe(true);
+    expect(canCreateProject('growth', 10)).toBe(false);
+    expect(canCreateProject('pro', 50)).toBe(true);
   });
 
   it('enterprise is unlimited', () => {

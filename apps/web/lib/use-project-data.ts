@@ -9,6 +9,7 @@ import {
 } from '@riscly/shared'
 import { api } from './api'
 import { useAuth } from './auth-store'
+import { useActiveProjectStore } from './active-project'
 import {
   risks as demoRisks,
   severityOrder,
@@ -46,13 +47,21 @@ export function useProjects() {
   })
 }
 
-/** The first project — the app is single-project per org for now. */
+/**
+ * The active repository/project: the one selected in the store, falling back to
+ * the first. Each repo is its own project, so this drives all project-scoped
+ * data — switching it swaps the dashboard's data.
+ */
 export function useActiveProject() {
   const projects = useProjects()
+  const activeId = useActiveProjectStore((s) => s.activeProjectId)
+  const list = projects.data ?? []
+  const project = list.find((p) => p.id === activeId) ?? list[0] ?? null
   return {
     ...projects,
-    project: projects.data?.[0] ?? null,
-    projectId: projects.data?.[0]?.id ?? null,
+    projects: list,
+    project,
+    projectId: project?.id ?? null,
   }
 }
 
