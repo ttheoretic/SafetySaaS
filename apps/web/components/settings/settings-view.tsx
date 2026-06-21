@@ -24,16 +24,20 @@ import {
   ChevronDown,
   KeyRound,
   Lock,
+  Plus,
 } from 'lucide-react'
+import { PLAN_LIMITS, type Plan } from '@riscly/shared'
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
-import { useActiveProject } from '@/lib/use-project-data'
+import { useProjects, useActiveProject } from '@/lib/use-project-data'
+import { useActiveProjectStore } from '@/lib/active-project'
 import { cn } from '@/lib/utils'
 
 type Section =
   | 'account'
+  | 'repositories'
   | 'billing'
   | 'integrations'
   | 'scanning'
@@ -42,6 +46,7 @@ type Section =
 
 const sections: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'account', label: 'Account', icon: <UserRound className="size-4" /> },
+  { id: 'repositories', label: 'Repositories', icon: <GitBranch className="size-4" /> },
   { id: 'billing', label: 'Billing', icon: <CreditCard className="size-4" /> },
   { id: 'integrations', label: 'Integrations', icon: <Plug className="size-4" /> },
   { id: 'scanning', label: 'Scanning', icon: <ShieldCheck className="size-4" /> },
@@ -298,6 +303,7 @@ export function SettingsView() {
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className="mx-auto max-w-3xl">
             {active === 'account' && <AccountPanel />}
+            {active === 'repositories' && <RepositoriesPanel />}
             {active === 'billing' && <BillingPanel />}
             {active === 'integrations' && <IntegrationsPanel />}
             {active === 'scanning' && <ScanningPanel />}
@@ -305,6 +311,92 @@ export function SettingsView() {
             {active === 'notifications' && <NotificationsPanel />}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function RepositoriesPanel() {
+  const router = useRouter()
+  const token = useAuth((s) => s.token)
+  const projects = useProjects()
+  const { project } = useActiveProject()
+  const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
+
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) })
+  const plan = (me.data?.activeOrg.plan as Plan | undefined) ?? 'starter'
+  const max = PLAN_LIMITS[plan]?.maxProjects ?? 1
+  const maxLabel = Number.isFinite(max) ? String(max) : 'Unlimited'
+  const list = projects.data ?? []
+  const atLimit = Number.isFinite(max) && list.length >= max
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Panel>
+        <PanelHeader
+          title="Connected repositories"
+          icon={<GitBranch className="size-3.5 text-primary" />}
+          action={
+            <span className="font-mono text-[11px] text-muted-foreground">
+              {list.length} / {maxLabel}
+            </span>
+          }
+        />
+        {list.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+            {projects.isLoading ? 'Loading…' : 'No repositories connected yet.'}
+          </p>
+        ) : (
+          <div className="divide-y divide-border">
+            {list.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5">
+                <GitBranch className="size-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{p.name}</p>
+                  <p className="truncate font-mono text-[11px] text-muted-foreground">
+                    {p.environment ?? 'production'}
+                  </p>
+                </div>
+                {project?.id === p.id ? (
+                  <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setActiveProject(p.id)}
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    Switch to
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="border-t border-border p-3">
+          <button
+            onClick={() => router.push('/get-started?new=1')}
+            disabled={atLimit}
+            title={atLimit ? `Your ${plan} plan allows ${maxLabel} repositories.` : undefined}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            <Plus className="size-3.5" /> Add repository
+          </button>
+          {atLimit && (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Plan limit reached. Upgrade to connect more repositories.
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      <div className="flex items-start gap-2.5 rounded-md border border-border bg-panel px-3 py-2.5">
+        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Each repository is its own project with its own scans and findings.
+          Adding one starts a fresh authorization, then you can switch between
+          them from the top bar.
+        </p>
       </div>
     </div>
   )
