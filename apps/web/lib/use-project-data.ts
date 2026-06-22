@@ -136,6 +136,43 @@ export function useCodeIssues(): { files: AffectedFile[]; loading: boolean } {
   return { files, loading: scan.isLoading }
 }
 
+/**
+ * Run a deep AI analysis over the active project's source files (security +
+ * quality + correctness), merged into the latest scan. On-demand.
+ */
+export function useDeepScan() {
+  const qc = useQueryClient()
+  const { projectId } = useActiveProject()
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState<{
+    added: number
+    filesAnalyzed: number
+    aiEnabled: boolean
+  } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const run = useCallback(async () => {
+    if (!projectId || busy) return
+    setBusy(true)
+    setError(null)
+    setResult(null)
+    try {
+      const r = await api.deepScan(projectId)
+      setResult(r)
+      await qc.invalidateQueries({ queryKey: ['scans', projectId] })
+      if (!r.aiEnabled) {
+        setError('AI analysis is not enabled on this server (set ANTHROPIC_API_KEY).')
+      }
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }, [projectId, busy, qc])
+
+  return { run, busy, result, error, canRun: Boolean(projectId) }
+}
+
 /** Recent commits for the active project's connected GitHub repos. */
 export function useCommits() {
   const token = useAuth((s) => s.token)

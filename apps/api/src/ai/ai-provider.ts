@@ -56,6 +56,24 @@ export interface CodeFixResult {
   explanation: string;
 }
 
+export interface CodeAnalysisRequest {
+  file: string;
+  content: string;
+  model?: string;
+  tier?: AiTier;
+}
+
+/** A single issue the model located in a file. */
+export interface AnalyzedIssue {
+  line: number;
+  endLine?: number;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  /** Short rule id, e.g. "security/sql-injection", "quality/dead-code". */
+  rule: string;
+  title: string;
+  description: string;
+}
+
 export interface AiProvider {
   readonly name: string;
   readonly enabled: boolean;
@@ -64,6 +82,8 @@ export interface AiProvider {
   chat(req: ChatRequest): Promise<string>;
   /** Generate a corrected version of a file for a code issue, or null. */
   generateCodeFix(req: CodeFixRequest): Promise<CodeFixResult | null>;
+  /** Deep-analyse a file for security + quality + correctness issues. */
+  analyzeCode(req: CodeAnalysisRequest): Promise<AnalyzedIssue[]>;
 }
 
 /** JSON schema the model's structured output must satisfy. */

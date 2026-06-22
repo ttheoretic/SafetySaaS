@@ -249,6 +249,14 @@ export const api = {
       fixed: string | null
       explanation: string | null
     }>(`/projects/${projectId}/code/fix`, body),
+  /** Deep AI code analysis over the repo's source files (merged into the scan). */
+  deepScan: (projectId: string) =>
+    post<{
+      added: number
+      total: number
+      filesAnalyzed: number
+      aiEnabled: boolean
+    }>(`/projects/${projectId}/code/deep-scan`, {}),
   /** Apply an AI fix by opening a pull request with the corrected file. */
   codeFixPr: (
     projectId: string,

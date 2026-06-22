@@ -24,8 +24,38 @@ import {
   useActiveProject,
   useRemediationPr,
   useCodeIssues,
+  useDeepScan,
   type AffectedFile,
 } from '@/lib/use-project-data'
+
+/** On-demand deep AI code analysis trigger, reused in the header + empty state. */
+function DeepScanButton({ variant }: { variant?: 'primary' }) {
+  const { run, busy, result, error, canRun } = useDeepScan()
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <ActionButton
+        variant={variant}
+        onClick={run}
+        disabled={!canRun || busy}
+        title="Have the AI analyse your source for security & quality issues"
+      >
+        {busy ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : (
+          <Sparkles className="size-3.5" />
+        )}
+        {busy ? 'Analysing…' : 'Deep AI scan'}
+      </ActionButton>
+      {result && !error && (
+        <span className="text-[11px] text-muted-foreground">
+          {result.added} issue{result.added === 1 ? '' : 's'} across{' '}
+          {result.filesAnalyzed} files
+        </span>
+      )}
+      {error && <span className="text-[11px] text-destructive">{error}</span>}
+    </div>
+  )
+}
 import { cn } from '@/lib/utils'
 
 /** Best-effort language label from a file extension, for the header. */
@@ -112,13 +142,14 @@ export function CodeView() {
           title="Code Analysis"
           subtitle="Security & quality issues located in your code"
         />
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
           <ShieldCheck className="size-8 text-ok" />
-          <p className="text-sm font-medium">No code issues in the last scan</p>
+          <p className="text-sm font-medium">No code issues from the last scan</p>
           <p className="max-w-sm text-xs text-muted-foreground">
-            Riscly found no committed secrets or insecure configuration. Run a
-            scan after changes to re-check.
+            The fast scan found no committed secrets or insecure config. Run a
+            deep AI analysis to review your source for security & quality issues.
           </p>
+          <DeepScanButton variant="primary" />
         </div>
       </div>
     )
@@ -259,6 +290,7 @@ function IssueCodeView({
         subtitle={`${dir}${name} · ${active.issues.length} issue${active.issues.length === 1 ? '' : 's'}`}
         actions={
           <>
+            <DeepScanButton />
             <ActionButton
               onClick={generate}
               disabled={generating || prBusy}

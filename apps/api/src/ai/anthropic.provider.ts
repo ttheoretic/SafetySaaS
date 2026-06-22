@@ -3,7 +3,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Prediction } from '@riscly/shared';
 import {
   AiProvider,
+  AnalyzedIssue,
   ChatRequest,
+  CodeAnalysisRequest,
   CodeFixRequest,
   CodeFixResult,
   PredictRequest,
@@ -184,6 +186,63 @@ export class AnthropicProvider implements AiProvider {
     } catch (err) {
       this.logger.warn(`AI code fix unavailable: ${(err as Error).message}`);
       return null;
+    }
+  }
+
+  async analyzeCode(req: CodeAnalysisRequest): Promise<AnalyzedIssue[]> {
+    try {
+      if (!req.content.trim() || req.content.length > 20_000) return [];
+      const model = req.model ?? this.model;
+      const tier = req.tier ?? 'opus';
+      const maxTokens = tier === 'basic' ? 1500 : tier === 'sonnet' ? 3000 : 4000;
+      // Number the lines so the model can cite exact locations.
+      const numbered = req.content
+        .split('\n')
+        .map((l, i) => `${i + 1}: ${l}`)
+        .join('\n');
+      const response = await this.client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        system:
+          'You are a senior security + code-quality reviewer. Analyse the file ' +
+          'for real issues: security vulnerabilities, correctness bugs, risky ' +
+          'patterns, and clear code-quality problems. Report ONLY concrete, ' +
+          'actionable issues — no style nitpicks, no speculation. Respond with a ' +
+          'single JSON array (no prose) of objects: ' +
+          '{ "line": number, "endLine"?: number, "severity": ' +
+          '"low"|"medium"|"high"|"critical", "rule": string (e.g. ' +
+          '"security/sql-injection", "quality/dead-code"), "title": string, ' +
+          '"description": string }. Empty array if the file is clean.',
+        messages: [
+          {
+            role: 'user',
+            content: `File: ${req.file}\n\n${numbered}`,
+          },
+        ],
+      });
+      if (response.stop_reason === 'refusal') return [];
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n');
+      const json = text.slice(text.indexOf('['), text.lastIndexOf(']') + 1);
+      if (!json) return [];
+      const parsed = JSON.parse(json) as AnalyzedIssue[];
+      return parsed
+        .filter((i) => i && typeof i.line === 'number' && i.title)
+        .map((i) => ({
+          line: Math.max(1, Math.floor(i.line)),
+          endLine: i.endLine,
+          severity: ['low', 'medium', 'high', 'critical'].includes(i.severity)
+            ? i.severity
+            : 'medium',
+          rule: i.rule || 'ai/issue',
+          title: String(i.title).slice(0, 200),
+          description: String(i.description ?? '').slice(0, 600),
+        }));
+    } catch (err) {
+      this.logger.warn(`AI code analysis unavailable: ${(err as Error).message}`);
+      return [];
     }
   }
 

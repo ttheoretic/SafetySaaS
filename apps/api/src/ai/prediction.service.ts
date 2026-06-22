@@ -8,7 +8,7 @@ import {
   Prediction,
   SystemGraph,
 } from '@riscly/shared';
-import { AI_PROVIDER, AiProvider, ChatMessage } from './ai-provider';
+import { AI_PROVIDER, AiProvider, AnalyzedIssue, ChatMessage } from './ai-provider';
 
 export interface PredictionReport {
   aiEnabled: boolean;
@@ -99,6 +99,21 @@ export class PredictionService {
       fixed: result?.fixed ?? null,
       explanation: result?.explanation ?? null,
     }
+  }
+
+  get aiEnabled(): boolean {
+    return this.ai.enabled
+  }
+
+  /** Deep-analyse one file for security + quality issues (plan-selected model). */
+  async analyzeFile(
+    file: string,
+    content: string,
+    opts: { plan?: Plan } = {},
+  ): Promise<AnalyzedIssue[]> {
+    const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
+    const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
+    return this.ai.analyzeCode({ file, content, model, tier })
   }
 }
 

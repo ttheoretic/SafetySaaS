@@ -24,4 +24,8 @@ export class NullAiProvider implements AiProvider {
   async generateCodeFix(): Promise<null> {
     return null;
   }
+
+  async analyzeCode(): Promise<never[]> {
+    return [];
+  }
 }
