@@ -8,9 +8,6 @@ import { ArchitectureGraph } from './architecture-graph'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { SeverityBadge, SeverityDot } from '@/components/ui/severity'
 import {
-  nodes as demoNodes,
-  edges as demoEdges,
-  risks as demoRisks,
   type Edge,
   type Risk,
   type Severity,
@@ -257,8 +254,9 @@ export function ArchitectureView() {
       const { nodes, edges } = buildGraphData(graph, findings)
       return { nodes, edges, risks: findingsToRisks(findings) }
     }
-    return { nodes: demoNodes, edges: demoEdges, risks: demoRisks }
+    return { nodes: [] as ServiceNode[], edges: [] as Edge[], risks: [] as Risk[] }
   }, [graph, scan.data])
+  const isEmpty = nodes.length === 0
 
   return (
     <div className="flex h-full flex-col">
@@ -288,23 +286,36 @@ export function ArchitectureView() {
       />
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
-          {/* legend */}
-          <div className="absolute left-4 top-4 z-10 flex items-center gap-3 rounded-md border border-border bg-panel/90 px-3 py-1.5 backdrop-blur">
-            {(['critical', 'high', 'medium', 'ok'] as const).map((s) => (
-              <span key={s} className="flex items-center gap-1.5 text-[11px]">
-                <SeverityDot severity={s} />
-                <span className="capitalize text-muted-foreground">
-                  {s === 'ok' ? 'healthy' : s}
-                </span>
-              </span>
-            ))}
-          </div>
-          <ArchitectureGraph
-            selectedId={selected?.id ?? null}
-            onSelect={setSelected}
-            nodes={nodes}
-            edges={edges}
-          />
+          {isEmpty ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+              <Boxes className="size-8 text-muted-foreground/40" />
+              <p className="text-sm font-medium">No architecture mapped yet</p>
+              <p className="max-w-sm text-xs text-muted-foreground">
+                Connect a repository and run a scan to map your services and their
+                dependencies.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* legend */}
+              <div className="absolute left-4 top-4 z-10 flex items-center gap-3 rounded-md border border-border bg-panel/90 px-3 py-1.5 backdrop-blur">
+                {(['critical', 'high', 'medium', 'ok'] as const).map((s) => (
+                  <span key={s} className="flex items-center gap-1.5 text-[11px]">
+                    <SeverityDot severity={s} />
+                    <span className="capitalize text-muted-foreground">
+                      {s === 'ok' ? 'healthy' : s}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              <ArchitectureGraph
+                selectedId={selected?.id ?? null}
+                onSelect={setSelected}
+                nodes={nodes}
+                edges={edges}
+              />
+            </>
+          )}
         </div>
 
         <div className="w-80 shrink-0 border-l border-border">

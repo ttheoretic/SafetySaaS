@@ -127,14 +127,22 @@ export function RisksView() {
           </div>
 
           <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
-            {filtered.map((r) => (
-              <RiskRow
-                key={r.id}
-                risk={r}
-                active={selected?.id === r.id}
-                onSelect={() => setSelectedId(r.id)}
-              />
-            ))}
+            {filtered.length === 0 ? (
+              <p className="px-3 py-10 text-center text-xs text-muted-foreground">
+                {risks.length === 0
+                  ? 'No risks found. Connect a repository and run a scan.'
+                  : 'No risks match this filter.'}
+              </p>
+            ) : (
+              filtered.map((r) => (
+                <RiskRow
+                  key={r.id}
+                  risk={r}
+                  active={selected?.id === r.id}
+                  onSelect={() => setSelectedId(r.id)}
+                />
+              ))
+            )}
           </div>
         </div>
 

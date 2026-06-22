@@ -12,8 +12,6 @@ import {
   Maximize,
 } from 'lucide-react'
 import {
-  nodes as demoNodes,
-  edges as demoEdges,
   type ServiceNode,
   type Edge,
   type Severity,
@@ -60,8 +58,8 @@ const CANVAS_H = 440
 export function ArchitectureGraph({
   selectedId,
   onSelect,
-  nodes = demoNodes,
-  edges = demoEdges,
+  nodes = [],
+  edges = [],
 }: {
   selectedId: string | null
   onSelect: (n: ServiceNode) => void

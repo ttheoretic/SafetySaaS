@@ -20,12 +20,19 @@ import {
   useAddRepository,
 } from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
-import { project as demoProject } from '@/lib/riscly-data'
 import { cn } from '@/lib/utils'
 
-function RiskScore({ score }: { score: number }) {
+function RiskScore({ score }: { score: number | null }) {
   const band =
-    score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'medium' : 'low'
+    score == null
+      ? 'low'
+      : score >= 75
+        ? 'critical'
+        : score >= 50
+          ? 'high'
+          : score >= 25
+            ? 'medium'
+            : 'low'
   const color = {
     critical: 'text-critical',
     high: 'text-high',
@@ -44,7 +51,7 @@ function RiskScore({ score }: { score: number }) {
       <div
         className="relative flex size-6 items-center justify-center rounded-full"
         style={{
-          background: `conic-gradient(${ring} ${score * 3.6}deg, var(--muted) 0deg)`,
+          background: `conic-gradient(${ring} ${(score ?? 0) * 3.6}deg, var(--muted) 0deg)`,
         }}
       >
         <div className="flex size-4 items-center justify-center rounded-full bg-panel">
@@ -55,7 +62,9 @@ function RiskScore({ score }: { score: number }) {
         <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
           Risk
         </div>
-        <div className={cn('font-mono text-sm font-semibold', color)}>{score}</div>
+        <div className={cn('font-mono text-sm font-semibold', color)}>
+          {score == null ? '—' : score}
+        </div>
       </div>
     </div>
   )
@@ -73,17 +82,18 @@ export function TopNav() {
   const projects = useProjects()
   const { project } = useActiveProject()
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
-  const { score: reliability, isDemo } = useReliability()
+  const { score: reliability } = useReliability()
 
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) })
   const userLabel = me.data?.user.name ?? me.data?.user.email ?? ''
   const list = projects.data ?? []
 
   // Top-bar risk = inverse of reliability (higher reliability = lower risk).
-  const riskScore = isDemo
-    ? demoProject.riskScore
-    : Math.max(0, Math.min(100, 100 - Math.round(reliability)))
-  const activeName = project?.name ?? demoProject.name
+  const riskScore =
+    reliability == null
+      ? null
+      : Math.max(0, Math.min(100, 100 - Math.round(reliability)))
+  const activeName = project?.name ?? 'No repository'
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-panel px-3">

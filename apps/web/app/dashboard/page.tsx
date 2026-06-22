@@ -2,7 +2,6 @@ import { OverviewHeader } from '@/components/overview/overview-header'
 import { OverviewScore } from '@/components/overview/overview-score'
 import { PostureFunnel } from '@/components/overview/posture-funnel'
 import {
-  HealthGrid,
   CriticalRisksPanel,
   RecentChangesPanel,
 } from '@/components/overview/overview-panels'
@@ -17,8 +16,6 @@ export default function OverviewPage() {
             <OverviewScore />
             <PostureFunnel />
           </div>
-
-          <HealthGrid />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <CriticalRisksPanel />

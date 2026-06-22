@@ -1,64 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import {
-  ShieldAlert,
-  Activity,
-  Gauge,
-  Boxes,
-  ArrowUpRight,
-  GitCommitHorizontal,
-} from 'lucide-react'
+import { ShieldAlert, ArrowUpRight, GitCommitHorizontal } from 'lucide-react'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { SeverityBadge } from '@/components/ui/severity'
-import {
-  healthMetrics,
-  recentChanges,
-  type HealthStatus,
-} from '@/lib/riscly-data'
 import { useRisks, useCommits, relativeTime } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
-const statusTone: Record<HealthStatus, string> = {
-  ok: 'text-ok',
-  warn: 'text-medium',
-  critical: 'text-critical',
-}
-const statusBg: Record<HealthStatus, string> = {
-  ok: 'bg-ok',
-  warn: 'bg-medium',
-  critical: 'bg-critical',
-}
-
-const icons = [ShieldAlert, Activity, Gauge, Boxes]
-
-export function HealthGrid() {
-  return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      {healthMetrics.map((m, i) => {
-        const Icon = icons[i]
-        return (
-          <Panel key={m.label} className="p-3">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Icon className="size-3.5" />
-                {m.label}
-              </span>
-              <span className={cn('size-2 rounded-full', statusBg[m.status])} />
-            </div>
-            <div className={cn('mt-2 font-mono text-lg font-semibold', statusTone[m.status])}>
-              {m.value}
-            </div>
-            <div className="mt-0.5 text-[11px] text-muted-foreground">{m.detail}</div>
-          </Panel>
-        )
-      })}
-    </div>
-  )
-}
-
 export function CriticalRisksPanel() {
-  const { risks } = useRisks()
+  const { risks, loading } = useRisks()
   const top = [...risks]
     .filter((r) => r.severity === 'critical' || r.severity === 'high')
     .slice(0, 5)
@@ -76,105 +26,80 @@ export function CriticalRisksPanel() {
           </Link>
         }
       />
-      <div className="divide-y divide-border">
-        {top.map((r) => (
-          <Link
-            key={r.id}
-            href="/risks"
-            className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40"
-          >
-            <SeverityBadge severity={r.severity} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm">{r.title}</div>
-              <div className="truncate font-mono text-[11px] text-muted-foreground">
-                {r.id} · {r.components.join(', ')}
+      {top.length === 0 ? (
+        <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+          {loading ? 'Loading…' : 'No critical or high risks. Run a scan to check.'}
+        </p>
+      ) : (
+        <div className="divide-y divide-border">
+          {top.map((r) => (
+            <Link
+              key={r.id}
+              href="/risks"
+              className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40"
+            >
+              <SeverityBadge severity={r.severity} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm">{r.title}</div>
+                <div className="truncate font-mono text-[11px] text-muted-foreground">
+                  {r.id} · {r.components.join(', ')}
+                </div>
               </div>
-            </div>
-            {r.exploitAvailable && (
-              <span className="rounded-sm bg-critical/15 px-1.5 py-0.5 font-mono text-[10px] text-critical">
-                exploit
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
+              {r.exploitAvailable && (
+                <span className="rounded-sm bg-critical/15 px-1.5 py-0.5 font-mono text-[10px] text-critical">
+                  exploit
+                </span>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
     </Panel>
   )
 }
 
-const changeTone = {
-  critical: 'text-critical',
-  high: 'text-high',
-  medium: 'text-medium',
-  low: 'text-muted-foreground',
-}
-
 export function RecentChangesPanel() {
   const commits = useCommits()
-  const live = commits.data ?? []
-  const isLive = live.length > 0
-
-  const rows = isLive
-    ? live.map((c) => ({
-        id: c.sha,
-        author: c.author,
-        message: c.message,
-        repo: c.repo.split('/').pop() ?? c.repo,
-        time: relativeTime(c.date),
-        meta: c.sha,
-        url: c.url,
-        tone: 'text-muted-foreground',
-      }))
-    : recentChanges.map((c) => ({
-        id: c.id,
-        author: c.author,
-        message: c.message,
-        repo: c.repo,
-        time: c.time,
-        meta: c.delta,
-        url: undefined as string | undefined,
-        tone: changeTone[c.risk],
-      }))
+  const rows = commits.data ?? []
 
   return (
     <Panel className="flex-1">
       <PanelHeader
-        title="Recent risky changes"
+        title="Recent changes"
         icon={<GitCommitHorizontal className="size-3.5 text-muted-foreground" />}
       />
-      <div className="divide-y divide-border">
-        {rows.map((c) => {
-          const inner = (
-            <>
+      {rows.length === 0 ? (
+        <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+          {commits.isLoading
+            ? 'Loading…'
+            : 'No recent commits from the connected repository.'}
+        </p>
+      ) : (
+        <div className="divide-y divide-border">
+          {rows.map((c) => (
+            <a
+              key={c.sha}
+              href={c.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40"
+            >
               <span className="flex size-6 items-center justify-center rounded-full bg-secondary font-mono text-[10px]">
                 {c.author.slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm">{c.message}</div>
                 <div className="font-mono text-[11px] text-muted-foreground">
-                  {c.repo} · {c.time}
+                  {c.repo.split('/').pop() ?? c.repo} · {relativeTime(c.date)}
                 </div>
               </div>
-              <span className={cn('font-mono text-[11px]', c.tone)}>{c.meta}</span>
-            </>
-          )
-          return c.url ? (
-            <a
-              key={c.id}
-              href={c.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-3 px-3 py-2.5 hover:bg-accent/40"
-            >
-              {inner}
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {c.sha}
+              </span>
             </a>
-          ) : (
-            <div key={c.id} className="flex items-center gap-3 px-3 py-2.5">
-              {inner}
-            </div>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </Panel>
   )
 }

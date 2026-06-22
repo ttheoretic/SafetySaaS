@@ -91,6 +91,8 @@ const INTERNET_FACING = new Set([
 ])
 
 function useSecurityData(): {
+  hasData: boolean
+  loading: boolean
   domains: DomainMeta[]
   issues: SecurityIssue[]
   exposureStats: typeof mockExposureStats
@@ -102,14 +104,24 @@ function useSecurityData(): {
   const { graph } = useSystemGraph()
   const findings: ApiFinding[] = scan.data?.findings ?? []
 
-  return useMemo(() => {
+  const result = useMemo(() => {
     if (!projectId || findings.length === 0) {
+      // No scan → empty (no demo). The view shows a top-level empty state.
       return {
-        domains: mockDomains,
-        issues: mockSecurityIssues,
-        exposureStats: mockExposureStats,
-        funnel: mockFunnel,
-        byService: mockByService,
+        domains: mockDomains.map((d) => ({
+          ...d,
+          total: 0,
+          bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+        })),
+        issues: [] as SecurityIssue[],
+        exposureStats: {
+          exploitable: 0,
+          exposed: 0,
+          fixAvailable: 0,
+          meanTimeToRemediate: '—',
+        },
+        funnel: [] as FunnelStage[],
+        byService: [] as GroupRow[],
       }
     }
 
@@ -192,9 +204,15 @@ function useSecurityData(): {
       issues,
       exposureStats,
       funnel,
-      byService: byService.length > 0 ? byService : mockByService,
+      byService,
     }
   }, [projectId, findings, graph])
+
+  return {
+    hasData: Boolean(projectId) && findings.length > 0,
+    loading: scan.isLoading,
+    ...result,
+  }
 }
 
 const domainIcon: Record<SecurityDomain, React.ReactNode> = {
@@ -218,6 +236,8 @@ export function SecurityView() {
   const [group, setGroup] = useState<GroupTab>('service')
 
   const {
+    hasData,
+    loading,
     domains,
     issues: allIssues,
     exposureStats,
@@ -232,28 +252,49 @@ export function SecurityView() {
     [allIssues, domain],
   )
 
-  const groupRows: GroupRow[] =
-    group === 'service' ? byService : group === 'library' ? byLibrary : byTeam
+  // Library / team groupings have no data source yet — service is real.
+  const groupRows: GroupRow[] = group === 'service' ? byService : []
+
+  const header = (
+    <ScreenHeader
+      title="Security posture"
+      subtitle="Vulnerabilities across code, dependencies, secrets and infrastructure"
+      actions={
+        <>
+          <ActionButton disabled>Last scan {lastScanLabel}</ActionButton>
+          <ActionButton
+            variant="primary"
+            onClick={run}
+            disabled={!canScan || isScanning}
+          >
+            {isScanning && <Loader2 className="size-3.5 animate-spin" />}
+            {isScanning ? 'Scanning…' : 'Run scan'}
+          </ActionButton>
+        </>
+      }
+    />
+  )
+
+  if (!hasData) {
+    return (
+      <div className="flex h-full flex-col">
+        {header}
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+          <ShieldCheck className="size-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium">No security findings yet</p>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            {loading
+              ? 'Loading…'
+              : 'Connect a repository and run a scan to see your security posture.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader
-        title="Security posture"
-        subtitle="Vulnerabilities across code, dependencies, secrets and infrastructure"
-        actions={
-          <>
-            <ActionButton disabled>Last scan {lastScanLabel}</ActionButton>
-            <ActionButton
-              variant="primary"
-              onClick={run}
-              disabled={!canScan || isScanning}
-            >
-              {isScanning && <Loader2 className="size-3.5 animate-spin" />}
-              {isScanning ? 'Scanning…' : 'Run scan'}
-            </ActionButton>
-          </>
-        }
-      />
+      {header}
       <div className="flex flex-1 flex-col overflow-y-auto">
       {/* exposure stats */}
       <div className="grid grid-cols-2 gap-px border-b border-border bg-border lg:grid-cols-4">

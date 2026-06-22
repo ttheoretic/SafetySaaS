@@ -18,7 +18,7 @@ export function OverviewHeader() {
 
   const subtitle = project
     ? `${project.name} · last scan ${lastScanLabel}`
-    : 'Demo workspace · connect a project to scan your stack'
+    : 'No repository connected — finish onboarding to scan your stack'
 
   return (
     <ScreenHeader

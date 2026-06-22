@@ -154,8 +154,22 @@ export function CodeView() {
       </div>
     )
   }
-  // Demo workspace (no project) → the curated showcase.
-  return <DemoCodeView />
+  // No connected project yet.
+  return (
+    <div className="flex h-full flex-col">
+      <ScreenHeader
+        title="Code Analysis"
+        subtitle="Security & quality issues located in your code"
+      />
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+        <FolderOpen className="size-8 text-muted-foreground/40" />
+        <p className="text-sm font-medium">No repository connected</p>
+        <p className="max-w-sm text-xs text-muted-foreground">
+          Connect a repository and run a scan to analyse your code.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------

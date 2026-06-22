@@ -11,7 +11,6 @@ import { api } from './api'
 import { useAuth } from './auth-store'
 import { useActiveProjectStore } from './active-project'
 import {
-  risks as demoRisks,
   severityOrder,
   type Risk,
   type RiskCategory,
@@ -383,35 +382,27 @@ export function findingsToRisks(findings: ApiFinding[]): Risk[] {
     .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 }
 
-/**
- * Risks for the active project's latest scan, falling back to the curated demo
- * set when there is no project/scan yet (keeps the designed experience intact
- * in demo mode and on empty states).
- */
-export function useRisks(): { risks: Risk[]; isDemo: boolean; loading: boolean } {
+/** Risks for the active project's latest scan (empty until scanned). */
+export function useRisks(): { risks: Risk[]; loading: boolean } {
   const { projectId } = useActiveProject()
   const scan = useLatestScan(projectId)
   const findings = scan.data?.findings ?? []
-  if (projectId && findings.length > 0) {
-    return { risks: findingsToRisks(findings), isDemo: false, loading: false }
+  return {
+    risks: projectId ? findingsToRisks(findings) : [],
+    loading: scan.isLoading,
   }
-  return { risks: demoRisks, isDemo: true, loading: scan.isLoading }
 }
 
 /**
- * Headline reliability score for the active project's latest scan. Falls back
- * to the demo project's score in demo mode.
+ * Headline reliability score for the active project's latest scan, or null when
+ * there is no scan yet.
  */
-export function useReliability(): {
-  score: number
-  isDemo: boolean
-  loading: boolean
-} {
+export function useReliability(): { score: number | null; loading: boolean } {
   const { projectId } = useActiveProject()
   const scan = useLatestScan(projectId)
   const score = scan.data?.reliabilityScore
-  if (projectId && typeof score === 'number') {
-    return { score, isDemo: false, loading: false }
+  return {
+    score: projectId && typeof score === 'number' ? score : null,
+    loading: scan.isLoading,
   }
-  return { score: 68, isDemo: true, loading: scan.isLoading }
 }

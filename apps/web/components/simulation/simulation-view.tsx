@@ -432,6 +432,25 @@ export function SimulationView() {
   const current = scenarios.find((s) => s.id === active)!
   const result = bundle.result
 
+  if (!graph || graph.nodes.length === 0) {
+    return (
+      <div className="flex h-full flex-col">
+        <ScreenHeader
+          title="Simulation Lab"
+          subtitle="Inject failures and stress scenarios against the live architecture model"
+        />
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+          <Boxes className="size-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium">Nothing to simulate yet</p>
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Connect a repository and run a scan to build the architecture model,
+            then inject failures here.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader

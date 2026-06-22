@@ -24,16 +24,16 @@ type Msg = {
 
 const suggestions = [
   'What are my most urgent risks right now?',
-  'Why is orders-db marked critical?',
+  'Which finding should I fix first and why?',
   'Prioritize fixes by production impact',
-  'What happens if synthetics-api goes down?',
+  'Where is my architecture most fragile?',
 ]
 
 const seed: Msg[] = [
   {
     role: 'assistant',
     content:
-      "I have the full architecture and risk model for shopist-platform loaded. There are 9 open risks — 3 critical, all reachable in production. Ask me about security, performance, reliability, or how a change would ripple through the system.",
+      'I have your latest scan — architecture, risks, security findings and code issues — as context. Ask me about your security posture, performance, reliability, or how a change would ripple through your system.',
   },
 ]
 
