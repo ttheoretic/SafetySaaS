@@ -31,7 +31,11 @@ import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
-import { useProjects, useActiveProject } from '@/lib/use-project-data'
+import {
+  useProjects,
+  useActiveProject,
+  useAddRepository,
+} from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
 import { cn } from '@/lib/utils'
 
@@ -316,12 +320,99 @@ export function SettingsView() {
   )
 }
 
+/** After GitHub authorization for a new project, choose the repo to scan. */
+function PickRepoCard({
+  projectId,
+  onDone,
+}: {
+  projectId: string
+  onDone: (id: string) => void
+}) {
+  const token = useAuth((s) => s.token)
+  const conns = useQuery({
+    queryKey: ['connections', projectId],
+    queryFn: () => api.listConnections(projectId),
+    enabled: Boolean(token && projectId),
+  })
+  const gh = conns.data?.find((c) => c.provider === 'github')
+  const repos = (gh?.metadata?.repos as string[] | undefined) ?? []
+  const [selected, setSelected] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const repo = selected || repos[0] || ''
+
+  async function add() {
+    if (!gh || !repo) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.updateConnection(projectId, gh.id, { selectedRepos: [repo] })
+      await api.startScan(projectId)
+      onDone(projectId)
+    } catch (e) {
+      setError((e as Error).message)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Panel>
+      <PanelHeader
+        title="Add repository"
+        icon={<GitBranch className="size-3.5 text-primary" />}
+      />
+      <div className="space-y-3 p-3">
+        {conns.isLoading ? (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" /> Loading repositories…
+          </p>
+        ) : repos.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            No repositories were granted from that account. Re-authorize and grant
+            access to the repository you want to add.
+          </p>
+        ) : (
+          <>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Repository to add
+              </span>
+              <select
+                value={repo}
+                onChange={(e) => setSelected(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-primary/50"
+              >
+                {repos.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={add}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
+              {busy ? 'Adding & scanning…' : 'Add & scan'}
+            </button>
+          </>
+        )}
+        {error && <p className="text-[11px] text-destructive">{error}</p>}
+      </div>
+    </Panel>
+  )
+}
+
 function RepositoriesPanel() {
   const router = useRouter()
+  const qc = useQueryClient()
   const token = useAuth((s) => s.token)
   const projects = useProjects()
   const { project } = useActiveProject()
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
+  const addRepo = useAddRepository()
 
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) })
   const plan = (me.data?.activeOrg.plan as Plan | undefined) ?? 'starter'
@@ -330,8 +421,28 @@ function RepositoriesPanel() {
   const list = projects.data ?? []
   const atLimit = Number.isFinite(max) && list.length >= max
 
+  // Returned from GitHub authorization for a just-created project → pick which
+  // repo to scan, then it's added (no onboarding wizard).
+  const search =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams()
+  const pendingProject =
+    search.get('connected') === 'github' ? search.get('project') : null
+
   return (
     <div className="flex flex-col gap-4">
+      {pendingProject && (
+        <PickRepoCard
+          projectId={pendingProject}
+          onDone={(id) => {
+            setActiveProject(id)
+            qc.invalidateQueries({ queryKey: ['projects'] })
+            qc.invalidateQueries({ queryKey: ['onboarding-state'] })
+            router.replace('/settings')
+          }}
+        />
+      )}
       <Panel>
         <PanelHeader
           title="Connected repositories"
@@ -375,17 +486,25 @@ function RepositoriesPanel() {
         )}
         <div className="border-t border-border p-3">
           <button
-            onClick={() => router.push('/get-started?new=1')}
-            disabled={atLimit}
+            onClick={addRepo.start}
+            disabled={atLimit || addRepo.busy}
             title={atLimit ? `Your ${plan} plan allows ${maxLabel} repositories.` : undefined}
             className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            <Plus className="size-3.5" /> Add repository
+            {addRepo.busy ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Plus className="size-3.5" />
+            )}
+            Add repository
           </button>
           {atLimit && (
             <p className="mt-2 text-[11px] text-muted-foreground">
               Plan limit reached. Upgrade to connect more repositories.
             </p>
+          )}
+          {addRepo.error && (
+            <p className="mt-2 text-[11px] text-destructive">{addRepo.error}</p>
           )}
         </div>
       </Panel>

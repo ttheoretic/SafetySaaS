@@ -1,15 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Bell, ChevronDown, GitBranch, Check, Plus } from 'lucide-react'
+import {
+  Search,
+  Bell,
+  ChevronDown,
+  GitBranch,
+  Check,
+  Plus,
+  Loader2,
+} from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
 import {
   useProjects,
   useActiveProject,
   useReliability,
+  useAddRepository,
 } from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
 import { project as demoProject } from '@/lib/riscly-data'
@@ -60,7 +68,7 @@ function initialsOf(s: string): string {
 
 export function TopNav() {
   const [open, setOpen] = useState(false)
-  const router = useRouter()
+  const addRepo = useAddRepository()
   const token = useAuth((s) => s.token)
   const projects = useProjects()
   const { project } = useActiveProject()
@@ -125,11 +133,17 @@ export function TopNav() {
                 <button
                   onClick={() => {
                     setOpen(false)
-                    router.push('/get-started?new=1')
+                    addRepo.start()
                   }}
-                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent"
+                  disabled={addRepo.busy}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-primary hover:bg-accent disabled:opacity-50"
                 >
-                  <Plus className="size-3.5" /> Add repository
+                  {addRepo.busy ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="size-3.5" />
+                  )}
+                  Add repository
                 </button>
               </div>
             </div>

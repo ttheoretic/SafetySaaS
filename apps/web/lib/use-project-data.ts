@@ -173,6 +173,35 @@ export function useDeepScan() {
   return { run, busy, result, error, canRun: Boolean(projectId) }
 }
 
+/**
+ * Start adding a repository from inside the app (not the onboarding wizard):
+ * create a fresh project and send the user straight to GitHub authorization,
+ * returning to /settings where they pick the repo.
+ */
+export function useAddRepository() {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const start = useCallback(async () => {
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const project = await api.createProject('New repository')
+      const { url } = await api.oauthAuthorizeUrl('github', project.id, '/settings')
+      window.location.href = url
+    } catch (e) {
+      setError(
+        (e as Error).message ||
+          'GitHub isn’t connected here. Configure the GitHub OAuth app first.',
+      )
+      setBusy(false)
+    }
+  }, [busy])
+
+  return { start, busy, error }
+}
+
 /** Recent commits for the active project's connected GitHub repos. */
 export function useCommits() {
   const token = useAuth((s) => s.token)
