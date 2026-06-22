@@ -17,7 +17,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "start:prod": "prisma migrate deploy && npm run start -w apps/api"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
