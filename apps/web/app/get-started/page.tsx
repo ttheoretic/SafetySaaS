@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -73,6 +74,7 @@ function Gauge({ score }: { score: number }) {
 
 export default function GetStartedPage() {
   const router = useRouter()
+  const qc = useQueryClient()
   const { token, hydrated } = useAuth()
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
   const [ready, setReady] = useState(false)
@@ -300,6 +302,10 @@ export default function GetStartedPage() {
       setFindings(f.slice(0, 3))
       setTargetScore(score)
       setStep('result')
+      // Onboarding is now complete for this repo — refresh the provisioning
+      // state so the dashboard guard sees "ready" instead of bouncing back.
+      qc.invalidateQueries({ queryKey: ['onboarding-state'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
     } catch (err) {
       setError((err as Error).message)
       setStep('connect')

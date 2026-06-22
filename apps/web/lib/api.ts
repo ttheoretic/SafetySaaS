@@ -7,7 +7,7 @@ import type {
   GraphOverlay,
 } from '@riscly/shared';
 
-import { currentAuth } from './auth-store';
+import { currentAuth, handleUnauthorized } from './auth-store';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -29,12 +29,17 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 }
 
 async function readError(res: Response, path: string): Promise<never> {
+  // An expired/invalid token: clear the session so the app re-authenticates
+  // (→ /login) instead of misreading it as "unsubscribed" (→ paywall).
+  if (res.status === 401) handleUnauthorized();
   let detail = `${res.status}`;
   try {
     const body = await res.json();
     if (body?.message) detail = Array.isArray(body.message) ? body.message.join(', ') : body.message;
   } catch { /* ignore */ }
-  throw new Error(`${path}: ${detail}`);
+  const err = new Error(`${path}: ${detail}`) as Error & { status?: number };
+  err.status = res.status;
+  throw err;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
