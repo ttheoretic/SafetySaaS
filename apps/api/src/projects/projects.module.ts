@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Module, NotFoundException, Param, Post, Put,
+  Body, Controller, Get, Module, NotFoundException, Param, Patch, Post, Put,
 } from '@nestjs/common';
 import { IsArray, IsIn, IsNumber, IsObject, IsOptional, IsString, Min, Max, Length } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
@@ -14,6 +14,10 @@ class CreateProjectDto {
   @IsOptional() @IsString() slug?: string;
   @IsOptional() @IsIn(['production', 'staging', 'development'])
   environment?: string;
+}
+
+class RenameProjectDto {
+  @IsString() @Length(1, 120) name!: string;
 }
 
 class BusinessContextDto {
@@ -61,6 +65,19 @@ class ProjectsController {
     });
     void this.audit.record(auth, 'project.create', { type: 'project', id: project.id }, { name: project.name });
     return project;
+  }
+
+  /** Rename a project (e.g. to the repository it was attached to). */
+  @Patch(':id')
+  @RequirePermission('project:write')
+  async rename(
+    @Auth() auth: AuthContext,
+    @Param('id') id: string,
+    @Body() dto: RenameProjectDto,
+  ) {
+    await this.requireProject(auth, id);
+    const updated = await this.store.updateProject(id, { name: dto.name });
+    return updated;
   }
 
   @Get(':id')

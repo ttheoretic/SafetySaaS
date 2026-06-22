@@ -1,10 +1,26 @@
-import { TrendingDown } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 
-export function RiskScoreCard({ score, trend }: { score: number; trend: number }) {
+/** Risk score: 0 = safe, 100 = very risky. Same scale as the header badge. */
+export function RiskScoreCard({ score }: { score: number }) {
   const radius = 52
   const circ = 2 * Math.PI * radius
-  const pct = score / 100
+  const pct = Math.max(0, Math.min(100, score)) / 100
+
+  const band =
+    score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'medium' : 'low'
+  const color = {
+    critical: 'var(--critical)',
+    high: 'var(--high)',
+    medium: 'var(--medium)',
+    low: 'var(--ok)',
+  }[band]
+  const label = {
+    critical: 'Critical risk',
+    high: 'Elevated risk',
+    medium: 'Moderate risk',
+    low: 'Low risk',
+  }[band]
+
   return (
     <Panel className="items-center justify-center p-5">
       <div className="relative flex size-[140px] items-center justify-center">
@@ -22,7 +38,7 @@ export function RiskScoreCard({ score, trend }: { score: number; trend: number }
             cy="65"
             r={radius}
             fill="none"
-            stroke="var(--critical)"
+            stroke={color}
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={circ}
@@ -36,12 +52,8 @@ export function RiskScoreCard({ score, trend }: { score: number; trend: number }
           </span>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-1.5 rounded-sm bg-ok/10 px-2 py-1 font-mono text-xs text-ok">
-        <TrendingDown className="size-3.5" />
-        {trend} pts this week
-      </div>
-      <p className="mt-2 text-center text-xs text-muted-foreground">
-        Elevated — 3 exploitable risks in production
+      <p className="mt-3 text-center text-xs font-medium" style={{ color }}>
+        {label}
       </p>
     </Panel>
   )

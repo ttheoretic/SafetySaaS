@@ -346,8 +346,11 @@ function PickRepoCard({
     setBusy(true)
     setError(null)
     try {
+      const repoName = repo.split('/').pop() || repo
       await api.updateConnection(projectId, gh.id, { selectedRepos: [repo] })
-      await api.startScan(projectId)
+      await api.renameProject(projectId, repoName)
+      // Kick off the scan but don't block the UI on it — it can take a while.
+      void api.startScan(projectId).catch(() => {})
       onDone(projectId)
     } catch (e) {
       setError((e as Error).message)

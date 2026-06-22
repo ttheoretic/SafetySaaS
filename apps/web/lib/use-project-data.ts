@@ -187,7 +187,7 @@ export function useAddRepository() {
     setBusy(true)
     setError(null)
     try {
-      const project = await api.createProject('New repository')
+      const project = await api.createProject('Connecting…')
       const { url } = await api.oauthAuthorizeUrl('github', project.id, '/settings')
       window.location.href = url
     } catch (e) {

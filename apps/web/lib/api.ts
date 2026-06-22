@@ -196,6 +196,9 @@ export const api = {
     get<Array<{ id: string; name: string; environment: string }>>('/projects'),
   createProject: (name: string) =>
     post<{ id: string; name: string }>('/projects', { name }),
+  /** Rename a project (e.g. to the repo it was attached to). */
+  renameProject: (projectId: string, name: string) =>
+    patch<{ id: string; name: string }>(`/projects/${projectId}`, { name }),
   /** Open a remediation-plan PR (from the latest scan) on the connected repo. */
   remediationPr: (projectId: string) =>
     post<{ url: string; branch: string; repo: string }>(
