@@ -202,6 +202,12 @@ export const api = {
       `/projects/${projectId}/remediation-pr`,
       {},
     ),
+  /** Turn extra selected repos into their own projects (onboarding multi-repo). */
+  fanOut: (projectId: string, repos: string[]) =>
+    post<{ created: Array<{ id: string; repo: string }> }>(
+      `/projects/${projectId}/scans/fan-out`,
+      { repos },
+    ),
   startScan: (projectId: string) =>
     post<{ id: string; status: string; reliabilityScore?: number }>(
       `/projects/${projectId}/scans`,

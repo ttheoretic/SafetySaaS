@@ -23,6 +23,12 @@ class StartScanDto {
   graph?: SystemGraph;
 }
 
+class FanOutDto {
+  /** Additional repos to add as their own projects, cloning this connection. */
+  @IsArray() @ArrayNotEmpty() @ArrayMaxSize(20) @IsString({ each: true })
+  repos!: string[];
+}
+
 class ChatMessageDto {
   @IsIn(['user', 'assistant'])
   role!: 'user' | 'assistant';
@@ -82,6 +88,71 @@ class ScansController {
     void this.audit.record(auth, 'scan.run', { type: 'scan', id: scan.id }, { projectId });
 
     return this.store.getScan(scan.id);
+  }
+
+  /**
+   * Onboarding multi-repo: turn each extra selected repo into its own project
+   * (cloning this project's GitHub connection token) and scan it, so the user
+   * authorizes once and gets a switchable project per repo.
+   */
+  @Post('fan-out')
+  @RequirePermission('scan:run')
+  async fanOut(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Body() dto: FanOutDto,
+  ) {
+    await this.requireProject(auth, projectId);
+    const conns = await this.store.listConnections(projectId);
+    const gh = conns.find((c) => c.provider === 'github');
+    if (!gh?.encryptedToken) {
+      throw new NotFoundException('No GitHub connection to clone.');
+    }
+    const allRepos = Array.isArray(gh.metadata?.repos)
+      ? (gh.metadata.repos as string[])
+      : [];
+
+    const created: Array<{ id: string; repo: string }> = [];
+    for (const repo of dto.repos.slice(0, 20)) {
+      try {
+        await this.billing.assertCanCreateProject(auth.org);
+      } catch {
+        break; // plan limit reached — return what we managed to create
+      }
+      const name = repo.split('/').pop() ?? repo;
+      const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random()
+        .toString(36)
+        .slice(2, 7)}`;
+      const project = await this.store.createProject({
+        orgId: auth.org.id,
+        name,
+        slug,
+        environment: 'production',
+      });
+      await this.store.createConnection({
+        orgId: auth.org.id,
+        projectId: project.id,
+        provider: 'github',
+        status: 'active',
+        metadata: { repos: allRepos, selectedRepos: [repo] },
+        encryptedToken: gh.encryptedToken,
+      });
+      const scan = await this.store.createScan({
+        orgId: auth.org.id,
+        projectId: project.id,
+        status: 'queued',
+      });
+      await this.processor.enqueue({
+        scanId: scan.id,
+        projectId: project.id,
+        plan: auth.org.plan,
+      });
+      created.push({ id: project.id, repo });
+    }
+    void this.audit.record(auth, 'project.fanout', { type: 'project', id: projectId }, {
+      count: created.length,
+    });
+    return { created };
   }
 
   /**

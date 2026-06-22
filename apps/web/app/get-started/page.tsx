@@ -93,7 +93,7 @@ export default function GetStartedPage() {
   // Repo selection for a connected GitHub account (scan one repo, not all).
   const [connectionId, setConnectionId] = useState('')
   const [repos, setRepos] = useState<string[]>([])
-  const [selectedRepo, setSelectedRepo] = useState('')
+  const [selectedRepos, setSelectedRepos] = useState<string[]>([])
 
   // detected stack (shown in the review step before the scoring scan)
   const [detectedGraph, setDetectedGraph] = useState<SystemGraph | null>(null)
@@ -198,7 +198,7 @@ export default function GetStartedPage() {
                 : []
               if (conn) setConnectionId(conn.id)
               setRepos(list)
-              setSelectedRepo(list[0] ?? '')
+              setSelectedRepos(list[0] ? [list[0]] : [])
             } catch {
               /* ignore — fall back to no picker */
             }
@@ -251,9 +251,9 @@ export default function GetStartedPage() {
     setError(null)
     setStep('scan')
     try {
-      if (connectionId && selectedRepo) {
+      if (connectionId && selectedRepos.length) {
         await api.updateConnection(projectId, connectionId, {
-          selectedRepos: [selectedRepo],
+          selectedRepos: [selectedRepos[0]],
         })
       }
       const scan = await api.startScan(projectId)
@@ -282,12 +282,20 @@ export default function GetStartedPage() {
     setError(null)
     setStep('scan')
     try {
-      if (connectionId && selectedRepo) {
+      if (connectionId && selectedRepos.length) {
         await api.updateConnection(projectId, connectionId, {
-          selectedRepos: [selectedRepo],
+          selectedRepos: [selectedRepos[0]],
         })
       }
       const scan = await api.startScan(projectId)
+      // Each additional selected repo becomes its own switchable project.
+      if (selectedRepos.length > 1) {
+        try {
+          await api.fanOut(projectId, selectedRepos.slice(1))
+        } catch {
+          /* extras are best-effort; the first repo is set up regardless */
+        }
+      }
       const score = scan.reliabilityScore ?? 0
       let f: { title: string; severity: string }[] = []
       try {
@@ -438,29 +446,51 @@ export default function GetStartedPage() {
                         <GitBranch className="size-4" /> {connected} connected
                       </div>
                       {repos.length > 0 && (
-                        <label className="block space-y-1.5">
+                        <div className="space-y-1.5">
                           <span className="text-xs font-medium text-muted-foreground">
-                            Repository to scan
+                            Repositories to scan ({selectedRepos.length} selected)
                           </span>
-                          <select
-                            value={selectedRepo}
-                            onChange={(e) => setSelectedRepo(e.target.value)}
-                            className="w-full rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm text-foreground outline-none focus:border-ring focus:ring-3 focus:ring-ring/50"
-                          >
-                            {repos.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                          <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-border bg-secondary p-1">
+                            {repos.map((r) => {
+                              const checked = selectedRepos.includes(r)
+                              return (
+                                <button
+                                  type="button"
+                                  key={r}
+                                  onClick={() =>
+                                    setSelectedRepos((cur) =>
+                                      cur.includes(r)
+                                        ? cur.filter((x) => x !== r)
+                                        : [...cur, r],
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-background/60"
+                                >
+                                  <span
+                                    className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+                                      checked
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : 'border-border'
+                                    }`}
+                                  >
+                                    {checked && <ScanSearch className="size-2.5" />}
+                                  </span>
+                                  <span className="truncate">{r}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
                       )}
                       <button
                         onClick={detectScan}
-                        disabled={busy}
+                        disabled={busy || selectedRepos.length === 0}
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
                       >
-                        <ScanSearch className="size-4" /> Scan repository
+                        <ScanSearch className="size-4" /> Scan{' '}
+                        {selectedRepos.length > 1
+                          ? `${selectedRepos.length} repositories`
+                          : 'repository'}
                       </button>
                     </>
                   ) : (
