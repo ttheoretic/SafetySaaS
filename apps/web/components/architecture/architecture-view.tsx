@@ -44,18 +44,21 @@ const KIND_MAP: Record<
   storage: { type: 'database', tech: 'Storage' },
 }
 
-/** Which layout column a kind belongs to: 0=edge/clients, 1=services, 2=data. */
+/** Which layout column a kind belongs to: 0=edge/clients, 1=services,
+ *  2=dependencies (datastores + external APIs the services call). */
 const KIND_COLUMN: Record<NodeKind, number> = {
   frontend: 0,
   cdn: 0,
   dns: 0,
   api: 1,
   service: 1,
-  external_api: 1,
   database: 2,
   cache: 2,
   queue: 2,
   storage: 2,
+  // External third-party APIs (Stripe, Anthropic, …) are dependencies the
+  // services call — place them with the data tier, not next to the API node.
+  external_api: 2,
 }
 
 const SEV_RANK: Record<Severity, number> = {
