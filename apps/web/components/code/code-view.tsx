@@ -277,10 +277,6 @@ function IssueCodeView({
     }
   }
 
-  const diff =
-    fix?.fixed && content
-      ? lineDiff(content.split('\n'), fix.fixed.split('\n'))
-      : null
   const { dir, name } = splitPath(active.file)
 
   return (
@@ -355,10 +351,12 @@ function IssueCodeView({
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
-          ) : diff ? (
-            <DiffView rows={diff} />
           ) : content ? (
-            <SourceView content={content} issueLines={issueLines} />
+            <SourceView
+              content={content}
+              issueLines={issueLines}
+              fixed={fix?.fixed ?? null}
+            />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center text-muted-foreground">
               Couldn’t load this file from the repo.
@@ -424,63 +422,94 @@ function IssueCodeView({
   )
 }
 
-function SourceView({
-  content,
-  issueLines,
+/** Code line with a gutter line-number / +/- marker. */
+function CodeLine({
+  marker,
+  text,
+  tone,
 }: {
-  content: string
-  issueLines: Set<number>
+  marker: string
+  text: string
+  tone?: 'add' | 'del' | 'issue'
 }) {
   return (
-    <div className="min-w-max">
-      {content.split('\n').map((line, idx) => {
-        const ln = idx + 1
-        const flagged = issueLines.has(ln)
-        return (
-          <div
-            key={ln}
-            className={cn(
-              'flex',
-              flagged && 'border-l-2 border-critical bg-critical/10',
-            )}
-          >
-            <span className="w-12 shrink-0 select-none px-2 text-right text-muted-foreground/50">
-              {ln}
-            </span>
-            <span className="whitespace-pre px-2">{line || ' '}</span>
-          </div>
-        )
-      })}
+    <div
+      className={cn(
+        'flex',
+        tone === 'add' && 'border-l-2 border-ok bg-ok/10',
+        tone === 'del' && 'border-l-2 border-critical bg-critical/10',
+        tone === 'issue' && 'border-l-2 border-critical bg-critical/10',
+      )}
+    >
+      <span className="w-10 shrink-0 select-none px-2 text-right text-muted-foreground/50">
+        {marker}
+      </span>
+      <span
+        className={cn(
+          'whitespace-pre px-2',
+          tone === 'add' && 'text-ok',
+          tone === 'del' && 'text-critical',
+        )}
+      >
+        {text || ' '}
+      </span>
     </div>
   )
 }
 
-function DiffView({ rows }: { rows: DiffRow[] }) {
+/**
+ * The file's source with the offending lines in red. When a fix is generated,
+ * the corrected lines are spliced in green directly beneath the red ones
+ * (inline diff), so the fix sits right under the problem.
+ */
+function SourceView({
+  content,
+  issueLines,
+  fixed,
+}: {
+  content: string
+  issueLines: Set<number>
+  fixed: string | null
+}) {
+  // No fix yet → plain source with red issue lines.
+  if (!fixed) {
+    return (
+      <div className="min-w-max">
+        {content.split('\n').map((line, idx) => (
+          <CodeLine
+            key={idx}
+            marker={String(idx + 1)}
+            text={line}
+            tone={issueLines.has(idx + 1) ? 'issue' : undefined}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  // Inline diff: unchanged lines normal (issue lines red), removed lines red,
+  // and the green replacement immediately below.
+  const rows = lineDiff(content.split('\n'), fixed.split('\n'))
+  let orig = 0
   return (
     <div className="min-w-max">
-      {rows.map((r, idx) => (
-        <div
-          key={idx}
-          className={cn(
-            'flex',
-            r.type === 'add' && 'border-l-2 border-ok bg-ok/10',
-            r.type === 'del' && 'border-l-2 border-critical bg-critical/10',
-          )}
-        >
-          <span className="w-6 shrink-0 select-none px-1 text-center text-muted-foreground/50">
-            {r.type === 'add' ? '+' : r.type === 'del' ? '−' : ''}
-          </span>
-          <span
-            className={cn(
-              'whitespace-pre px-2',
-              r.type === 'add' && 'text-ok',
-              r.type === 'del' && 'text-critical',
-            )}
-          >
-            {r.text || ' '}
-          </span>
-        </div>
-      ))}
+      {rows.map((r, idx) => {
+        if (r.type === 'add') {
+          return <CodeLine key={idx} marker="+" text={r.text} tone="add" />
+        }
+        orig += 1
+        if (r.type === 'del') {
+          return <CodeLine key={idx} marker="−" text={r.text} tone="del" />
+        }
+        return (
+          <CodeLine
+            key={idx}
+            marker={String(orig)}
+            text={r.text}
+            tone={issueLines.has(orig) ? 'issue' : undefined}
+          />
+        )
+      })}
     </div>
   )
 }
