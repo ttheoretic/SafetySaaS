@@ -37,44 +37,16 @@ const seed: Msg[] = [
   },
 ]
 
-function reply(q: string): Msg {
-  const lower = q.toLowerCase()
-  if (lower.includes('urgent') || lower.includes('prioritize') || lower.includes('most')) {
-    return {
-      role: 'assistant',
-      content:
-        'Ranked by production impact and exploitability, here is what I would fix first:',
-      refs: [
-        { id: 'RSK-1039', severity: 'critical', title: 'Publicly exposed Postgres (orders-db)' },
-        { id: 'RSK-1031', severity: 'critical', title: 'log4j RCE — CVE-2021-44228' },
-        { id: 'RSK-1042', severity: 'critical', title: 'HTTP request without timeout' },
-      ],
-      actions: ['Apply all 3 fixes', 'Open a remediation PR'],
-    }
-  }
-  if (lower.includes('orders-db') || lower.includes('database') || lower.includes('postgres')) {
-    return {
-      role: 'assistant',
-      content:
-        'orders-db is critical because security group sg-0a91 allows inbound 5432 from 0.0.0.0/0 (RSK-1039), exposing customer order data to the public internet. It also amplifies an N+1 query from return-completion (RSK-1014), so under load it becomes both a security and a reliability hot spot. Restricting ingress to the app subnet removes the exploitable path immediately.',
-      refs: [{ id: 'RSK-1039', severity: 'critical', title: 'Publicly exposed Postgres' }],
-      actions: ['Show fix', 'Run DB failure simulation'],
-    }
-  }
-  if (lower.includes('synthetics') || lower.includes('down') || lower.includes('outage')) {
-    return {
-      role: 'assistant',
-      content:
-        'If synthetics-api stalls, the dogmover worker hangs because requests.post has no timeout (RSK-1042). That exhausts the log-forwarder thread pool and back-pressures sms-service — a 3-service failure chain. Adding timeout=10 plus a try/except contains the blast radius. I can run the dependency-failure simulation to confirm.',
-      refs: [{ id: 'RSK-1042', severity: 'critical', title: 'HTTP request without timeout' }],
-      actions: ['Run dependency simulation', 'Apply timeout fix'],
-    }
-  }
+/**
+ * Local fallback when there's no connected project or the grounded chat call
+ * fails. Generic by design — it never invents findings; the real, grounded
+ * answers come from the backend against your latest scan.
+ */
+function reply(): Msg {
   return {
     role: 'assistant',
     content:
-      'Based on the current model, the dominant theme is unbounded failure propagation: missing timeouts, no rate limiting, and a publicly exposed database. Closing those three removes every exploitable path in production. Want me to draft a prioritized remediation plan?',
-    actions: ['Draft remediation plan'],
+      'I answer against your latest scan — architecture, risks, security findings and code issues. Connect a repository and run a scan, then ask me what to fix first, where your architecture is fragile, or how a change would ripple through your system.',
   }
 }
 
@@ -109,7 +81,7 @@ export function AssistantView() {
         )
         setMessages((m) => [...m, { role: 'assistant', content: res.reply }])
       } catch {
-        setMessages((m) => [...m, reply(text)])
+        setMessages((m) => [...m, reply()])
       } finally {
         setBusy(false)
         scrollToEnd()
@@ -118,7 +90,7 @@ export function AssistantView() {
     }
 
     setTimeout(() => {
-      setMessages((m) => [...m, reply(text)])
+      setMessages((m) => [...m, reply()])
       scrollToEnd()
     }, 280)
   }

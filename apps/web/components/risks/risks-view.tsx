@@ -201,10 +201,19 @@ function RiskRow({
         </div>
       </div>
       <div className="hidden w-48 shrink-0 items-center gap-1 font-mono text-[11px] text-muted-foreground md:flex">
-        <FileCode className="size-3 shrink-0" />
-        <span className="truncate">
-          {risk.file}:{risk.line}
-        </span>
+        {risk.file ? (
+          <>
+            <FileCode className="size-3 shrink-0" />
+            <span className="truncate">
+              {risk.file}
+              {risk.line ? `:${risk.line}` : ''}
+            </span>
+          </>
+        ) : risk.components.length ? (
+          <span className="truncate">{risk.components.join(', ')}</span>
+        ) : (
+          <span className="text-muted-foreground/50">—</span>
+        )}
       </div>
       <div className="flex w-20 shrink-0 items-center justify-between">
         <span className={cn('text-[11px] capitalize', statusTone[risk.status])}>

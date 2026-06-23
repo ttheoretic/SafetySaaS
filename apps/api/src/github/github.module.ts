@@ -9,12 +9,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
-import type { CodeIssue, SystemGraph } from '@riscly/shared';
+import type { CodeIssue, Finding, Severity, SystemGraph } from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { BillingService } from '../billing/billing.service';
 import { AiModule } from '../ai/ai.module';
 import { PredictionService } from '../ai/prediction.service';
+import { AnalyzeModule } from '../analyze/analyze.module';
+import { AnalyzeService } from '../analyze/analyze.service';
 import { GithubService } from './github.service';
 import { buildRemediationMarkdown } from './remediation';
 
@@ -22,6 +24,27 @@ const SOURCE_RE = /\.(ts|tsx|js|jsx|mjs|cjs|py|go|rb|php|java|cs|rs|kt)$/i;
 const EXCLUDE_RE =
   /(^|\/)(node_modules|dist|build|out|\.next|\.git|vendor|coverage|__pycache__|migrations|generated)\//;
 const MAX_DEEP_SCAN_FILES = 12;
+
+const ISSUE_WEIGHT: Record<Severity, number> = {
+  critical: 22,
+  high: 14,
+  medium: 8,
+  low: 3,
+};
+
+/** Derive a score/risk finding from a located code issue. */
+function findingFromIssue(i: CodeIssue): Finding {
+  return {
+    category: 'security',
+    severity: i.severity,
+    title: i.title,
+    description: i.description,
+    weight: ISSUE_WEIGHT[i.severity],
+    rule: i.rule,
+    file: i.file,
+    line: i.line,
+  };
+}
 
 class CodeFixDto {
   @IsString() repo!: string;
@@ -39,6 +62,7 @@ class GithubController {
     private readonly store: Store,
     private readonly billing: BillingService,
     private readonly ai: PredictionService,
+    private readonly analyze: AnalyzeService,
   ) {}
 
   /** Generate an AI fix for a located code issue (preview: original + fixed). */
@@ -210,13 +234,24 @@ class GithubController {
       }),
     );
 
-    // Merge into the latest scan's graph so the code view picks them up.
+    // Merge into the latest scan's graph so the code view picks them up, and
+    // recompute the score/findings so the new issues also surface as risks.
     const graph = (latest.graph ?? { nodes: [], edges: [] }) as SystemGraph;
     const existing = graph.codeIssues ?? [];
     const seen = new Set(existing.map((i) => i.id));
     const merged = [...existing, ...found.filter((i) => !seen.has(i.id))];
+    const codeFindings = merged.map(findingFromIssue);
+    const mergedGraph: SystemGraph = {
+      ...graph,
+      codeIssues: merged,
+      codeFindings,
+    };
+    const analysis = this.analyze.reliability(mergedGraph);
     await this.store.updateScan(latest.id, {
-      graph: { ...graph, codeIssues: merged },
+      graph: mergedGraph,
+      reliabilityScore: analysis.score,
+      findings: analysis.findings,
+      recommendations: analysis.recommendations,
     });
 
     return {
@@ -274,7 +309,7 @@ class GithubController {
 }
 
 @Module({
-  imports: [StoreModule, AiModule],
+  imports: [StoreModule, AiModule, AnalyzeModule],
   controllers: [GithubController],
   providers: [GithubService],
   exports: [GithubService],

@@ -132,6 +132,9 @@ function findingFromIssue(i: CodeIssue): Finding {
     title: i.title,
     description: i.description,
     weight: weightOf(i.severity),
+    rule: i.rule,
+    file: i.file,
+    line: i.line,
   };
 }
 

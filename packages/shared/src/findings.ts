@@ -18,6 +18,12 @@ export interface Finding {
   nodeId?: string;
   /** Penalty contribution toward the reliability score (points, 0..100). */
   weight: number;
+  /** Stable rule id, when the finding came from a located code issue. */
+  rule?: string;
+  /** Repo-relative file path, when the finding is located to source. */
+  file?: string;
+  /** 1-based line, when the finding is located to source. */
+  line?: number;
 }
 
 /**

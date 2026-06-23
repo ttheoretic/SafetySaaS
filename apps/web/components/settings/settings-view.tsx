@@ -35,6 +35,8 @@ import {
   useProjects,
   useActiveProject,
   useAddRepository,
+  useAddableRepos,
+  useAddRepoFromGrant,
 } from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
 import { cn } from '@/lib/utils'
@@ -341,6 +343,8 @@ function PickRepoCard({
   const [error, setError] = useState<string | null>(null)
   const repo = selected || repos[0] || ''
 
+  const [done, setDone] = useState(false)
+
   async function add() {
     if (!gh || !repo) return
     setBusy(true)
@@ -351,9 +355,13 @@ function PickRepoCard({
       await api.renameProject(projectId, repoName)
       // Kick off the scan but don't block the UI on it — it can take a while.
       void api.startScan(projectId).catch(() => {})
+      // Mark done so the button never spins indefinitely, then hand off to the
+      // parent (which switches to the new repo and clears the URL).
+      setDone(true)
       onDone(projectId)
     } catch (e) {
       setError((e as Error).message)
+    } finally {
       setBusy(false)
     }
   }
@@ -394,11 +402,15 @@ function PickRepoCard({
             </label>
             <button
               onClick={add}
-              disabled={busy}
+              disabled={busy || done}
               className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
-              {busy ? 'Adding & scanning…' : 'Add & scan'}
+              {busy ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : done ? (
+                <Check className="size-3.5" />
+              ) : null}
+              {busy ? 'Adding…' : done ? 'Added' : 'Add & scan'}
             </button>
           </>
         )}
@@ -415,7 +427,6 @@ function RepositoriesPanel() {
   const projects = useProjects()
   const { project } = useActiveProject()
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
-  const addRepo = useAddRepository()
 
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) })
   const plan = (me.data?.activeOrg.plan as Plan | undefined) ?? 'starter'
@@ -487,39 +498,124 @@ function RepositoriesPanel() {
             ))}
           </div>
         )}
-        <div className="border-t border-border p-3">
-          <button
-            onClick={addRepo.start}
-            disabled={atLimit || addRepo.busy}
-            title={atLimit ? `Your ${plan} plan allows ${maxLabel} repositories.` : undefined}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {addRepo.busy ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Plus className="size-3.5" />
-            )}
-            Add repository
-          </button>
-          {atLimit && (
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Plan limit reached. Upgrade to connect more repositories.
-            </p>
-          )}
-          {addRepo.error && (
-            <p className="mt-2 text-[11px] text-destructive">{addRepo.error}</p>
-          )}
-        </div>
+        <AddRepositorySection
+          atLimit={atLimit}
+          plan={plan}
+          maxLabel={maxLabel}
+        />
       </Panel>
 
       <div className="flex items-start gap-2.5 rounded-md border border-border bg-panel px-3 py-2.5">
         <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
         <p className="text-xs leading-relaxed text-muted-foreground">
           Each repository is its own project with its own scans and findings.
-          Adding one starts a fresh authorization, then you can switch between
-          them from the top bar.
+          Repos you already authorized can be added instantly below; to add one
+          from a different account or grant access to a new repo, re-authorize
+          GitHub.
         </p>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Persistent add-repository control inside the repositories panel. When the user
+ * has already authorized GitHub, it lists the granted repos that aren't added
+ * yet and adds the chosen one instantly (cloning the stored authorization — no
+ * redirect). It always also offers re-authorization to grant new repos/accounts.
+ */
+function AddRepositorySection({
+  atLimit,
+  plan,
+  maxLabel,
+}: {
+  atLimit: boolean
+  plan: Plan
+  maxLabel: string
+}) {
+  const { sourceProjectId, available, hasAuth, loading } = useAddableRepos()
+  const grant = useAddRepoFromGrant()
+  const reauth = useAddRepository()
+  const [selected, setSelected] = useState('')
+  const repo = selected || available[0] || ''
+
+  return (
+    <div className="space-y-3 border-t border-border p-3">
+      <p className="text-xs font-medium text-muted-foreground">Add a repository</p>
+
+      {atLimit ? (
+        <p className="text-[11px] text-muted-foreground">
+          Your {plan} plan allows {maxLabel} repositories. Upgrade to connect
+          more.
+        </p>
+      ) : (
+        <>
+          {hasAuth && available.length > 0 && (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="min-w-0 flex-1 space-y-1.5">
+                <span className="text-[11px] text-muted-foreground">
+                  From your authorized GitHub repositories
+                </span>
+                <select
+                  value={repo}
+                  onChange={(e) => setSelected(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-primary/50"
+                >
+                  {available.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                onClick={() => sourceProjectId && grant.add(sourceProjectId, repo)}
+                disabled={!sourceProjectId || !repo || grant.busy}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {grant.busy ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Plus className="size-3.5" />
+                )}
+                Add
+              </button>
+            </div>
+          )}
+
+          {hasAuth && available.length === 0 && !loading && (
+            <p className="text-[11px] text-muted-foreground">
+              Every authorized repository is already added. Re-authorize GitHub
+              to grant access to more.
+            </p>
+          )}
+
+          <button
+            onClick={reauth.start}
+            disabled={reauth.busy}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50',
+              hasAuth && available.length > 0
+                ? 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90',
+            )}
+          >
+            {reauth.busy ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <GitBranch className="size-3.5" />
+            )}
+            {hasAuth ? 'Authorize more repositories' : 'Connect GitHub'}
+          </button>
+
+          {grant.error && (
+            <p className="text-[11px] text-destructive">{grant.error}</p>
+          )}
+          {reauth.error && (
+            <p className="text-[11px] text-destructive">{reauth.error}</p>
+          )}
+        </>
+      )}
     </div>
   )
 }

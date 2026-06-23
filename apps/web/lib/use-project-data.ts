@@ -34,6 +34,9 @@ export interface ApiFinding {
   description?: string
   nodeId?: string
   weight?: number
+  rule?: string
+  file?: string
+  line?: number
 }
 
 /** Projects for the active org. Disabled until the auth store has a token. */
@@ -199,6 +202,74 @@ export function useAddRepository() {
   }, [busy])
 
   return { start, busy, error }
+}
+
+/**
+ * Repositories the user already authorized (granted via GitHub) that aren't yet
+ * added as their own project — so a second repo can be added instantly by
+ * cloning the existing authorization, with no OAuth round-trip.
+ */
+export function useAddableRepos(): {
+  sourceProjectId: string | null
+  available: string[]
+  granted: string[]
+  hasAuth: boolean
+  loading: boolean
+} {
+  const token = useAuth((s) => s.token)
+  const { projectId, projects } = useActiveProject()
+  const conns = useQuery({
+    queryKey: ['connections', projectId],
+    queryFn: () => api.listConnections(projectId!),
+    enabled: Boolean(token && projectId),
+  })
+  const gh = (conns.data ?? []).find((c) => c.provider === 'github')
+  const granted = (gh?.metadata?.repos as string[] | undefined) ?? []
+  // A project maps to a repo by its basename; subtract repos already added.
+  const taken = new Set(projects.map((p) => p.name.toLowerCase()))
+  const available = granted.filter(
+    (r) => !taken.has((r.split('/').pop() ?? r).toLowerCase()),
+  )
+  return {
+    sourceProjectId: projectId,
+    available,
+    granted,
+    hasAuth: granted.length > 0,
+    loading: conns.isLoading,
+  }
+}
+
+/**
+ * Add a repo as its own project by cloning an existing GitHub authorization
+ * (server-side fan-out). Instant — no OAuth redirect, no full-page reload — and
+ * the new project becomes active so the UI switches to it.
+ */
+export function useAddRepoFromGrant() {
+  const qc = useQueryClient()
+  const setActive = useActiveProjectStore((s) => s.setActiveProject)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const add = useCallback(
+    async (sourceProjectId: string, repo: string) => {
+      if (busy) return
+      setBusy(true)
+      setError(null)
+      try {
+        const { created } = await api.fanOut(sourceProjectId, [repo])
+        await qc.invalidateQueries({ queryKey: ['projects'] })
+        if (created[0]) setActive(created[0].id)
+        else setError('Could not add the repository (plan limit reached?).')
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setBusy(false)
+      }
+    },
+    [busy, qc, setActive],
+  )
+
+  return { add, busy, error }
 }
 
 /** Recent commits for the active project's connected GitHub repos. */
@@ -372,7 +443,9 @@ export function findingsToRisks(findings: ApiFinding[]): Risk[] {
         description: f.description ?? '',
         impact: rec?.businessImpact ?? '',
         components: f.nodeId ? [f.nodeId] : [],
-        rule: f.category,
+        rule: f.rule ?? f.category,
+        file: f.file,
+        line: f.line,
         fix: rec?.fix ?? '',
         riskReductionPct: rec?.riskReductionPct,
         references: rec?.references,

@@ -54,6 +54,35 @@ describe('reliability engine', () => {
     expect(backup?.severity).toBe('critical');
   });
 
+  it('counts code findings and dependency vulnerabilities as risks', () => {
+    // A topology-simple graph (single service, no detected backing services)
+    // that is nonetheless full of insecure code — the "vibe-coded repo" case.
+    const base: SystemGraph = {
+      nodes: [{ id: 'svc', name: 'api', kind: 'service' }],
+      edges: [],
+    }
+    const clean = reliabilityScore(base)
+
+    const messy = reliabilityScore({
+      ...base,
+      codeFindings: [
+        { category: 'security', severity: 'critical', title: 'Hardcoded AWS key', description: '', weight: 22 },
+        { category: 'security', severity: 'high', title: 'eval() on user input', description: '', weight: 14 },
+      ],
+      vulnerabilities: [
+        {
+          id: 'CVE-2021-44228', package: 'log4j', version: '2.14', ecosystem: 'Maven',
+          severity: 'critical', summary: 'RCE', repo: 'o/r',
+        },
+      ],
+    })
+
+    // The insecure repo must score worse and surface those code/dep risks.
+    expect(messy.score).toBeLessThan(clean.score)
+    expect(messy.findings.length).toBeGreaterThanOrEqual(3)
+    expect(messy.findings.some((f) => f.title.includes('log4j'))).toBe(true)
+  })
+
   it('a fully hardened system scores higher than a fragile one', () => {
     const hardened: SystemGraph = {
       nodes: exampleGraph.nodes.map((n) => ({

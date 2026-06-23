@@ -10,6 +10,7 @@
 import { Finding, severityFromWeight } from './findings';
 import { SystemGraph, SystemNode } from './model';
 import { singlePointsOfFailure } from './graph';
+import { vulnerabilitiesToFindings } from './vulnerabilities';
 
 export interface ReliabilityResult {
   score: number; // 0..100
@@ -24,6 +25,11 @@ export interface ReliabilityResult {
 }
 
 const VENDOR_LOCK_PROVIDERS = new Set(['stripe', 'supabase', 'neon', 'openai']);
+
+/** Max aggregate points code/dependency findings can subtract from the score, so
+ *  a tail of low-severity markers can't single-handedly zero an otherwise sound
+ *  system — yet enough that real insecure code lands firmly in the danger zone. */
+const CODE_PENALTY_CAP = 80;
 
 export function reliabilityScore(graph: SystemGraph): ReliabilityResult {
   const findings: Finding[] = [];
@@ -113,7 +119,29 @@ export function reliabilityScore(graph: SystemGraph): ReliabilityResult {
     });
   }
 
-  const penalty = findings.reduce((sum, f) => sum + f.weight, 0);
+  // Topology penalty: each finding's full weight.
+  const topologyPenalty = findings.reduce((sum, f) => sum + f.weight, 0);
+
+  // 6. Code-level findings (SAST: secrets, injection, insecure config) and
+  //    dependency vulnerabilities (SCA: known CVEs) carried up by the scanner.
+  //    These are real, located risks — a repo can be architecturally simple yet
+  //    riddled with insecure code — so they must count toward the score and show
+  //    up as risks, not just in the code view.
+  const codeFindings: Finding[] = [
+    ...(graph.codeFindings ?? []),
+    ...vulnerabilitiesToFindings(graph.vulnerabilities ?? []),
+  ];
+  findings.push(...codeFindings);
+
+  // Cap the *aggregate* code/dependency penalty so a long tail of low-severity
+  // markers can't alone zero out the score, while still letting genuinely
+  // insecure code push a repo deep into the danger zone.
+  const codePenalty = Math.min(
+    CODE_PENALTY_CAP,
+    codeFindings.reduce((sum, f) => sum + f.weight, 0),
+  );
+
+  const penalty = topologyPenalty + codePenalty;
   const score = Math.max(0, Math.min(100, Math.round(100 - penalty)));
 
   return {
