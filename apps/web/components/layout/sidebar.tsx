@@ -17,6 +17,7 @@ import {
   KeyRound,
   Cloud,
   Database,
+  Server,
   Wrench,
   GitPullRequest,
   ListChecks,
@@ -32,25 +33,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** A destination. `href` present = live page; `soon` = planned, shown disabled. */
-type Child = {
-  label: string
-  icon: LucideIcon
-  href?: string
-  soon?: boolean
-}
+type Child = { label: string; icon: LucideIcon; href: string; beta?: boolean }
+type Group = { id: string; label: string; icon: LucideIcon; children: Child[] }
 
-/** A super-category — the first level. Clicking it drills into its children. */
-type Group = {
-  id: string
-  label: string
-  icon: LucideIcon
-  soon?: boolean
-  children: Child[]
-}
-
-// First level = super-categories; second level = their pages. Only entries with
-// an href are live today; `soon` entries telegraph the roadmap without 404ing.
+// First level = super-categories; clicking one drills into its pages. Every
+// entry links to a real route (live or a structured placeholder), so the rail
+// never leads nowhere.
 const GROUPS: Group[] = [
   {
     id: 'home',
@@ -58,8 +46,8 @@ const GROUPS: Group[] = [
     icon: LayoutGrid,
     children: [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-      { label: 'Portfolio', icon: LayoutGrid, soon: true },
-      { label: 'Trends', icon: TrendingUp, soon: true },
+      { label: 'Portfolio', icon: LayoutGrid, href: '/portfolio' },
+      { label: 'Trends', icon: TrendingUp, href: '/trends', beta: true },
     ],
   },
   {
@@ -69,7 +57,7 @@ const GROUPS: Group[] = [
     children: [
       { label: 'Architecture', icon: Network, href: '/architecture' },
       { label: 'Simulation', icon: FlaskConical, href: '/simulation' },
-      { label: 'Attack Paths', icon: Crosshair, soon: true },
+      { label: 'Attack Paths', icon: Crosshair, href: '/attack-paths', beta: true },
     ],
   },
   {
@@ -80,47 +68,43 @@ const GROUPS: Group[] = [
       { label: 'All Findings', icon: ShieldAlert, href: '/risks' },
       { label: 'Security', icon: LockKeyhole, href: '/security' },
       { label: 'Code (SAST)', icon: CodeXml, href: '/code' },
-      { label: 'Dependencies', icon: Boxes, soon: true },
-      { label: 'Secrets', icon: KeyRound, soon: true },
+      { label: 'Dependencies', icon: Boxes, href: '/dependencies' },
+      { label: 'Secrets', icon: KeyRound, href: '/secrets' },
     ],
   },
   {
     id: 'inventory',
     label: 'Inventory',
     icon: Boxes,
-    soon: true,
     children: [
-      { label: 'Services', icon: Network, soon: true },
-      { label: 'Dependencies / SBOM', icon: Boxes, soon: true },
-      { label: 'Data Stores', icon: Database, soon: true },
-      { label: 'Cloud Resources', icon: Cloud, soon: true },
+      { label: 'Services', icon: Server, href: '/inventory/services' },
+      { label: 'Data Stores', icon: Database, href: '/inventory/data-stores' },
+      { label: 'Dependencies / SBOM', icon: Boxes, href: '/inventory/sbom', beta: true },
+      { label: 'Cloud Resources', icon: Cloud, href: '/inventory/cloud', beta: true },
     ],
   },
   {
     id: 'remediation',
     label: 'Remediation',
     icon: Wrench,
-    soon: true,
     children: [
-      { label: 'Triage Queue', icon: ListChecks, soon: true },
-      { label: 'Fixes & PRs', icon: GitPullRequest, soon: true },
-      { label: 'Policies', icon: ClipboardCheck, soon: true },
+      { label: 'Triage Queue', icon: ListChecks, href: '/remediation/triage', beta: true },
+      { label: 'Fixes & PRs', icon: GitPullRequest, href: '/remediation/fixes', beta: true },
+      { label: 'Policies', icon: ClipboardCheck, href: '/remediation/policies', beta: true },
     ],
   },
   {
     id: 'compliance',
     label: 'Compliance',
     icon: ClipboardCheck,
-    soon: true,
     children: [
-      { label: 'Frameworks', icon: ClipboardCheck, soon: true },
-      { label: 'Reports & Export', icon: FileText, soon: true },
-      { label: 'Audit Log', icon: ScrollText, soon: true },
+      { label: 'Frameworks', icon: ClipboardCheck, href: '/compliance/frameworks', beta: true },
+      { label: 'Reports & Export', icon: FileText, href: '/compliance/reports', beta: true },
+      { label: 'Audit Log', icon: ScrollText, href: '/compliance/audit', beta: true },
     ],
   },
 ]
 
-// Always-available utilities — never inside a category, pinned at the bottom.
 const UTILITIES: { label: string; icon: LucideIcon; href: string }[] = [
   { label: 'AI Assistant', icon: Bot, href: '/assistant' },
   { label: 'Settings', icon: Settings, href: '/settings' },
@@ -128,26 +112,20 @@ const UTILITIES: { label: string; icon: LucideIcon; href: string }[] = [
 
 function useIsActive() {
   const pathname = usePathname()
-  return (href?: string) => {
-    if (!href) return false
-    return href === '/dashboard'
+  return (href: string) =>
+    href === '/dashboard'
       ? pathname === '/dashboard'
       : pathname === href || pathname.startsWith(`${href}/`)
-  }
 }
 
 export function Sidebar() {
-  const pathname = usePathname()
   const isActive = useIsActive()
 
-  // The category that contains the current page (so the right level opens).
   const activeGroup =
     GROUPS.find((g) => g.children.some((c) => isActive(c.href))) ?? null
-
-  // Drill-in state: which super-category is open (null = top level).
   const [openId, setOpenId] = useState<string | null>(activeGroup?.id ?? null)
 
-  // When navigation lands in a different section, follow it into that category.
+  // Follow navigation into whichever section the current page belongs to.
   useEffect(() => {
     if (activeGroup) setOpenId(activeGroup.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,79 +134,56 @@ export function Sidebar() {
   const open = GROUPS.find((g) => g.id === openId) ?? null
 
   return (
-    <div className="w-60 shrink-0">
-      <aside className="flex h-full w-60 flex-col border-r border-sidebar-border bg-sidebar">
+    // Collapsed rail reserves 56px; the panel overlays and expands on hover.
+    <div className="group/sb relative w-14 shrink-0">
+      <aside className="absolute inset-y-0 left-0 z-40 flex w-14 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out group-hover/sb:w-60 group-hover/sb:shadow-2xl group-hover/sb:shadow-black/40">
         {/* brand */}
         <div className="flex h-12 shrink-0 items-center gap-2 border-b border-sidebar-border px-3.5">
-          <div className="flex size-6 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+          <div className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground">
             <ShieldCheck className="size-4" />
           </div>
-          <span className="font-semibold tracking-tight">Riscly</span>
+          <span className="whitespace-nowrap font-semibold tracking-tight opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
+            Riscly
+          </span>
         </div>
 
         {/* drill-in body */}
         <nav className="min-h-0 flex-1 overflow-y-auto p-2">
           {open ? (
-            <CategoryView
-              group={open}
-              isActive={isActive}
-              onBack={() => setOpenId(null)}
-            />
+            <CategoryView group={open} isActive={isActive} onBack={() => setOpenId(null)} />
           ) : (
-            <RootView groups={GROUPS} activeId={activeGroup?.id} onOpen={setOpenId} />
+            <RootView activeId={activeGroup?.id} onOpen={setOpenId} />
           )}
         </nav>
 
-        {/* pinned utilities — always reachable, independent of the category */}
+        {/* pinned utilities — always reachable, regardless of the open category */}
         <div className="shrink-0 border-t border-sidebar-border p-2">
-          {UTILITIES.map((u) => {
-            const Icon = u.icon
-            const active = isActive(u.href)
-            return (
-              <Link
-                key={u.href}
-                href={u.href}
-                className={cn(
-                  'relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
-                  active
-                    ? 'bg-sidebar-accent text-foreground'
-                    : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
-                )}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
-                )}
-                <Icon
-                  className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')}
-                />
-                {u.label}
-              </Link>
-            )
-          })}
+          {UTILITIES.map((u) => (
+            <RowLink key={u.href} href={u.href} icon={u.icon} label={u.label} active={isActive(u.href)} />
+          ))}
         </div>
       </aside>
     </div>
   )
 }
 
-/** Level 1 — the list of super-categories. */
+/** Level 1 — super-categories. Icons show collapsed; labels fade in on hover. */
 function RootView({
-  groups,
   activeId,
   onOpen,
 }: {
-  groups: Group[]
   activeId?: string
   onOpen: (id: string) => void
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      {groups.map((g) => {
+      {GROUPS.map((g) => {
         const Icon = g.icon
         return (
           <button
             key={g.id}
             onClick={() => onOpen(g.id)}
+            title={g.label}
             className={cn(
               'group/item flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors',
               activeId === g.id
@@ -237,13 +192,10 @@ function RootView({
             )}
           >
             <Icon className="size-4 shrink-0" />
-            <span className="flex-1 text-left">{g.label}</span>
-            {g.soon && (
-              <span className="rounded-sm bg-muted px-1.5 font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                Soon
-              </span>
-            )}
-            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover/item:translate-x-0.5" />
+            <span className="flex-1 whitespace-nowrap text-left opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
+              {g.label}
+            </span>
+            <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50 opacity-0 transition-all duration-150 group-hover/sb:opacity-100 group-hover/item:translate-x-0.5" />
           </button>
         )
       })}
@@ -251,73 +203,83 @@ function RootView({
   )
 }
 
-/** Level 2 — the children of one super-category, with a back link to level 1. */
+/** Level 2 — the pages of one super-category, with a back link to level 1. */
 function CategoryView({
   group,
   isActive,
   onBack,
 }: {
   group: Group
-  isActive: (href?: string) => boolean
+  isActive: (href: string) => boolean
   onBack: () => void
 }) {
   return (
     <div className="flex flex-col gap-0.5">
       <button
         onClick={onBack}
-        className="mb-1 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground"
+        title="All sections"
+        className="mb-1 flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground"
       >
-        <ChevronLeft className="size-3.5" />
-        All sections
+        <ChevronLeft className="size-3.5 shrink-0" />
+        <span className="whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
+          All sections
+        </span>
       </button>
 
-      <div className="px-2.5 pb-1 pt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70">
+      <div className="whitespace-nowrap px-2.5 pb-1 pt-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/70 opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
         {group.label}
       </div>
 
-      {group.children.map((c) => {
-        const Icon = c.icon
-        const active = isActive(c.href)
-
-        if (!c.href) {
-          // Planned destination — visible but disabled so the structure shows
-          // without leading anywhere dead.
-          return (
-            <div
-              key={c.label}
-              className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground/40"
-              title="Coming with deeper scanning"
-            >
-              <Icon className="size-4 shrink-0" />
-              <span className="flex-1">{c.label}</span>
-              <span className="rounded-sm bg-muted px-1.5 font-mono text-[9px] uppercase tracking-wide text-muted-foreground/60">
-                Soon
-              </span>
-            </div>
-          )
-        }
-
-        return (
-          <Link
-            key={c.href}
-            href={c.href}
-            className={cn(
-              'relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
-              active
-                ? 'bg-sidebar-accent text-foreground'
-                : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
-            )}
-          >
-            {active && (
-              <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
-            )}
-            <Icon
-              className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')}
-            />
-            <span className="flex-1">{c.label}</span>
-          </Link>
-        )
-      })}
+      {group.children.map((c) => (
+        <RowLink
+          key={c.href}
+          href={c.href}
+          icon={c.icon}
+          label={c.label}
+          active={isActive(c.href)}
+          beta={c.beta}
+        />
+      ))}
     </div>
+  )
+}
+
+function RowLink({
+  href,
+  icon: Icon,
+  label,
+  active,
+  beta,
+}: {
+  href: string
+  icon: LucideIcon
+  label: string
+  active: boolean
+  beta?: boolean
+}) {
+  return (
+    <Link
+      href={href}
+      title={label}
+      className={cn(
+        'relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
+        active
+          ? 'bg-sidebar-accent text-foreground'
+          : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
+      )}
+    >
+      {active && (
+        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+      )}
+      <Icon className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+      <span className="flex-1 whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
+        {label}
+      </span>
+      {beta && (
+        <span className="whitespace-nowrap rounded-sm bg-muted px-1.5 font-mono text-[9px] uppercase tracking-wide text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
+          Soon
+        </span>
+      )}
+    </Link>
   )
 }
