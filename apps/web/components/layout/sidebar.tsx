@@ -42,7 +42,7 @@ const GROUPS: Group[] = [
     children: [
       { label: 'Repositories', icon: LayoutGrid, href: '/portfolio' },
       { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-      { label: 'Trends', icon: TrendingUp, href: '/trends', beta: true },
+      { label: 'Trends', icon: TrendingUp, href: '/trends' },
     ],
   },
   {
@@ -51,7 +51,7 @@ const GROUPS: Group[] = [
     children: [
       { label: 'Architecture', icon: Network, href: '/architecture' },
       { label: 'Simulation', icon: FlaskConical, href: '/simulation' },
-      { label: 'Attack Paths', icon: Crosshair, href: '/attack-paths', beta: true },
+      { label: 'Attack Paths', icon: Crosshair, href: '/attack-paths' },
     ],
   },
   {
@@ -71,26 +71,26 @@ const GROUPS: Group[] = [
     children: [
       { label: 'Services', icon: Server, href: '/inventory/services' },
       { label: 'Data Stores', icon: Database, href: '/inventory/data-stores' },
-      { label: 'Dependencies / SBOM', icon: Boxes, href: '/inventory/sbom', beta: true },
-      { label: 'Cloud Resources', icon: Cloud, href: '/inventory/cloud', beta: true },
+      { label: 'Dependencies / SBOM', icon: Boxes, href: '/inventory/sbom' },
+      { label: 'Cloud Resources', icon: Cloud, href: '/inventory/cloud' },
     ],
   },
   {
     id: 'remediation',
     label: 'Remediation',
     children: [
-      { label: 'Triage Queue', icon: ListChecks, href: '/remediation/triage', beta: true },
-      { label: 'Fixes & PRs', icon: GitPullRequest, href: '/remediation/fixes', beta: true },
-      { label: 'Policies', icon: ClipboardCheck, href: '/remediation/policies', beta: true },
+      { label: 'Triage Queue', icon: ListChecks, href: '/remediation/triage' },
+      { label: 'Fixes & PRs', icon: GitPullRequest, href: '/remediation/fixes' },
+      { label: 'Policies', icon: ClipboardCheck, href: '/remediation/policies' },
     ],
   },
   {
     id: 'compliance',
     label: 'Compliance',
     children: [
-      { label: 'Frameworks', icon: ClipboardCheck, href: '/compliance/frameworks', beta: true },
-      { label: 'Reports & Export', icon: FileText, href: '/compliance/reports', beta: true },
-      { label: 'Audit Log', icon: ScrollText, href: '/compliance/audit', beta: true },
+      { label: 'Frameworks', icon: ClipboardCheck, href: '/compliance/frameworks' },
+      { label: 'Reports & Export', icon: FileText, href: '/compliance/reports' },
+      { label: 'Audit Log', icon: ScrollText, href: '/compliance/audit' },
     ],
   },
 ]

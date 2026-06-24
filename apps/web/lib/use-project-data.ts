@@ -272,6 +272,41 @@ export function useAddRepoFromGrant() {
   return { add, busy, error }
 }
 
+/** Full scan history for the active project (oldest→newest), with risk score. */
+export function useScanHistory(): {
+  points: { id: string; at: string; risk: number; findings: number }[]
+  loading: boolean
+} {
+  const token = useAuth((s) => s.token)
+  const { projectId } = useActiveProject()
+  const q = useQuery({
+    queryKey: ['scan-history', projectId],
+    enabled: Boolean(token && projectId),
+    queryFn: async () => (await api.listScans(projectId!)) as ScanRecord[],
+  })
+  const points = (q.data ?? [])
+    .filter((s) => s.status === 'succeeded' && typeof s.reliabilityScore === 'number')
+    .map((s) => ({
+      id: s.id,
+      at: s.createdAt,
+      risk: Math.max(0, Math.min(100, Math.round(100 - (s.reliabilityScore as number)))),
+      findings: s.findings?.length ?? 0,
+    }))
+    .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+  return { points, loading: q.isLoading }
+}
+
+/** Connections for the active project (provider + status + metadata). */
+export function useConnections() {
+  const token = useAuth((s) => s.token)
+  const { projectId } = useActiveProject()
+  return useQuery({
+    queryKey: ['connections', projectId],
+    queryFn: () => api.listConnections(projectId!),
+    enabled: Boolean(token && projectId),
+  })
+}
+
 /** Recent commits for the active project's connected GitHub repos. */
 export function useCommits() {
   const token = useAuth((s) => s.token)
