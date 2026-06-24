@@ -2,11 +2,10 @@
 
 import { useRouter } from 'next/navigation'
 import { useQueries } from '@tanstack/react-query'
-import { GitBranch, LayoutGrid } from 'lucide-react'
-import { ScreenHeader } from '@/components/layout/screen-header'
+import { GitBranch, Plus, ShieldCheck, LogOut, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
-import { useProjects } from '@/lib/use-project-data'
+import { useProjects, useAddRepository } from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
 import type { ScanRecord } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
@@ -25,15 +24,22 @@ function band(risk: number): { label: string; ring: string; text: string } {
   return { label: 'Healthy', ring: 'border-ok', text: 'text-ok' }
 }
 
-/** Executive view across every connected repository/project. */
+/**
+ * The launchpad: pick a repository before entering its workspace. This is where
+ * users land after onboarding and on every fresh load, so they consciously
+ * choose which repo's dashboard to open.
+ */
 export function PortfolioView() {
   const router = useRouter()
   const token = useAuth((s) => s.token)
+  const user = useAuth((s) => s.user)
+  const signOut = useAuth((s) => s.signOut)
   const projects = useProjects()
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
+  const addRepo = useAddRepository()
   const list = projects.data ?? []
 
-  // Pull each project's latest scan in parallel for its risk score.
+  // Each repo's latest scan, in parallel, for its risk score.
   const scans = useQueries({
     queries: list.map((p) => ({
       queryKey: ['scans', p.id],
@@ -50,75 +56,109 @@ export function PortfolioView() {
     .map((p, i) => ({ project: p, risk: riskOf(scans[i]?.data?.reliabilityScore ?? undefined) }))
     .sort((a, b) => (b.risk ?? -1) - (a.risk ?? -1))
 
-  const scored = rows.filter((r) => r.risk !== null)
-  const avg =
-    scored.length > 0
-      ? Math.round(scored.reduce((s, r) => s + (r.risk ?? 0), 0) / scored.length)
-      : null
+  const open = (id: string) => {
+    setActiveProject(id)
+    router.push('/dashboard')
+  }
 
   return (
-    <div className="flex h-full flex-col">
-      <ScreenHeader
-        title="Portfolio"
-        subtitle={
-          list.length
-            ? `${list.length} repositor${list.length === 1 ? 'y' : 'ies'}${avg !== null ? ` · avg risk ${avg}` : ''}`
-            : 'No repositories connected yet'
-        }
-      />
+    <div className="flex min-h-dvh flex-col">
+      {/* slim launchpad header */}
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
+        <div className="flex items-center gap-2">
+          <div className="flex size-6 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+            <ShieldCheck className="size-4" />
+          </div>
+          <span className="font-semibold tracking-tight">Riscly</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {user?.email && (
+            <span className="hidden text-xs text-muted-foreground sm:inline">{user.email}</span>
+          )}
+          <button
+            onClick={() => {
+              signOut()
+              router.replace('/login')
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <LogOut className="size-3.5" /> Sign out
+          </button>
+        </div>
+      </header>
 
-      {list.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-          <div className="flex max-w-sm flex-col items-center text-center">
-            <div className="mb-3 flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <LayoutGrid className="size-5" />
+      <div className="flex flex-1 items-start justify-center overflow-y-auto p-6">
+        <div className="w-full max-w-3xl py-6">
+          <div className="mb-6">
+            <h1 className="text-xl font-semibold tracking-tight">Choose a repository</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {list.length
+                ? 'Select a repository to open its workspace. Each one has its own scans, risks and dashboard.'
+                : 'Connect your first repository to get started.'}
+            </p>
+          </div>
+
+          {projects.isLoading ? (
+            <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> Loading your repositories…
             </div>
-            <p className="text-sm font-medium">
-              {projects.isLoading ? 'Loading portfolio…' : 'No repositories yet'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Connect a repository in Settings — each one appears here with its own
-              risk score, so you get a single view across your whole estate.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map(({ project, risk }) => {
-              const b = risk !== null ? band(risk) : null
-              return (
-                <button
-                  key={project.id}
-                  onClick={() => {
-                    setActiveProject(project.id)
-                    router.push('/dashboard')
-                  }}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-panel p-3 text-left transition-colors hover:border-primary/40"
-                >
-                  <div
-                    className={cn(
-                      'flex size-12 shrink-0 items-center justify-center rounded-full border-2 font-mono text-sm font-semibold',
-                      b ? cn(b.ring, b.text) : 'border-border text-muted-foreground',
-                    )}
+          ) : (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {rows.map(({ project, risk }) => {
+                const b = risk !== null ? band(risk) : null
+                return (
+                  <button
+                    key={project.id}
+                    onClick={() => open(project.id)}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-panel p-4 text-left transition-colors hover:border-primary/50 hover:bg-accent/30"
                   >
-                    {risk ?? '—'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="truncate text-sm font-medium">{project.name}</span>
+                    <div
+                      className={cn(
+                        'flex size-12 shrink-0 items-center justify-center rounded-full border-2 font-mono text-sm font-semibold',
+                        b ? cn(b.ring, b.text) : 'border-border text-muted-foreground',
+                      )}
+                    >
+                      {risk ?? '—'}
                     </div>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {b ? `${b.label} risk` : 'Not scanned yet'} · {project.environment ?? 'production'}
-                    </p>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate text-sm font-medium">{project.name}</span>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {b ? `${b.label} risk` : 'Not scanned yet'} · {project.environment ?? 'production'}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+
+              {/* add-repository tile */}
+              <button
+                onClick={addRepo.start}
+                disabled={addRepo.busy}
+                className="flex items-center gap-3 rounded-lg border border-dashed border-border p-4 text-left text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
+              >
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-border">
+                  {addRepo.busy ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Plus className="size-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Add repository</p>
+                  <p className="mt-0.5 text-[11px]">Authorize GitHub and scan a new repo</p>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {addRepo.error && (
+            <p className="mt-3 text-[11px] text-destructive">{addRepo.error}</p>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

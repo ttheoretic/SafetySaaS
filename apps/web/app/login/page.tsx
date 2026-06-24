@@ -46,7 +46,7 @@ export default function LoginPage() {
         { id: me.user.id, email: me.user.email, name: me.user.name },
         me.activeOrg.id,
       )
-      router.push(mode === 'signup' ? '/get-started' : '/dashboard')
+      router.push(mode === 'signup' ? '/get-started' : '/portfolio')
     } catch (err) {
       setError((err as Error).message)
       setLoading(false)

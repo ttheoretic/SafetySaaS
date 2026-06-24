@@ -25,7 +25,7 @@ export interface OnboardingState {
 const MAP: Record<ResolvedStatus, { nextHref: string; ctaLabel: string }> = {
   'needs-billing': { nextHref: '/billing', ctaLabel: 'Continue setup' },
   'needs-onboarding': { nextHref: '/get-started', ctaLabel: 'Continue setup' },
-  ready: { nextHref: '/dashboard', ctaLabel: 'Open dashboard' },
+  ready: { nextHref: '/portfolio', ctaLabel: 'Open workspace' },
 }
 
 function readCached(): ResolvedStatus | null {
@@ -88,7 +88,7 @@ export function useOnboardingState(): OnboardingState {
 
   // Optimistic value (for the CTA only): fresh result, else last-known cache.
   const optimistic = query.data ?? readCached()
-  const cta = optimistic ? MAP[optimistic] : { nextHref: '/dashboard', ctaLabel: 'Continue' }
+  const cta = optimistic ? MAP[optimistic] : { nextHref: '/portfolio', ctaLabel: 'Continue' }
 
   if (!hydrated) {
     return { status: 'loading', nextHref: cta.nextHref, ctaLabel: cta.ctaLabel }

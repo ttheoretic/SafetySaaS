@@ -33,7 +33,7 @@ export default function BillingPage() {
       .me()
       .then((m) => {
         // Already subscribed → no reason to sit on the paywall.
-        if (m.subscription.active) router.replace('/dashboard')
+        if (m.subscription.active) router.replace('/portfolio')
         else setMe(m)
       })
       .catch(() => {})

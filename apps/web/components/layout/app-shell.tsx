@@ -10,6 +10,9 @@ import { AuthGuard } from '@/components/auth/auth-guard'
 const MARKETING_ROUTES = ['/', '/pricing']
 // Auth-flow routes — full-bleed, no chrome; they manage their own auth/redirects.
 const AUTH_ROUTES = ['/login', '/get-started', '/billing']
+// Launchpad — the repo picker you land on before entering a workspace. Full-bleed
+// (no sidebar/top nav) but still behind the auth gate.
+const LAUNCH_ROUTES = ['/portfolio']
 
 function matches(routes: string[], pathname: string) {
   return routes.some((r) => pathname === r || pathname.startsWith(`${r}/`))
@@ -22,6 +25,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (matches(MARKETING_ROUTES, pathname) || matches(AUTH_ROUTES, pathname)) {
     return (
       <div className="min-h-dvh bg-background text-foreground">{children}</div>
+    )
+  }
+
+  // The launchpad is full-bleed but still requires a provisioned session.
+  if (matches(LAUNCH_ROUTES, pathname)) {
+    return (
+      <AuthGuard>
+        <div className="min-h-dvh bg-background text-foreground">{children}</div>
+      </AuthGuard>
     )
   }
 

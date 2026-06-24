@@ -182,7 +182,7 @@ export default function GetStartedPage() {
           }
           if (cancelled) return
           if (scanned) {
-            router.replace('/dashboard')
+            router.replace('/portfolio')
             return
           }
           setProjectId(existing.id)
@@ -602,10 +602,10 @@ export default function GetStartedPage() {
                   </div>
                 )}
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/portfolio')}
                   className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:opacity-90"
                 >
-                  Go to your dashboard <ArrowRight className="size-4" />
+                  Go to your repositories <ArrowRight className="size-4" />
                 </button>
               </div>
             )}
