@@ -2,8 +2,6 @@
 
 import { create } from 'zustand'
 
-const KEY = 'riscly.activeProject'
-
 interface ActiveProjectState {
   activeProjectId: string | null
   setActiveProject: (id: string) => void
@@ -12,13 +10,12 @@ interface ActiveProjectState {
 /**
  * The currently selected repository/project. Each repo is its own project with
  * its own data; switching here swaps every project-scoped query in the app.
- * Persisted so the selection survives reloads.
+ *
+ * Intentionally in-memory only: the selection is NOT persisted, so every fresh
+ * load starts with no active repo and the user re-picks one on the launchpad.
+ * It survives in-app navigation within a session (no reload).
  */
 export const useActiveProjectStore = create<ActiveProjectState>((set) => ({
-  activeProjectId:
-    typeof window !== 'undefined' ? localStorage.getItem(KEY) : null,
-  setActiveProject: (id) => {
-    if (typeof window !== 'undefined') localStorage.setItem(KEY, id)
-    set({ activeProjectId: id })
-  },
+  activeProjectId: null,
+  setActiveProject: (id) => set({ activeProjectId: id }),
 }))

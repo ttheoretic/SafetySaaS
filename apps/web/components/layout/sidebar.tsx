@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
-  LayoutGrid,
   TrendingUp,
   Network,
   FlaskConical,
@@ -17,9 +16,6 @@ import {
   Cloud,
   Database,
   Server,
-  Wrench,
-  GitPullRequest,
-  ListChecks,
   ClipboardCheck,
   FileText,
   ScrollText,
@@ -40,7 +36,6 @@ const GROUPS: Group[] = [
     id: 'home',
     label: 'Home',
     children: [
-      { label: 'Repositories', icon: LayoutGrid, href: '/portfolio' },
       { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
       { label: 'Trends', icon: TrendingUp, href: '/trends' },
     ],
@@ -73,15 +68,6 @@ const GROUPS: Group[] = [
       { label: 'Data Stores', icon: Database, href: '/inventory/data-stores' },
       { label: 'Dependencies / SBOM', icon: Boxes, href: '/inventory/sbom' },
       { label: 'Cloud Resources', icon: Cloud, href: '/inventory/cloud' },
-    ],
-  },
-  {
-    id: 'remediation',
-    label: 'Remediation',
-    children: [
-      { label: 'Triage Queue', icon: ListChecks, href: '/remediation/triage' },
-      { label: 'Fixes & PRs', icon: GitPullRequest, href: '/remediation/fixes' },
-      { label: 'Policies', icon: ClipboardCheck, href: '/remediation/policies' },
     ],
   },
   {

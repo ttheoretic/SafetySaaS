@@ -1,9 +1,12 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
 import { AuthGuard } from '@/components/auth/auth-guard'
+import { useActiveProjectStore } from '@/lib/active-project'
 
 // Public marketing routes — rendered full-bleed, no chrome, no auth.
 // '/' is the marketing landing page; the dashboard lives under /dashboard.
@@ -37,16 +40,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // Everything else is the authenticated dashboard.
+  // Everything else is the authenticated dashboard — and requires a repo to be
+  // selected on the launchpad first (the selection is not persisted across loads).
   return (
     <AuthGuard>
-      <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopNav />
-          <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+      <RepoGate>
+        <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
+          <Sidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TopNav />
+            <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+          </div>
         </div>
-      </div>
+      </RepoGate>
     </AuthGuard>
   )
+}
+
+/**
+ * Bounces project-scoped pages to the launchpad when no repository is selected.
+ * Because the active project is in-memory only, a fresh load has no selection,
+ * so the user must re-pick on /portfolio before entering a workspace.
+ */
+function RepoGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const activeProjectId = useActiveProjectStore((s) => s.activeProjectId)
+
+  useEffect(() => {
+    if (!activeProjectId) router.replace('/portfolio')
+  }, [activeProjectId, router])
+
+  if (!activeProjectId) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-background text-muted-foreground">
+        <Loader2 className="size-5 animate-spin" />
+      </div>
+    )
+  }
+  return <>{children}</>
 }
