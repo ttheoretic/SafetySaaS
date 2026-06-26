@@ -2,6 +2,12 @@ import { Logger } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
 import { JobHandler, JobQueue } from './job-queue';
 
+/** Hard cap on a single job. Past this it fails (and BullMQ retries) rather than
+ *  staying "active" forever and wedging the worker. */
+const JOB_TIMEOUT_MS = Number(process.env.JOB_TIMEOUT_MS) || 300_000;
+/** Jobs processed concurrently per worker. */
+const WORKER_CONCURRENCY = Number(process.env.WORKER_CONCURRENCY) || 4;
+
 /**
  * BullMQ-backed queue (used when REDIS_URL is set). Jobs are enqueued to Redis
  * and processed by Workers — out of band, retryable, and durable across
@@ -32,9 +38,22 @@ export class BullJobQueue implements JobQueue {
     const worker = new Worker(
       name,
       async (job) => {
-        await handler(job.data as T);
+        // Race the handler against a hard timeout so a stuck job fails and is
+        // retried instead of holding the worker slot indefinitely.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`job timed out after ${JOB_TIMEOUT_MS}ms`)),
+            JOB_TIMEOUT_MS,
+          );
+        });
+        try {
+          await Promise.race([handler(job.data as T), timeout]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
       },
-      { connection: this.connection },
+      { connection: this.connection, concurrency: WORKER_CONCURRENCY },
     );
     worker.on('failed', (job, err) =>
       this.logger.error(`Job ${name}#${job?.id} failed: ${err.message}`),
