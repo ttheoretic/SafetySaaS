@@ -8,6 +8,7 @@ import { StripeCollector } from './collectors/stripe.collector';
 import { RenderCollector } from './collectors/render.collector';
 import { NeonCollector } from './collectors/neon.collector';
 import { SupabaseCollector } from './collectors/supabase.collector';
+import { AwsCollector } from './collectors/aws.collector';
 import { MetadataCollector } from './collectors/metadata.collector';
 
 /**
@@ -23,6 +24,7 @@ const COLLECTORS = [
   RenderCollector,
   NeonCollector,
   SupabaseCollector,
+  AwsCollector,
 ];
 
 @Module({

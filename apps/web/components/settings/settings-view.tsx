@@ -1012,6 +1012,7 @@ function IntegrationCard({
   const [urlInput, setUrlInput] = useState('')
   const [anonInput, setAnonInput] = useState('')
   const [reposInput, setReposInput] = useState('')
+  const [awsKeyInput, setAwsKeyInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1022,6 +1023,8 @@ function IntegrationCard({
   const isSupabase = provider === 'supabase'
   // GitLab is a token (PAT) connection that scans the listed project paths.
   const isGitlab = provider === 'gitlab'
+  // AWS needs an access key id + region (metadata) and the secret key (token).
+  const isAws = provider === 'aws'
 
   async function connect() {
     if (!provider || !projectId) return
@@ -1045,6 +1048,11 @@ function IntegrationCard({
           ...(repos.length ? { repos, selectedRepos: repos } : {}),
           ...(urlInput ? { baseUrl: urlInput } : {}),
         }
+      } else if (isAws && (awsKeyInput || urlInput)) {
+        metadata = {
+          ...(awsKeyInput ? { accessKeyId: awsKeyInput } : {}),
+          ...(urlInput ? { region: urlInput } : {}),
+        }
       }
       await api.createConnection(projectId, {
         provider,
@@ -1055,6 +1063,7 @@ function IntegrationCard({
       setUrlInput('')
       setAnonInput('')
       setReposInput('')
+      setAwsKeyInput('')
       onChanged()
     } catch (e) {
       setError((e as Error).message)
@@ -1167,6 +1176,22 @@ function IntegrationCard({
                   />
                 </>
               )}
+              {isAws && projectId && (
+                <>
+                  <input
+                    value={awsKeyInput}
+                    onChange={(e) => setAwsKeyInput(e.target.value)}
+                    placeholder="Access key ID — AKIA…"
+                    className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                  />
+                  <input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="Region — us-east-1"
+                    className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                  />
+                </>
+              )}
               {provider && !isOAuth && projectId && (
                 <input
                   value={tokenInput}
@@ -1176,7 +1201,9 @@ function IntegrationCard({
                       ? 'Service-role key (optional — for auth settings)'
                       : isGitlab
                         ? 'Project access token (read_api, read_repository)'
-                        : `${i.name} API token`
+                        : isAws
+                          ? 'Secret access key'
+                          : `${i.name} API token`
                   }
                   className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
                 />
