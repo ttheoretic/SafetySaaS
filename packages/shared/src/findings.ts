@@ -1,5 +1,13 @@
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 
+/**
+ * How trustworthy a finding is.
+ *  - `verified`  : read from the live source of truth (cloud API, auth config).
+ *  - `high`      : AST/structure-level static analysis (dataflow-aware).
+ *  - `heuristic` : pattern/regex match — may include false positives.
+ */
+export type Confidence = 'verified' | 'high' | 'heuristic';
+
 export type FindingCategory =
   | 'spof'
   | 'database'
@@ -24,6 +32,8 @@ export interface Finding {
   file?: string;
   /** 1-based line, when the finding is located to source. */
   line?: number;
+  /** How trustworthy this finding is (verified > high > heuristic). */
+  confidence?: Confidence;
 }
 
 /**
@@ -47,6 +57,8 @@ export interface CodeIssue {
   description: string;
   /** The offending source line(s), for display + AI context. */
   snippet?: string;
+  /** How trustworthy this issue is (verified > high > heuristic). */
+  confidence?: Confidence;
 }
 
 export const SEVERITY_ORDER: Record<Severity, number> = {

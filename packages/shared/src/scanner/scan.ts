@@ -34,8 +34,12 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   const vulnerabilities = repos.flatMap((r) => r.vulnerabilities ?? []);
   const codeFindings = [
     ...repos.flatMap((r) => r.codeFindings ?? []),
-    // Infra-level findings (e.g. Supabase auth/RLS) carried up from collectors.
-    ...(collection.findings ?? []),
+    // Infra-level findings (e.g. Supabase auth/RLS, AWS security groups) are read
+    // from the live source of truth — default them to verified confidence.
+    ...(collection.findings ?? []).map((f) => ({
+      confidence: 'verified' as const,
+      ...f,
+    })),
   ];
   const codeIssues = repos.flatMap((r) =>
     (r.codeIssues ?? []).map((c) => ({ ...c, repo: c.repo ?? r.repo })),

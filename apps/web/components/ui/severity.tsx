@@ -73,3 +73,39 @@ export function HealthText({ status }: { status: HealthStatus }) {
 }
 
 export { healthColor, healthBar }
+
+type Confidence = 'verified' | 'high' | 'heuristic'
+const confidenceStyle: Record<Confidence, { label: string; cls: string; title: string }> = {
+  verified: {
+    label: 'Verified',
+    cls: 'bg-ok/15 text-ok border-ok/30',
+    title: 'Read from the live source of truth (cloud/auth API)',
+  },
+  high: {
+    label: 'AST',
+    cls: 'bg-primary/15 text-primary border-primary/30',
+    title: 'AST/structure-level static analysis (dataflow-aware)',
+  },
+  heuristic: {
+    label: 'Heuristic',
+    cls: 'bg-muted text-muted-foreground border-border',
+    title: 'Pattern match — may include false positives',
+  },
+}
+
+/** Shows how trustworthy a finding is: Verified > AST > Heuristic. */
+export function ConfidenceBadge({ confidence }: { confidence?: Confidence }) {
+  if (!confidence) return null
+  const s = confidenceStyle[confidence]
+  return (
+    <span
+      title={s.title}
+      className={cn(
+        'inline-flex items-center rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider',
+        s.cls,
+      )}
+    >
+      {s.label}
+    </span>
+  )
+}

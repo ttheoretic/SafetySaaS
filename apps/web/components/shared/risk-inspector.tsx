@@ -13,7 +13,7 @@ import {
   Loader2,
   TrendingDown,
 } from 'lucide-react'
-import { SeverityBadge } from '@/components/ui/severity'
+import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { ActionButton } from '@/components/layout/screen-header'
 import type { Risk } from '@/lib/riscly-data'
 import { useRemediationPr } from '@/lib/use-project-data'
@@ -58,8 +58,9 @@ export function RiskInspector({
       {/* header */}
       <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <div className="mb-1.5 flex items-center gap-2">
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
             <SeverityBadge severity={risk.severity} />
+            <ConfidenceBadge confidence={risk.confidence} />
             <span className="font-mono text-[11px] text-muted-foreground">
               {risk.id}
             </span>

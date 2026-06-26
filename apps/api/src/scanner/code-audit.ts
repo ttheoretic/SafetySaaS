@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import type { CodeIssue, Finding, Severity } from '@riscly/shared';
 import { resilientFetch, mapWithConcurrency, CollectorContext } from './collectors/collector';
+import { analyzeJsAst, isJsLike, AST_OWNED_RULES } from './ast-audit';
 
 /** Max source files read in parallel — bounds the request fan-out on big repos. */
 const READ_CONCURRENCY = 8;
@@ -138,6 +139,7 @@ function findingFromIssue(i: CodeIssue): Finding {
     rule: i.rule,
     file: i.file,
     line: i.line,
+    confidence: i.confidence,
   };
 }
 
@@ -195,8 +197,9 @@ function auditDockerfile(file: string, content: string): CodeIssue[] {
   return out;
 }
 
-/** Run the secret + code rule set over one file's contents (line-located). */
-function auditFileContent(file: string, content: string): CodeIssue[] {
+/** Run the secret + code rule set over one file's contents (line-located).
+ *  `skipRules` lets the AST pass own certain rules for JS/TS (no duplicates). */
+function auditFileContent(file: string, content: string, skipRules?: Set<string>): CodeIssue[] {
   const out: CodeIssue[] = [];
   const lines = content.split('\n');
   const lang = langOf(file);
@@ -213,6 +216,7 @@ function auditFileContent(file: string, content: string): CodeIssue[] {
     }
     // Source-level vulnerability / quality rules.
     for (const r of CODE_RULES) {
+      if (skipRules?.has(r.rule)) continue;
       if (r.langs && !r.langs.includes(lang)) continue;
       if (!r.re.test(line)) continue;
       const seen = perRule.get(r.rule) ?? 0;
@@ -275,16 +279,26 @@ export function analyzeContents(
     }
   }
 
-  // 2) Per-file Dockerfile + code/secret rules.
+  // 2) Per-file Dockerfile + AST (JS/TS) + regex rules.
   for (const { path, content } of contents) {
     if (!content) continue;
     if (/(^|\/)Dockerfile(\.\w+)?$/i.test(path)) issues.push(...auditDockerfile(path, content));
-    issues.push(...auditFileContent(path, content));
+    if (isJsLike(path)) {
+      // AST-precise pass (confidence: high), with regex covering the rest
+      // (skipping the rules the AST owns to avoid duplicate, weaker findings).
+      issues.push(...analyzeJsAst(path, content));
+      issues.push(...auditFileContent(path, content, AST_OWNED_RULES));
+    } else {
+      issues.push(...auditFileContent(path, content));
+    }
   }
 
-  // De-dup identical issues (same id).
+  // De-dup identical issues (same id), then default un-tagged issues (regex,
+  // Docker, secret-file) to heuristic confidence — the AST pass already tags high.
   const seen = new Set<string>();
-  const deduped = issues.filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)));
+  const deduped = issues
+    .filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)))
+    .map((i) => (i.confidence ? i : { ...i, confidence: 'heuristic' as const }));
   return { issues: deduped, findings: deduped.map(findingFromIssue) };
 }
 

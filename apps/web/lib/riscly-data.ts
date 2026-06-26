@@ -35,6 +35,8 @@ export type Risk = {
   file?: string
   line?: number
   rule?: string
+  /** How trustworthy this finding is: verified > high (AST) > heuristic (regex). */
+  confidence?: 'verified' | 'high' | 'heuristic'
   exploitAvailable?: boolean
   inProduction?: boolean
   fix: string

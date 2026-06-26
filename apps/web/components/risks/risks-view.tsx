@@ -11,7 +11,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
-import { SeverityBadge } from '@/components/ui/severity'
+import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { severityOrder, type Severity, type Risk } from '@/lib/riscly-data'
 import { useRisks, useRemediationPr } from '@/lib/use-project-data'
@@ -194,7 +194,10 @@ function RiskRow({
           )}
         />
         <div className="min-w-0">
-          <div className="truncate text-sm">{risk.title}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-sm">{risk.title}</span>
+            <ConfidenceBadge confidence={risk.confidence} />
+          </div>
           <div className="truncate font-mono text-[10px] text-muted-foreground">
             {risk.id} · {risk.rule}
           </div>

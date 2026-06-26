@@ -37,6 +37,7 @@ export interface ApiFinding {
   rule?: string
   file?: string
   line?: number
+  confidence?: 'verified' | 'high' | 'heuristic'
 }
 
 /** Projects for the active org. Disabled until the auth store has a token. */
@@ -481,6 +482,7 @@ export function findingsToRisks(findings: ApiFinding[]): Risk[] {
         rule: f.rule ?? f.category,
         file: f.file,
         line: f.line,
+        confidence: f.confidence,
         fix: rec?.fix ?? '',
         riskReductionPct: rec?.riskReductionPct,
         references: rec?.references,
