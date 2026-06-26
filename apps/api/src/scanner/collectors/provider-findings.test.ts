@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { StripeCollector } from './stripe.collector';
 import { VercelCollector } from './vercel.collector';
+import { RenderCollector } from './render.collector';
+import { NeonCollector } from './neon.collector';
 import type { CollectorContext } from './collector';
 import type { ConnectionRecord } from '../../store/store.module';
 
@@ -82,5 +84,47 @@ describe('VercelCollector verified findings', () => {
     }) as unknown as typeof fetch;
     const res = await new VercelCollector().collect(conn('vercel'), ctxWith(fetchImpl, 'tok'));
     expect(res.findings ?? []).toHaveLength(0);
+  });
+});
+
+describe('RenderCollector verified findings', () => {
+  it('flags a Postgres instance open to 0.0.0.0/0', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('/v1/services')) return json([{ service: { id: 's1', name: 'api', type: 'web_service' } }]);
+      if (url.includes('/v1/postgres')) {
+        return json([
+          { postgres: { id: 'pg1', name: 'orders', ipAllowList: [{ cidrBlock: '0.0.0.0/0' }] } },
+          { postgres: { id: 'pg2', name: 'internal', ipAllowList: [{ cidrBlock: '10.0.0.0/8' }] } },
+        ]);
+      }
+      return json({}, false, 404);
+    }) as unknown as typeof fetch;
+
+    const res = await new RenderCollector().collect(conn('render'), ctxWith(fetchImpl, 'tok'));
+    const titles = (res.findings ?? []).map((f) => f.title);
+    expect(titles).toHaveLength(1);
+    expect(titles[0]).toContain('"orders" is open to the public internet');
+    expect(res.databases?.length).toBe(2);
+  });
+});
+
+describe('NeonCollector verified findings', () => {
+  it('flags a project with no IP allow list', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('/api/v2/projects')) {
+        return json({
+          projects: [
+            { id: 'a', name: 'open-db', settings: { allowed_ips: { ips: [] } } },
+            { id: 'b', name: 'locked-db', settings: { allowed_ips: { ips: ['1.2.3.4'] } } },
+          ],
+        });
+      }
+      return json({}, false, 404);
+    }) as unknown as typeof fetch;
+
+    const res = await new NeonCollector().collect(conn('neon'), ctxWith(fetchImpl, 'tok'));
+    const titles = (res.findings ?? []).map((f) => f.title);
+    expect(titles).toHaveLength(1);
+    expect(titles[0]).toContain('"open-db" has no IP allow list');
   });
 });
