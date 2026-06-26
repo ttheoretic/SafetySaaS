@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ScannerService } from './scanner.service';
 import { PROVIDER_COLLECTORS } from './collectors/collector';
 import { GithubCollector } from './collectors/github.collector';
+import { GitlabCollector } from './collectors/gitlab.collector';
 import { VercelCollector } from './collectors/vercel.collector';
 import { StripeCollector } from './collectors/stripe.collector';
 import { RenderCollector } from './collectors/render.collector';
@@ -16,6 +17,7 @@ import { MetadataCollector } from './collectors/metadata.collector';
  */
 const COLLECTORS = [
   GithubCollector,
+  GitlabCollector,
   VercelCollector,
   StripeCollector,
   RenderCollector,

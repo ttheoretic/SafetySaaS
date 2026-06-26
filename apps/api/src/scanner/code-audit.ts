@@ -229,17 +229,41 @@ export interface CodeAuditResult {
   issues: CodeIssue[];
 }
 
-export async function auditRepoCode(repo: string, ctx: CollectorContext): Promise<CodeAuditResult> {
-  if (!ctx.token) return { findings: [], issues: [] };
-  let tree: string[];
-  try {
-    tree = await listTree(repo, ctx);
-  } catch (err) {
-    logger.warn(`Code audit tree listing for ${repo} failed: ${(err as Error).message}`);
-    return { findings: [], issues: [] };
-  }
-  if (tree.length === 0) return { findings: [], issues: [] };
+/** A provider-agnostic view of a repo: list every blob path, read one file. Lets
+ *  GitHub, GitLab, etc. share the exact same SAST / secret rule engine. */
+export interface RepoFileSource {
+  listTree(): Promise<string[]>;
+  readFile(path: string): Promise<string | undefined>;
+}
 
+/**
+ * Pick the files worth reading from a repo tree: committed env/Docker/config and
+ * source files, skipping vendored/generated/build output, capped to the budget.
+ * Pure — no I/O.
+ */
+export function selectFilesToRead(tree: string[]): string[] {
+  const candidates = tree.filter((p) => !EXCLUDE_DIR.test(p) && !/\.min\.(js|css)$/.test(p));
+  const envFiles = candidates.filter((p) => /(^|\/)\.env(\.|$)/.test(p) && !isExampleEnv(p));
+  const dockerfiles = candidates.filter((p) => /(^|\/)Dockerfile(\.\w+)?$/i.test(p));
+  const sourceFiles = candidates.filter((p) => SOURCE_EXT.has(p.split('.').pop()?.toLowerCase() ?? ''));
+  const ranked = [
+    ...envFiles,
+    ...dockerfiles,
+    ...sourceFiles.filter((p) => !/(^|\/|\.)(test|spec|__tests__|e2e)(s)?(\.|\/|$)/i.test(p)),
+    ...sourceFiles.filter((p) => /(^|\/|\.)(test|spec|__tests__|e2e)(s)?(\.|\/|$)/i.test(p)),
+  ];
+  return [...new Set(ranked)].slice(0, MAX_FILE_READS);
+}
+
+/**
+ * Run the secret-file, Dockerfile and per-line code/secret rules over a repo's
+ * tree and already-fetched file contents. Pure — no I/O — so every provider can
+ * fetch its own way and share this engine.
+ */
+export function analyzeContents(
+  tree: string[],
+  contents: Array<{ path: string; content: string | undefined }>,
+): CodeAuditResult {
   const issues: CodeIssue[] = [];
 
   // 1) Committed secret-bearing files (presence alone is a finding).
@@ -251,26 +275,7 @@ export async function auditRepoCode(repo: string, ctx: CollectorContext): Promis
     }
   }
 
-  // 2) Select the files to read: env/Docker/config + source files across the
-  //    repo (skipping vendored, generated and build output), capped.
-  const candidates = tree.filter((p) => !EXCLUDE_DIR.test(p) && !/\.min\.(js|css)$/.test(p));
-  const envFiles = candidates.filter((p) => /(^|\/)\.env(\.|$)/.test(p) && !isExampleEnv(p));
-  const dockerfiles = candidates.filter((p) => /(^|\/)Dockerfile(\.\w+)?$/i.test(p));
-  const sourceFiles = candidates.filter((p) => SOURCE_EXT.has(p.split('.').pop()?.toLowerCase() ?? ''));
-  // Prioritise non-test source first so the budget covers real app code.
-  const ranked = [
-    ...envFiles,
-    ...dockerfiles,
-    ...sourceFiles.filter((p) => !/(^|\/|\.)(test|spec|__tests__|e2e)(s)?(\.|\/|$)/i.test(p)),
-    ...sourceFiles.filter((p) => /(^|\/|\.)(test|spec|__tests__|e2e)(s)?(\.|\/|$)/i.test(p)),
-  ];
-  const toRead = [...new Set(ranked)].slice(0, MAX_FILE_READS);
-
-  const contents = await mapWithConcurrency(toRead, READ_CONCURRENCY, async (path) => ({
-    path,
-    content: await readFile(repo, path, ctx),
-  }));
-
+  // 2) Per-file Dockerfile + code/secret rules.
   for (const { path, content } of contents) {
     if (!content) continue;
     if (/(^|\/)Dockerfile(\.\w+)?$/i.test(path)) issues.push(...auditDockerfile(path, content));
@@ -281,4 +286,31 @@ export async function auditRepoCode(repo: string, ctx: CollectorContext): Promis
   const seen = new Set<string>();
   const deduped = issues.filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)));
   return { issues: deduped, findings: deduped.map(findingFromIssue) };
+}
+
+/** Audit any repo via a file source (provider-agnostic). */
+export async function auditCodeSource(source: RepoFileSource): Promise<CodeAuditResult> {
+  let tree: string[];
+  try {
+    tree = await source.listTree();
+  } catch (err) {
+    logger.warn(`Code audit tree listing failed: ${(err as Error).message}`);
+    return { findings: [], issues: [] };
+  }
+  if (tree.length === 0) return { findings: [], issues: [] };
+
+  const toRead = selectFilesToRead(tree);
+  const contents = await mapWithConcurrency(toRead, READ_CONCURRENCY, async (path) => ({
+    path,
+    content: await source.readFile(path),
+  }));
+  return analyzeContents(tree, contents);
+}
+
+export async function auditRepoCode(repo: string, ctx: CollectorContext): Promise<CodeAuditResult> {
+  if (!ctx.token) return { findings: [], issues: [] };
+  return auditCodeSource({
+    listTree: () => listTree(repo, ctx),
+    readFile: (path) => readFile(repo, path, ctx),
+  });
 }
