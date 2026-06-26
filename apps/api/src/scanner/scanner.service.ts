@@ -5,8 +5,12 @@ import {
   SystemGraph,
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../store/store.module';
-import { CollectorContext, ProviderCollector, PROVIDER_COLLECTORS } from './collectors/collector';
+import { CollectorContext, ProviderCollector, PROVIDER_COLLECTORS, withTimeout } from './collectors/collector';
 import { MetadataCollector } from './collectors/metadata.collector';
+
+/** Hard cap on a single provider's collection — past this it yields nothing so
+ *  one stuck provider can never hang the whole scan. */
+const COLLECTOR_TIMEOUT_MS = 90_000;
 
 /**
  * Orchestrates provider collectors into a single SystemGraph.
@@ -52,14 +56,18 @@ export class ScannerService {
           fetchImpl,
           entitlements: opts.entitlements,
         };
-        try {
-          return await collector.collect(conn, ctx);
-        } catch (err) {
+        const work = collector.collect(conn, ctx).catch((err) => {
           this.logger.warn(
             `Collector for ${conn.provider} failed: ${(err as Error).message}`,
           );
           return {} as Partial<ScanCollection>;
-        }
+        });
+        return withTimeout(work, COLLECTOR_TIMEOUT_MS, () => {
+          this.logger.warn(
+            `Collector for ${conn.provider} timed out after ${COLLECTOR_TIMEOUT_MS}ms`,
+          );
+          return {} as Partial<ScanCollection>;
+        });
       }),
     );
 

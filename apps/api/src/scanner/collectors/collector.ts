@@ -42,6 +42,55 @@ export const PROVIDER_COLLECTORS = Symbol('PROVIDER_COLLECTORS');
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Run `fn` over `items` with at most `limit` in flight at once, preserving order.
+ * Keeps a large repo (dozens of files) from firing dozens of simultaneous
+ * requests and exhausting sockets / hitting rate limits.
+ */
+export async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const size = Math.max(1, Math.min(limit, items.length || 1));
+  const workers = Array.from({ length: size }, async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) break;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Resolve to `onTimeout()` if `p` hasn't settled within `ms`. The underlying
+ * work may keep running, but the caller stops waiting — so one stuck provider
+ * can never hang the whole scan. Rejections also fall back to `onTimeout()`.
+ */
+export function withTimeout<T>(
+  p: Promise<T>,
+  ms: number,
+  onTimeout: () => T,
+): Promise<T> {
+  return new Promise<T>((resolve) => {
+    const timer = setTimeout(() => resolve(onTimeout()), ms);
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(onTimeout());
+      },
+    );
+  });
+}
+
+/**
  * Provider HTTP call with a hard timeout and one retry on transient failures
  * (network error, 429, 5xx). Keeps a slow or flaky provider from stalling the
  * whole scan. Callers still handle the final Response / thrown error and fall

@@ -7,7 +7,7 @@ import type {
   ProviderId,
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
 import { auditRepoDependencies } from '../dependency-audit';
 import { auditRepoCode } from '../code-audit';
 
@@ -304,7 +304,8 @@ export class GithubCollector implements ProviderCollector {
   /** All blob paths in the repo's default branch (best-effort). */
   private async listTree(repo: string, ctx: CollectorContext): Promise<string[]> {
     try {
-      const res = await ctx.fetchImpl(
+      const res = await resilientFetch(
+        ctx.fetchImpl,
         `https://api.github.com/repos/${repo}/git/trees/HEAD?recursive=1`,
         { headers: this.headers(ctx) },
       );
@@ -325,7 +326,8 @@ export class GithubCollector implements ProviderCollector {
     path: string,
     ctx: CollectorContext,
   ): Promise<string | undefined> {
-    const res = await ctx.fetchImpl(
+    const res = await resilientFetch(
+      ctx.fetchImpl,
       `https://api.github.com/repos/${repo}/contents/${path}`,
       { headers: this.headers(ctx) },
     );
@@ -340,7 +342,8 @@ export class GithubCollector implements ProviderCollector {
     path: string,
     ctx: CollectorContext,
   ): Promise<any | undefined> {
-    const res = await ctx.fetchImpl(
+    const res = await resilientFetch(
+      ctx.fetchImpl,
       `https://api.github.com/repos/${repo}/contents/${path}`,
       { headers: this.headers(ctx) },
     );
@@ -359,7 +362,8 @@ export class GithubCollector implements ProviderCollector {
   }
 
   private async exists(repo: string, path: string, ctx: CollectorContext) {
-    const res = await ctx.fetchImpl(
+    const res = await resilientFetch(
+      ctx.fetchImpl,
       `https://api.github.com/repos/${repo}/contents/${path}`,
       { headers: this.headers(ctx), method: 'HEAD' },
     );

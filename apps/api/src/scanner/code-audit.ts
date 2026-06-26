@@ -1,6 +1,9 @@
 import { Logger } from '@nestjs/common';
 import type { CodeIssue, Finding, Severity } from '@riscly/shared';
-import { resilientFetch, CollectorContext } from './collectors/collector';
+import { resilientFetch, mapWithConcurrency, CollectorContext } from './collectors/collector';
+
+/** Max source files read in parallel — bounds the request fan-out on big repos. */
+const READ_CONCURRENCY = 8;
 
 /**
  * Code-level analysis (lightweight SAST). Scans a repo's source files for common
@@ -263,9 +266,10 @@ export async function auditRepoCode(repo: string, ctx: CollectorContext): Promis
   ];
   const toRead = [...new Set(ranked)].slice(0, MAX_FILE_READS);
 
-  const contents = await Promise.all(
-    toRead.map(async (path) => ({ path, content: await readFile(repo, path, ctx) })),
-  );
+  const contents = await mapWithConcurrency(toRead, READ_CONCURRENCY, async (path) => ({
+    path,
+    content: await readFile(repo, path, ctx),
+  }));
 
   for (const { path, content } of contents) {
     if (!content) continue;

@@ -1,5 +1,44 @@
 import { describe, it, expect, vi } from 'vitest';
-import { resilientFetch } from './collector';
+import { resilientFetch, mapWithConcurrency, withTimeout } from './collector';
+
+describe('mapWithConcurrency', () => {
+  it('preserves order and never exceeds the concurrency limit', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const items = Array.from({ length: 20 }, (_, i) => i);
+    const out = await mapWithConcurrency(items, 4, async (n) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight -= 1;
+      return n * 2;
+    });
+    expect(out).toEqual(items.map((n) => n * 2));
+    expect(peak).toBeLessThanOrEqual(4);
+  });
+
+  it('handles an empty list', async () => {
+    expect(await mapWithConcurrency([], 4, async () => 1)).toEqual([]);
+  });
+});
+
+describe('withTimeout', () => {
+  it('returns the value when it settles in time', async () => {
+    const v = await withTimeout(Promise.resolve('ok'), 1000, () => 'late');
+    expect(v).toBe('ok');
+  });
+
+  it('falls back when the work exceeds the timeout', async () => {
+    const slow = new Promise<string>((r) => setTimeout(() => r('done'), 50));
+    const v = await withTimeout(slow, 10, () => 'timed-out');
+    expect(v).toBe('timed-out');
+  });
+
+  it('falls back on rejection', async () => {
+    const v = await withTimeout(Promise.reject(new Error('x')), 1000, () => 'fallback');
+    expect(v).toBe('fallback');
+  });
+});
 
 describe('resilientFetch', () => {
   it('retries once on a 5xx then succeeds', async () => {
