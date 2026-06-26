@@ -925,7 +925,7 @@ const NAME_TO_PROVIDER: Record<string, string> = {
   Stripe: 'stripe',
 }
 // Providers connected via an OAuth redirect rather than a pasted token.
-const OAUTH_PROVIDERS = new Set(['github', 'gitlab'])
+const OAUTH_PROVIDERS = new Set(['github'])
 
 function IntegrationsPanel() {
   const { projectId } = useActiveProject()
@@ -1011,6 +1011,7 @@ function IntegrationCard({
   const [tokenInput, setTokenInput] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [anonInput, setAnonInput] = useState('')
+  const [reposInput, setReposInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -1019,6 +1020,8 @@ function IntegrationCard({
   // Supabase verified posture needs the project URL (+ optional anon key) so the
   // collector can read auth settings and probe RLS.
   const isSupabase = provider === 'supabase'
+  // GitLab is a token (PAT) connection that scans the listed project paths.
+  const isGitlab = provider === 'gitlab'
 
   async function connect() {
     if (!provider || !projectId) return
@@ -1030,10 +1033,19 @@ function IntegrationCard({
         window.location.href = url
         return
       }
-      const metadata =
-        isSupabase && (urlInput || anonInput)
-          ? { url: urlInput || undefined, anonKey: anonInput || undefined }
-          : undefined
+      let metadata: Record<string, unknown> | undefined
+      if (isSupabase && (urlInput || anonInput)) {
+        metadata = { url: urlInput || undefined, anonKey: anonInput || undefined }
+      } else if (isGitlab) {
+        const repos = reposInput
+          .split(',')
+          .map((r) => r.trim())
+          .filter(Boolean)
+        metadata = {
+          ...(repos.length ? { repos, selectedRepos: repos } : {}),
+          ...(urlInput ? { baseUrl: urlInput } : {}),
+        }
+      }
       await api.createConnection(projectId, {
         provider,
         token: tokenInput || undefined,
@@ -1042,6 +1054,7 @@ function IntegrationCard({
       setTokenInput('')
       setUrlInput('')
       setAnonInput('')
+      setReposInput('')
       onChanged()
     } catch (e) {
       setError((e as Error).message)
@@ -1138,6 +1151,22 @@ function IntegrationCard({
                   />
                 </>
               )}
+              {isGitlab && projectId && (
+                <>
+                  <input
+                    value={reposInput}
+                    onChange={(e) => setReposInput(e.target.value)}
+                    placeholder="Projects — group/app, group/api (comma-separated)"
+                    className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                  />
+                  <input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="Self-hosted URL (optional) — https://gitlab.example.com"
+                    className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                  />
+                </>
+              )}
               {provider && !isOAuth && projectId && (
                 <input
                   value={tokenInput}
@@ -1145,7 +1174,9 @@ function IntegrationCard({
                   placeholder={
                     isSupabase
                       ? 'Service-role key (optional — for auth settings)'
-                      : `${i.name} API token (optional for demo)`
+                      : isGitlab
+                        ? 'Project access token (read_api, read_repository)'
+                        : `${i.name} API token`
                   }
                   className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
                 />
