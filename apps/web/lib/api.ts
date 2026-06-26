@@ -1,6 +1,7 @@
 import type {
   SystemGraph,
   SimulationType,
+  SimulationParams,
   BusinessContext,
   PlanLimits,
   Plan,
@@ -170,9 +171,19 @@ export const api = {
   simulate: (
     graph: SystemGraph,
     type: SimulationType,
-    business?: BusinessContext,
-    durationHours = 1,
-  ) => post('/analyze/simulate', { graph, type, business, durationHours }),
+    opts: {
+      params?: SimulationParams
+      business?: BusinessContext
+      durationHours?: number
+    } = {},
+  ) =>
+    post('/analyze/simulate', {
+      graph,
+      type,
+      params: opts.params,
+      business: opts.business,
+      durationHours: opts.durationHours ?? 1,
+    }),
   report: (graph: SystemGraph, business?: BusinessContext) =>
     post('/analyze/report', { graph, business }),
   predict: (graph: SystemGraph, currentUsers?: number) =>
