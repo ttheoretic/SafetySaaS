@@ -1009,11 +1009,16 @@ function IntegrationCard({
 }) {
   const [open, setOpen] = useState(false)
   const [tokenInput, setTokenInput] = useState('')
+  const [urlInput, setUrlInput] = useState('')
+  const [anonInput, setAnonInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const canConnect = Boolean(provider && projectId && !isConnected)
   const isOAuth = provider ? OAUTH_PROVIDERS.has(provider) : false
+  // Supabase verified posture needs the project URL (+ optional anon key) so the
+  // collector can read auth settings and probe RLS.
+  const isSupabase = provider === 'supabase'
 
   async function connect() {
     if (!provider || !projectId) return
@@ -1025,11 +1030,18 @@ function IntegrationCard({
         window.location.href = url
         return
       }
+      const metadata =
+        isSupabase && (urlInput || anonInput)
+          ? { url: urlInput || undefined, anonKey: anonInput || undefined }
+          : undefined
       await api.createConnection(projectId, {
         provider,
         token: tokenInput || undefined,
+        ...(metadata ? { metadata } : {}),
       })
       setTokenInput('')
+      setUrlInput('')
+      setAnonInput('')
       onChanged()
     } catch (e) {
       setError((e as Error).message)
@@ -1110,11 +1122,31 @@ function IntegrationCard({
 
           {!isConnected && (
             <div className="mt-3">
+              {isSupabase && projectId && (
+                <>
+                  <input
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="Project URL — https://xxxx.supabase.co"
+                    className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                  />
+                  <input
+                    value={anonInput}
+                    onChange={(e) => setAnonInput(e.target.value)}
+                    placeholder="anon public key (enables RLS checks)"
+                    className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                  />
+                </>
+              )}
               {provider && !isOAuth && projectId && (
                 <input
                   value={tokenInput}
                   onChange={(e) => setTokenInput(e.target.value)}
-                  placeholder={`${i.name} API token (optional for demo)`}
+                  placeholder={
+                    isSupabase
+                      ? 'Service-role key (optional — for auth settings)'
+                      : `${i.name} API token (optional for demo)`
+                  }
                   className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
                 />
               )}
