@@ -81,12 +81,14 @@ function mergeCollections(parts: Partial<ScanCollection>[]): ScanCollection {
     clouds: [],
     databases: [],
     billing: [],
+    findings: [],
   };
   for (const part of parts) {
     merged.repos!.push(...(part.repos ?? []));
     merged.clouds!.push(...(part.clouds ?? []));
     merged.databases!.push(...(part.databases ?? []));
     merged.billing!.push(...(part.billing ?? []));
+    merged.findings!.push(...(part.findings ?? []));
   }
   return merged;
 }

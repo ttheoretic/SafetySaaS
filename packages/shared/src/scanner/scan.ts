@@ -32,7 +32,11 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   // dashboard alongside the topology.
   const repos = collection.repos ?? [];
   const vulnerabilities = repos.flatMap((r) => r.vulnerabilities ?? []);
-  const codeFindings = repos.flatMap((r) => r.codeFindings ?? []);
+  const codeFindings = [
+    ...repos.flatMap((r) => r.codeFindings ?? []),
+    // Infra-level findings (e.g. Supabase auth/RLS) carried up from collectors.
+    ...(collection.findings ?? []),
+  ];
   const codeIssues = repos.flatMap((r) =>
     (r.codeIssues ?? []).map((c) => ({ ...c, repo: c.repo ?? r.repo })),
   );

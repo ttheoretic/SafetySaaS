@@ -70,6 +70,10 @@ export interface ScanCollection {
   clouds?: CloudSignals[];
   databases?: DatabaseSignals[];
   billing?: BillingSignals[];
+  /** Infra-level security findings from verified collectors (e.g. Supabase auth
+   *  misconfig, RLS disabled) — not tied to a repo. Carried into the graph and
+   *  the reliability score alongside code findings. */
+  findings?: import('../findings').Finding[];
 }
 
 /**
