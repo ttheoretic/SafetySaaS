@@ -1,5 +1,36 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseNpmLock, parseRequirements, parseYarnLock, parsePnpmLock, auditResolvedDeps } from './dependency-audit';
+import { parseNpmLock, parseRequirements, parseYarnLock, parsePnpmLock, parseGoSum, parsePoetryLock, auditResolvedDeps } from './dependency-audit';
+
+describe('go.sum + poetry.lock parsing', () => {
+  it('parses Go modules from go.sum (deduped, ignores /go.mod hashes)', () => {
+    const go = [
+      'github.com/gin-gonic/gin v1.9.1 h1:abc=',
+      'github.com/gin-gonic/gin v1.9.1/go.mod h1:def=',
+      'golang.org/x/crypto v0.14.0 h1:ghi=',
+    ].join('\n');
+    expect(parseGoSum(go)).toEqual([
+      { name: 'github.com/gin-gonic/gin', version: 'v1.9.1', ecosystem: 'Go' },
+      { name: 'golang.org/x/crypto', version: 'v0.14.0', ecosystem: 'Go' },
+    ]);
+  });
+
+  it('parses packages from a poetry.lock', () => {
+    const poetry = `
+[[package]]
+name = "fastapi"
+version = "0.110.0"
+description = "x"
+
+[[package]]
+name = "pydantic"
+version = "2.6.1"
+`;
+    expect(parsePoetryLock(poetry)).toEqual([
+      { name: 'fastapi', version: '0.110.0', ecosystem: 'PyPI' },
+      { name: 'pydantic', version: '2.6.1', ecosystem: 'PyPI' },
+    ]);
+  });
+});
 
 describe('lockfile parsing', () => {
   it('parses resolved versions from an npm v3 lockfile', () => {

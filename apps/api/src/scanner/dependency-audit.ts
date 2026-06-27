@@ -73,6 +73,33 @@ export function parseNpmLock(raw: string): ResolvedDep[] {
   return out;
 }
 
+/** Extract resolved Go modules from a go.sum (deduped; ignores the /go.mod hashes). */
+export function parseGoSum(raw: string): ResolvedDep[] {
+  const out: ResolvedDep[] = [];
+  const seen = new Set<string>();
+  for (const line of raw.split('\n')) {
+    const m = line.match(/^(\S+)\s+(v\S+?)(?:\/go\.mod)?\s+h1:/);
+    if (!m) continue;
+    const [, name, version] = m;
+    const key = `${name}@${version}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ name, version, ecosystem: 'Go' });
+  }
+  return out;
+}
+
+/** Extract resolved PyPI deps from a poetry.lock ([[package]] blocks). */
+export function parsePoetryLock(raw: string): ResolvedDep[] {
+  const out: ResolvedDep[] = [];
+  for (const block of raw.split(/\[\[package\]\]/).slice(1)) {
+    const name = block.match(/\bname\s*=\s*"([^"]+)"/);
+    const version = block.match(/\bversion\s*=\s*"([^"]+)"/);
+    if (name && version) out.push({ name: name[1], version: version[1], ecosystem: 'PyPI' });
+  }
+  return out;
+}
+
 /** Extract pinned PyPI deps (`name==1.2.3`) from a requirements.txt. */
 export function parseRequirements(raw: string): ResolvedDep[] {
   const out: ResolvedDep[] = [];
@@ -233,24 +260,32 @@ export async function auditResolvedDeps(
   return out.sort((a, b) => order.indexOf(b.severity) - order.indexOf(a.severity));
 }
 
-/** Resolve a repo's lockfiles/manifests and audit them against OSV. */
+export interface DependencyAuditResult {
+  vulnerabilities: DependencyVulnerability[];
+  /** The full resolved component set (for the SBOM), not just vulnerable ones. */
+  components: ResolvedDep[];
+}
+
+/** Resolve a repo's lockfiles/manifests and audit them against OSV. Returns the
+ *  full resolved component list (SBOM) plus the known vulnerabilities. */
 export async function auditRepoDependencies(
   repo: string,
   ctx: CollectorContext,
-): Promise<DependencyVulnerability[]> {
+): Promise<DependencyAuditResult> {
   const deps: ResolvedDep[] = [];
 
-  const npmLock = await readFile(repo, 'package-lock.json', ctx);
-  if (npmLock) deps.push(...parseNpmLock(npmLock));
-
-  const yarnLock = await readFile(repo, 'yarn.lock', ctx);
-  if (yarnLock) deps.push(...parseYarnLock(yarnLock));
-
-  const pnpmLock = await readFile(repo, 'pnpm-lock.yaml', ctx);
-  if (pnpmLock) deps.push(...parsePnpmLock(pnpmLock));
-
-  const requirements = await readFile(repo, 'requirements.txt', ctx);
-  if (requirements) deps.push(...parseRequirements(requirements));
+  const lockfiles: Array<[string, (raw: string) => ResolvedDep[]]> = [
+    ['package-lock.json', parseNpmLock],
+    ['yarn.lock', parseYarnLock],
+    ['pnpm-lock.yaml', parsePnpmLock],
+    ['requirements.txt', parseRequirements],
+    ['poetry.lock', parsePoetryLock],
+    ['go.sum', parseGoSum],
+  ];
+  for (const [path, parse] of lockfiles) {
+    const raw = await readFile(repo, path, ctx);
+    if (raw) deps.push(...parse(raw));
+  }
 
   // De-dup across lockfiles (a repo may ship more than one).
   const seen = new Set<string>();
@@ -261,11 +296,12 @@ export async function auditRepoDependencies(
     return true;
   });
 
-  if (unique.length === 0) return [];
+  if (unique.length === 0) return { vulnerabilities: [], components: [] };
   try {
-    return await auditResolvedDeps(unique, repo, ctx.fetchImpl);
+    const vulnerabilities = await auditResolvedDeps(unique, repo, ctx.fetchImpl);
+    return { vulnerabilities, components: unique };
   } catch (err) {
     logger.warn(`Dependency audit for ${repo} failed: ${(err as Error).message}`);
-    return [];
+    return { vulnerabilities: [], components: unique };
   }
 }

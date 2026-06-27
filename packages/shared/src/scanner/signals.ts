@@ -30,6 +30,8 @@ export interface RepoSignals {
   hostProvider?: ProviderId;
   /** Known vulnerabilities in this repo's resolved dependency tree (SCA). */
   vulnerabilities?: import('../vulnerabilities').DependencyVulnerability[];
+  /** The full resolved dependency set (SBOM) — direct and transitive. */
+  components?: import('../model').ComponentRef[];
   /** Code-level security findings (committed secrets, insecure config, …). */
   codeFindings?: import('../findings').Finding[];
   /** Line-located code issues (file + line + rule + snippet) for the code view. */

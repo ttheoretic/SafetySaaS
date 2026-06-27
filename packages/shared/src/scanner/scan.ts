@@ -32,6 +32,14 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   // dashboard alongside the topology.
   const repos = collection.repos ?? [];
   const vulnerabilities = repos.flatMap((r) => r.vulnerabilities ?? []);
+  // Full SBOM component set, de-duplicated across repos/lockfiles.
+  const compSeen = new Set<string>();
+  const components = repos
+    .flatMap((r) => r.components ?? [])
+    .filter((c) => {
+      const k = `${c.ecosystem}:${c.name}@${c.version}`;
+      return compSeen.has(k) ? false : (compSeen.add(k), true);
+    });
   const codeFindings = [
     ...repos.flatMap((r) => r.codeFindings ?? []),
     // Infra-level findings (e.g. Supabase auth/RLS, AWS security groups) are read
@@ -47,6 +55,7 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   return {
     ...graph,
     ...(vulnerabilities.length ? { vulnerabilities } : {}),
+    ...(components.length ? { components } : {}),
     ...(codeFindings.length ? { codeFindings } : {}),
     ...(codeIssues.length ? { codeIssues } : {}),
   };

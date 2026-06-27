@@ -8,7 +8,7 @@ import type {
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
-import { auditRepoDependencies } from '../dependency-audit';
+import { auditRepoDependencies, ResolvedDep } from '../dependency-audit';
 import { auditRepoCode } from '../code-audit';
 
 /** Framework detection across ecosystems (npm exact names + Python/Go modules). */
@@ -254,6 +254,7 @@ export class GithubCollector implements ProviderCollector {
     // Deep analysis: lockfiles → OSV (SCA), and the file tree for committed
     // secrets / insecure config (SAST). Resilient — a failure never drops signals.
     let vulnerabilities: DependencyVulnerability[] | undefined;
+    let components: ResolvedDep[] | undefined;
     let codeFindings: Finding[] | undefined;
     let codeIssues: CodeIssue[] | undefined;
     if (ctx.token) {
@@ -261,7 +262,7 @@ export class GithubCollector implements ProviderCollector {
       // growth+. Undefined entitlements default to enabled (tests / public path).
       const scaEnabled = ctx.entitlements?.sca !== false;
       const codeEnabled = ctx.entitlements?.codeAudit !== false;
-      const [vulns, code] = await Promise.all([
+      const [sca, code] = await Promise.all([
         scaEnabled
           ? auditRepoDependencies(repo, ctx).catch((err) => {
               this.logger.warn(`Dependency audit of ${repo} failed: ${(err as Error).message}`);
@@ -275,7 +276,8 @@ export class GithubCollector implements ProviderCollector {
             })
           : Promise.resolve(undefined),
       ]);
-      vulnerabilities = vulns;
+      vulnerabilities = sca?.vulnerabilities;
+      components = sca?.components;
       codeFindings = code?.findings;
       codeIssues = code?.issues.map((i) => ({ ...i, repo }));
     }
@@ -297,6 +299,7 @@ export class GithubCollector implements ProviderCollector {
       ...(codeIssues && codeIssues.length ? { codeIssues } : {}),
       ...(hostProvider ? { hostProvider } : {}),
       ...(vulnerabilities && vulnerabilities.length ? { vulnerabilities } : {}),
+      ...(components && components.length ? { components } : {}),
       ...(codeFindings && codeFindings.length ? { codeFindings } : {}),
     };
   }

@@ -63,12 +63,21 @@ export interface SystemEdge {
   criticality?: number;
 }
 
+/** A resolved dependency component (for the SBOM). */
+export interface ComponentRef {
+  name: string;
+  version: string;
+  ecosystem: string;
+}
+
 export interface SystemGraph {
   nodes: SystemNode[];
   edges: SystemEdge[];
   /** Known dependency vulnerabilities (SCA), when the scanner read the code.
    *  Optional so topology-only graphs and the demo remain unaffected. */
   vulnerabilities?: import('./vulnerabilities').DependencyVulnerability[];
+  /** Full resolved dependency set (SBOM) — every direct & transitive package. */
+  components?: ComponentRef[];
   /** Code-level security findings (committed secrets, insecure config, …). */
   codeFindings?: import('./findings').Finding[];
   /** Line-located code issues for the code view (file + line + rule + snippet). */

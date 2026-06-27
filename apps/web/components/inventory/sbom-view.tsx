@@ -23,9 +23,21 @@ type Component = {
 export function SbomView() {
   const { graph, loading } = useSystemGraph()
   const vulns = graph?.vulnerabilities ?? []
+  const resolved = graph?.components ?? []
 
   const components = useMemo<Component[]>(() => {
     const map = new Map<string, Component>()
+    // Seed with the full resolved dependency set (the real SBOM).
+    for (const c of resolved) {
+      map.set(`${c.ecosystem}:${c.name}@${c.version}`, {
+        name: c.name,
+        version: c.version,
+        ecosystem: c.ecosystem,
+        advisories: 0,
+        worst: null,
+      })
+    }
+    // Annotate with advisories (and include any vulnerable pkg not in the set).
     for (const v of vulns) {
       const key = `${v.ecosystem}:${v.package}@${v.version}`
       const sev = v.severity as Severity
@@ -40,8 +52,11 @@ export function SbomView() {
       if (!c.worst || severityOrder[sev] < severityOrder[c.worst]) c.worst = sev
       map.set(key, c)
     }
-    return [...map.values()].sort((a, b) => b.advisories - a.advisories)
-  }, [vulns])
+    // Vulnerable first, then alphabetical.
+    return [...map.values()].sort(
+      (a, b) => b.advisories - a.advisories || a.name.localeCompare(b.name),
+    )
+  }, [resolved, vulns])
 
   const exportCycloneDx = () => {
     const bom = {
@@ -91,7 +106,7 @@ export function SbomView() {
             <p className="mt-1 text-xs text-muted-foreground">
               {loading
                 ? 'Reading the latest scan.'
-                : 'Run a scan to resolve your dependencies. Full transitive SBOM (every direct and indirect package) lands with the dedicated SCA engine.'}
+                : 'Run a scan to resolve your dependencies from their lockfiles (npm, yarn, pnpm, PyPI, Poetry, Go) into a full bill of materials.'}
             </p>
           </div>
         </div>
@@ -99,8 +114,9 @@ export function SbomView() {
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <div className="mx-auto max-w-4xl">
             <p className="mb-3 text-[11px] text-muted-foreground">
-              Showing components Riscly has resolved so far (those carrying advisories).
-              Full transitive resolution and license inventory arrive with SCA.
+              Every direct and transitive dependency resolved from your lockfiles
+              (npm, yarn, pnpm, PyPI, Poetry, Go). Components with advisories are
+              listed first.
             </p>
             <div className="overflow-hidden rounded-md border border-border">
               <table className="w-full text-left text-xs">
