@@ -16,6 +16,7 @@ import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { BillingService } from '../billing/billing.service';
 import { ScanProcessor } from './scan.processor';
+import { MonitoringService } from './monitoring.service';
 
 class StartScanDto {
   /** Optional pre-built graph (skips the scanner entirely). */
@@ -214,6 +215,6 @@ class ScansController {
 @Module({
   imports: [StoreModule, AnalyzeModule, AiModule, ScannerModule],
   controllers: [ScansController],
-  providers: [ScanProcessor],
+  providers: [ScanProcessor, MonitoringService],
 })
 export class ScansModule {}

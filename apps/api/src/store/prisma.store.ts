@@ -19,7 +19,20 @@ export class PrismaStore extends Store {
     return d ? d.toISOString() : undefined;
   }
 
+  async ping() {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // --- Projects ---
+  async listAllProjects() {
+    const rows = await this.prisma.project.findMany();
+    return rows.map((r) => this.toProject(r));
+  }
   async createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>) {
     const row = await this.prisma.project.create({
       data: {

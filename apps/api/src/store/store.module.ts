@@ -120,8 +120,14 @@ export interface AuditLogRecord {
 
 /** The repository contract every backend implements. */
 export abstract class Store {
+  /** Cheap connectivity check for readiness probes. Resolves true when the
+   *  backing store is reachable. */
+  abstract ping(): Promise<boolean>;
+
   abstract createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>): Promise<ProjectRecord>;
   abstract listProjects(orgId: string): Promise<ProjectRecord[]>;
+  /** Every project across all orgs — for the continuous-monitoring sweep. */
+  abstract listAllProjects(): Promise<ProjectRecord[]>;
   abstract getProject(id: string): Promise<ProjectRecord | undefined>;
   abstract updateProject(id: string, patch: Partial<ProjectRecord>): Promise<ProjectRecord | undefined>;
 
@@ -187,6 +193,14 @@ export class InMemoryStore extends Store {
 
   private stamp<T>(input: T): T & { id: string; createdAt: string } {
     return { id: randomUUID(), createdAt: new Date().toISOString(), ...input };
+  }
+
+  async ping() {
+    return true;
+  }
+
+  async listAllProjects() {
+    return [...this.projects.values()];
   }
 
   async createProject(input: Omit<ProjectRecord, 'id' | 'createdAt'>) {
