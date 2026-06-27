@@ -353,6 +353,19 @@ export const api = {
       `/projects/${projectId}/scenarios/${scenarioId}/run`,
       {},
     ),
+  /** Organization audit trail with actor (admins+ only; 403 otherwise). */
+  auditLogs: () =>
+    get<
+      Array<{
+        id: string
+        action: string
+        targetType?: string
+        targetId?: string
+        metadata?: Record<string, unknown>
+        createdAt: string
+        actor: { id: string; name?: string; email?: string } | null
+      }>
+    >('/orgs/audit-logs'),
   orgMembers: () =>
     get<Array<{ userId: string; email?: string; name?: string; role: string }>>('/orgs/members'),
   listInvitations: () =>

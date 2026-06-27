@@ -65,11 +65,36 @@ class OrgsController {
     );
   }
 
-  /** Audit log for the active organization. Admins+ only. */
+  /** Audit log for the active organization, with the actor resolved. Admins+. */
   @Get('orgs/audit-logs')
   @RequirePermission('member:manage')
-  auditLogs(@Auth() auth: AuthContext) {
-    return this.store.listAuditLogs(auth.org.id);
+  async auditLogs(@Auth() auth: AuthContext) {
+    const logs = await this.store.listAuditLogs(auth.org.id);
+    const recent = [...logs]
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+      .slice(0, 200);
+
+    // Resolve each distinct actor once.
+    const actorIds = [...new Set(recent.map((l) => l.actorUserId).filter(Boolean))] as string[];
+    const actors = new Map<string, { name?: string; email?: string }>();
+    await Promise.all(
+      actorIds.map(async (id) => {
+        const u = await this.store.getUser(id);
+        if (u) actors.set(id, { name: u.name, email: u.email });
+      }),
+    );
+
+    return recent.map((l) => ({
+      id: l.id,
+      action: l.action,
+      targetType: l.targetType,
+      targetId: l.targetId,
+      metadata: l.metadata,
+      createdAt: l.createdAt,
+      actor: l.actorUserId
+        ? { id: l.actorUserId, ...(actors.get(l.actorUserId) ?? {}) }
+        : null,
+    }));
   }
 }
 
