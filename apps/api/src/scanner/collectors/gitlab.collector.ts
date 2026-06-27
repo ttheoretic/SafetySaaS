@@ -58,7 +58,7 @@ export class GitlabCollector implements ProviderCollector {
       readFile: (path) => this.readFile(base, pid, path, branch, ctx),
     };
 
-    const code = await auditCodeSource(source).catch((err) => {
+    const code = await auditCodeSource(source, ctx.fetchImpl).catch((err) => {
       this.logger.warn(`GitLab code audit of ${repo} failed: ${(err as Error).message}`);
       return undefined;
     });

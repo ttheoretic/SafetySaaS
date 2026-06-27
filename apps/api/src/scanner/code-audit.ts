@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import type { CodeIssue, Finding, Severity } from '@riscly/shared';
 import { resilientFetch, mapWithConcurrency, CollectorContext } from './collectors/collector';
 import { analyzeJsAst, isJsLike, AST_OWNED_RULES } from './ast-audit';
+import { verifySecrets } from './secret-verify';
 
 /** Max source files read in parallel — bounds the request fan-out on big repos. */
 const READ_CONCURRENCY = 8;
@@ -302,8 +303,12 @@ export function analyzeContents(
   return { issues: deduped, findings: deduped.map(findingFromIssue) };
 }
 
-/** Audit any repo via a file source (provider-agnostic). */
-export async function auditCodeSource(source: RepoFileSource): Promise<CodeAuditResult> {
+/** Audit any repo via a file source (provider-agnostic). When `fetchImpl` is
+ *  given, detected secrets are live-verified and confirmed ones upgraded. */
+export async function auditCodeSource(
+  source: RepoFileSource,
+  fetchImpl?: typeof fetch,
+): Promise<CodeAuditResult> {
   let tree: string[];
   try {
     tree = await source.listTree();
@@ -318,13 +323,23 @@ export async function auditCodeSource(source: RepoFileSource): Promise<CodeAudit
     path,
     content: await source.readFile(path),
   }));
-  return analyzeContents(tree, contents);
+  const result = analyzeContents(tree, contents);
+
+  // Live-verify secrets; a confirmed key becomes a critical, verified finding.
+  if (fetchImpl) {
+    await verifySecrets(result.issues, contents, fetchImpl);
+    result.findings = result.issues.map(findingFromIssue);
+  }
+  return result;
 }
 
 export async function auditRepoCode(repo: string, ctx: CollectorContext): Promise<CodeAuditResult> {
   if (!ctx.token) return { findings: [], issues: [] };
-  return auditCodeSource({
-    listTree: () => listTree(repo, ctx),
-    readFile: (path) => readFile(repo, path, ctx),
-  });
+  return auditCodeSource(
+    {
+      listTree: () => listTree(repo, ctx),
+      readFile: (path) => readFile(repo, path, ctx),
+    },
+    ctx.fetchImpl,
+  );
 }
