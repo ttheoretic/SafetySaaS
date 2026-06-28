@@ -23,7 +23,7 @@ export interface OnboardingState {
 }
 
 const MAP: Record<ResolvedStatus, { nextHref: string; ctaLabel: string }> = {
-  'needs-billing': { nextHref: '/billing', ctaLabel: 'Continue setup' },
+  'needs-billing': { nextHref: '/billing', ctaLabel: 'Unlock full results' },
   'needs-onboarding': { nextHref: '/get-started', ctaLabel: 'Continue setup' },
   ready: { nextHref: '/portfolio', ctaLabel: 'Open workspace' },
 }
@@ -63,24 +63,27 @@ export function useOnboardingState(): OnboardingState {
     staleTime: 10_000,
     queryFn: async (): Promise<ResolvedStatus> => {
       const me = await api.me()
-      let status: ResolvedStatus
-      if (!me.subscription.active) {
-        status = 'needs-billing'
-      } else {
-        const projects = await api.listProjects()
-        status = 'needs-onboarding'
-        for (const p of projects) {
-          try {
-            const scans = await api.listScans(p.id)
-            if (scans.some((s) => s.status === 'succeeded')) {
-              status = 'ready'
-              break
-            }
-          } catch {
-            /* ignore and keep checking */
+      // Value-first ordering: onboarding (connect + first scan) gates FIRST, so a
+      // new user reaches their score for free. Only AFTER they've scanned does
+      // the paywall apply — the aha-moment, then the ask.
+      const projects = await api.listProjects()
+      let hasScanned = false
+      for (const p of projects) {
+        try {
+          const scans = await api.listScans(p.id)
+          if (scans.some((s) => s.status === 'succeeded')) {
+            hasScanned = true
+            break
           }
+        } catch {
+          /* ignore and keep checking */
         }
       }
+      const status: ResolvedStatus = !hasScanned
+        ? 'needs-onboarding'
+        : !me.subscription.active
+          ? 'needs-billing'
+          : 'ready'
       writeCached(status)
       return status
     },

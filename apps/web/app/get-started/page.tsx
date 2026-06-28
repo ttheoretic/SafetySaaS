@@ -79,6 +79,7 @@ export default function GetStartedPage() {
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
   const [ready, setReady] = useState(false)
   const [step, setStep] = useState<Step>('workspace')
+  const [subscribed, setSubscribed] = useState(false)
   const [workspace, setWorkspace] = useState('')
   const [projectName, setProjectName] = useState('My SaaS')
   const [projectId, setProjectId] = useState('')
@@ -160,10 +161,10 @@ export default function GetStartedPage() {
           me = await meSafe()
         }
         if (!me) throw new Error('Could not load your account.')
-        if (!me.subscription.active) {
-          router.replace('/billing')
-          return
-        }
+        // Value-first: onboarding (connect + first scan) runs WITHOUT payment.
+        // The paywall comes after the score, on the result step.
+        const subscribed = Boolean(me.subscription.active)
+        setSubscribed(subscribed)
 
         setWorkspace(me.activeOrg.name)
 
@@ -182,7 +183,9 @@ export default function GetStartedPage() {
           }
           if (cancelled) return
           if (scanned) {
-            router.replace('/portfolio')
+            // Already onboarded: subscribers go to their workspace, others to
+            // the paywall (they've seen value on a prior run).
+            router.replace(subscribed ? '/portfolio' : '/billing')
             return
           }
           setProjectId(existing.id)
@@ -602,11 +605,18 @@ export default function GetStartedPage() {
                   </div>
                 )}
                 <button
-                  onClick={() => router.push('/portfolio')}
+                  onClick={() => router.push(subscribed ? '/portfolio' : '/billing')}
                   className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:opacity-90"
                 >
-                  Go to your repositories <ArrowRight className="size-4" />
+                  {subscribed ? 'Go to your repositories' : 'Unlock all findings & fixes'}{' '}
+                  <ArrowRight className="size-4" />
                 </button>
+                {!subscribed && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Your score is free. Subscribe to see every finding, its exact
+                    location and an AI fix.
+                  </p>
+                )}
               </div>
             )}
 

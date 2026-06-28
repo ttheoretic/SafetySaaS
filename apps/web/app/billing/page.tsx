@@ -19,6 +19,8 @@ export default function BillingPage() {
   const [busy, setBusy] = useState<Plan | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [canceled, setCanceled] = useState(false)
+  // The score the user already earned for free — shown to anchor the paywall.
+  const [teaser, setTeaser] = useState<{ risk: number; critical: number } | null>(null)
 
   useEffect(() => {
     if (!hydrated) return
@@ -33,8 +35,35 @@ export default function BillingPage() {
       .me()
       .then((m) => {
         // Already subscribed → no reason to sit on the paywall.
-        if (m.subscription.active) router.replace('/portfolio')
-        else setMe(m)
+        if (m.subscription.active) {
+          router.replace('/portfolio')
+          return
+        }
+        setMe(m)
+        // Pull the score they already earned for free, to anchor the paywall.
+        void (async () => {
+          try {
+            const projects = await api.listProjects()
+            for (const p of projects) {
+              const scans = (await api.listScans(p.id)) as Array<{
+                status: string
+                reliabilityScore?: number
+                findings?: Array<{ severity: string }>
+              }>
+              const ok = scans.find(
+                (s) => s.status === 'succeeded' && typeof s.reliabilityScore === 'number',
+              )
+              if (ok) {
+                const risk = Math.max(0, Math.min(100, Math.round(100 - (ok.reliabilityScore as number))))
+                const critical = (ok.findings ?? []).filter((f) => f.severity === 'critical').length
+                setTeaser({ risk, critical })
+                break
+              }
+            }
+          } catch {
+            /* teaser is best-effort */
+          }
+        })()
       })
       .catch(() => {})
   }, [hydrated, token, router])
@@ -58,12 +87,32 @@ export default function BillingPage() {
           <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary">
             <ShieldCheck className="size-3.5" /> Choose a plan to unlock Riscly
           </div>
-          <h1 className="text-2xl font-semibold">Activate your workspace</h1>
+          <h1 className="text-2xl font-semibold">Unlock your full results</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Riscly needs an active subscription. Pick a plan to start analyzing
-            your architecture.
+            Your risk score is free. Subscribe to see every finding, its exact
+            location and an AI-generated fix.
           </p>
         </div>
+
+        {teaser && (
+          <div className="mb-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-5 py-4 text-center">
+            <div>
+              <span className="font-mono text-2xl font-semibold">{teaser.risk}</span>
+              <span className="ml-1.5 text-sm text-muted-foreground">/ 100 risk</span>
+            </div>
+            {teaser.critical > 0 && (
+              <div className="text-sm">
+                <span className="font-semibold text-critical">{teaser.critical}</span>{' '}
+                <span className="text-muted-foreground">
+                  critical finding{teaser.critical === 1 ? '' : 's'} — locked
+                </span>
+              </div>
+            )}
+            <span className="text-xs text-muted-foreground">
+              Subscribe to reveal what they are and how to fix them.
+            </span>
+          </div>
+        )}
 
         {canceled && (
           <p className="mb-6 rounded-lg border border-high/40 bg-high/10 px-4 py-3 text-center text-sm text-high">
