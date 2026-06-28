@@ -7,7 +7,7 @@
  * aggregation — so reports can always trace a number back to its causes.
  */
 
-import { Finding, severityFromWeight } from './findings';
+import { Finding, severityFromWeight, Confidence } from './findings';
 import { SystemGraph, SystemNode } from './model';
 import { singlePointsOfFailure } from './graph';
 import { vulnerabilitiesToFindings } from './vulnerabilities';
@@ -30,6 +30,30 @@ const VENDOR_LOCK_PROVIDERS = new Set(['stripe', 'supabase', 'neon', 'openai']);
  *  a tail of low-severity markers can't single-handedly zero an otherwise sound
  *  system — yet enough that real insecure code lands firmly in the danger zone. */
 const CODE_PENALTY_CAP = 80;
+/** Symmetric cap on the topology penalty. */
+const TOPOLOGY_PENALTY_CAP = 70;
+
+/**
+ * How much a finding counts toward the score, by confidence. A proven fact
+ * (verified) counts in full; an AST result nearly so; a pattern/regex guess
+ * counts less, since it may be a false positive. Keeps the score honest: what's
+ * proven risky weighs more than what's merely suspected.
+ */
+function confidenceFactor(confidence?: Confidence): number {
+  switch (confidence) {
+    case 'verified':
+      return 1;
+    case 'high':
+      return 0.85;
+    case 'heuristic':
+      return 0.6;
+    default:
+      return 1; // topology findings (derived from the graph) count in full
+  }
+}
+
+const weighted = (findings: Finding[]): number =>
+  findings.reduce((sum, f) => sum + f.weight * confidenceFactor(f.confidence), 0);
 
 export function reliabilityScore(graph: SystemGraph): ReliabilityResult {
   const findings: Finding[] = [];
@@ -119,8 +143,8 @@ export function reliabilityScore(graph: SystemGraph): ReliabilityResult {
     });
   }
 
-  // Topology penalty: each finding's full weight.
-  const topologyPenalty = findings.reduce((sum, f) => sum + f.weight, 0);
+  // Topology penalty: confidence-weighted, capped for symmetry with code.
+  const topologyPenalty = Math.min(TOPOLOGY_PENALTY_CAP, weighted(findings));
 
   // 6. Code-level findings (SAST: secrets, injection, insecure config) and
   //    dependency vulnerabilities (SCA: known CVEs) carried up by the scanner.
@@ -135,11 +159,9 @@ export function reliabilityScore(graph: SystemGraph): ReliabilityResult {
 
   // Cap the *aggregate* code/dependency penalty so a long tail of low-severity
   // markers can't alone zero out the score, while still letting genuinely
-  // insecure code push a repo deep into the danger zone.
-  const codePenalty = Math.min(
-    CODE_PENALTY_CAP,
-    codeFindings.reduce((sum, f) => sum + f.weight, 0),
-  );
+  // insecure code push a repo deep into the danger zone. Confidence-weighted, so
+  // a heuristic guess dents the score less than a verified fact.
+  const codePenalty = Math.min(CODE_PENALTY_CAP, weighted(codeFindings));
 
   const penalty = topologyPenalty + codePenalty;
   const score = Math.max(0, Math.min(100, Math.round(100 - penalty)));

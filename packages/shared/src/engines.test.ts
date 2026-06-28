@@ -48,6 +48,20 @@ describe('reliability engine', () => {
     expect(reliabilityScore(exampleGraph)).toEqual(reliabilityScore(exampleGraph));
   });
 
+  it('a heuristic finding dents the score less than a verified one', () => {
+    const base: SystemGraph = { nodes: [{ id: 'svc', name: 'api', kind: 'service' }], edges: [] }
+    const finding = (confidence: 'verified' | 'heuristic') => ({
+      ...base,
+      codeFindings: [
+        { category: 'security' as const, severity: 'high' as const, title: 'x', description: '', weight: 14, confidence },
+      ],
+    })
+    const verified = reliabilityScore(finding('verified')).score
+    const heuristic = reliabilityScore(finding('heuristic')).score
+    // Same severity, but the unproven (heuristic) one penalizes less → higher score.
+    expect(heuristic).toBeGreaterThan(verified)
+  })
+
   it('penalizes missing backups as critical', () => {
     const r = reliabilityScore(exampleGraph);
     const backup = r.findings.find((f) => f.category === 'backup');

@@ -47,6 +47,9 @@ export function vulnerabilitiesToFindings(vulns: DependencyVulnerability[]): Fin
       (v.fixedVersion ? ` Fixed in ${v.fixedVersion}.` : ' No fixed version published yet.') +
       ` (${v.repo})`,
     weight: SEVERITY_WEIGHT[v.severity],
+    // The package resolves to this exact version and OSV lists this advisory —
+    // a verified fact, not a guess.
+    confidence: 'verified' as const,
   }));
 }
 
