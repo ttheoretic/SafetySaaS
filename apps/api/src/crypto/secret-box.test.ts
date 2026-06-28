@@ -35,4 +35,14 @@ describe('SecretBox (AES-256-GCM)', () => {
   it('rejects a key of the wrong length', () => {
     expect(() => new SecretBox(Buffer.from('short').toString('base64'))).toThrow();
   });
+
+  it('refuses to start in production without a key', () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      expect(() => new SecretBox(undefined)).toThrow(/required in production/);
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
+  });
 });

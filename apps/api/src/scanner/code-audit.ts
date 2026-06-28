@@ -198,6 +198,20 @@ function auditDockerfile(file: string, content: string): CodeIssue[] {
   return out;
 }
 
+/**
+ * Mask the secret matched by `re` in a line so we never persist the raw
+ * credential — a security product must not store customers' secrets. Keeps a
+ * short hint (first 3 / last 2 chars of long values) so the user can locate it.
+ */
+export function redactSecret(line: string, re: RegExp): string {
+  const flags = re.flags.includes('g') ? re.flags : re.flags + 'g';
+  return line
+    .replace(new RegExp(re.source, flags), (m) =>
+      m.length <= 6 ? '••••' : `${m.slice(0, 3)}••••${m.slice(-2)}`,
+    )
+    .trim();
+}
+
 /** Run the secret + code rule set over one file's contents (line-located).
  *  `skipRules` lets the AST pass own certain rules for JS/TS (no duplicates). */
 function auditFileContent(file: string, content: string, skipRules?: Set<string>): CodeIssue[] {
@@ -209,10 +223,10 @@ function auditFileContent(file: string, content: string, skipRules?: Set<string>
   for (let idx = 0; idx < lines.length; idx++) {
     const line = lines[idx];
     if (line.length > 1000) continue; // skip minified / generated lines
-    // Secrets (any file type).
+    // Secrets (any file type) — store a REDACTED snippet, never the raw secret.
     for (const r of SECRET_RULES) {
       if (r.re.test(line)) {
-        out.push(issue({ file, line: idx + 1, rule: r.rule, severity: r.severity, title: `Possible ${r.name} in code`, description: `A value matching a ${r.name} pattern was found. Remove it from source, rotate the credential, and load it from a secret manager / environment variable.`, snippet: line.trim().slice(0, 200) }));
+        out.push(issue({ file, line: idx + 1, rule: r.rule, severity: r.severity, title: `Possible ${r.name} in code`, description: `A value matching a ${r.name} pattern was found. Remove it from source, rotate the credential, and load it from a secret manager / environment variable.`, snippet: redactSecret(line, r.re).slice(0, 200) }));
       }
     }
     // Source-level vulnerability / quality rules.

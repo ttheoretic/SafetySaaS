@@ -1,5 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
-import { auditRepoCode } from './code-audit';
+import { auditRepoCode, redactSecret } from './code-audit';
+
+describe('redactSecret', () => {
+  it('masks the matched secret but keeps a locating hint', () => {
+    // Built at runtime so the literal isn't a scannable secret in source.
+    const fake = 'sk_' + 'live_' + 'a'.repeat(24);
+    const re = /sk_live_[0-9a-zA-Z]{20,}/;
+    const out = redactSecret(`const k = "${fake}"`, re);
+    expect(out).not.toContain(fake);
+    expect(out).toContain('••••');
+    expect(out).toContain('sk_'); // short hint preserved
+  });
+
+  it('fully masks very short matches', () => {
+    expect(redactSecret('x=secret', /secret/)).toBe('x=••••');
+  });
+});
 
 /** Build a fetch that serves a tree listing and file contents from a map. */
 function fakeRepo(tree: string[], files: Record<string, string>) {

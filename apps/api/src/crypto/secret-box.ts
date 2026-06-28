@@ -23,6 +23,12 @@ export class SecretBox {
         throw new Error('CONNECTION_ENCRYPTION_KEY must be base64-encoded 32 bytes');
       }
       this.key = key;
+    } else if (process.env.NODE_ENV === 'production') {
+      // Never run prod with an ephemeral key: stored tokens would be
+      // unrecoverable after a restart and effectively unprotected.
+      throw new Error(
+        'CONNECTION_ENCRYPTION_KEY is required in production (base64-encoded 32 bytes).',
+      );
     } else {
       SecretBox.logger.warn(
         'CONNECTION_ENCRYPTION_KEY not set — using an ephemeral dev key. ' +

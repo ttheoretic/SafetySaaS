@@ -30,6 +30,21 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     cors: origins.length ? { origin: origins, credentials: true } : true,
   });
+
+  // Baseline security headers (JSON API; no helmet dependency needed).
+  app.getHttpAdapter().getInstance()?.disable?.('x-powered-by');
+  app.use((_req: any, res: any, next: any) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    }
+    next();
+  });
+
   // Capture the raw body for Stripe webhook signature verification.
   app.use('/api/billing/webhook', (req: any, _res: any, next: any) => {
     if (req.method !== 'POST') return next();
