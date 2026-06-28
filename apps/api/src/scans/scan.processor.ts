@@ -1,11 +1,13 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
-import { exampleGraph, hasFeature, planLimits, Plan, SystemGraph } from '@riscly/shared';
+import { exampleGraph, hasFeature, planLimits, Plan, SystemGraph, Finding } from '@riscly/shared';
 import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
 import { JOB_QUEUE, JobQueue } from '../jobs/job-queue';
 import { SecretBox } from '../crypto/secret-box';
+import { EMAIL_PROVIDER, EmailProvider } from '../email/email.module';
+import { buildCriticalAlertEmail, newAlertableFindings } from './alerts';
 import { isGithubAppConfigured, mintInstallationToken } from '../oauth/github-app';
 
 export interface ScanJob {
@@ -34,7 +36,28 @@ export class ScanProcessor implements OnModuleInit {
     private readonly scanner: ScannerService,
     private readonly secrets: SecretBox,
     @Inject(JOB_QUEUE) private readonly queue: JobQueue,
+    @Inject(EMAIL_PROVIDER) private readonly email: EmailProvider,
   ) {}
+
+  /** Email the org's members when a scan introduces new critical/verified risks. */
+  private async alert(projectId: string, current: Finding[], prior: Finding[]) {
+    const fresh = newAlertableFindings(current, prior);
+    if (fresh.length === 0) return;
+
+    const project = await this.store.getProject(projectId);
+    if (!project) return;
+    const members = await this.store.listMembershipsForOrg(project.orgId);
+    const recipients: string[] = [];
+    for (const m of members.slice(0, 25)) {
+      const user = await this.store.getUser(m.userId);
+      if (user?.email) recipients.push(user.email);
+    }
+    if (recipients.length === 0) return;
+
+    const { subject, html } = buildCriticalAlertEmail(project.name, fresh, process.env.APP_URL);
+    await Promise.all(recipients.map((to) => this.email.send({ to, subject, html })));
+    this.logger.log(`Sent ${fresh.length}-risk alert for ${project.name} to ${recipients.length} recipient(s)`);
+  }
 
   onModuleInit() {
     this.queue.process<ScanJob>('scan', (data) => this.handle(data));
@@ -103,6 +126,11 @@ export class ScanProcessor implements OnModuleInit {
           ? await this.scanner.scan(connections, { tokens, entitlements })
           : exampleGraph;
       }
+      // Capture the prior scan's findings before this one becomes "succeeded",
+      // so we can alert only on what's newly introduced.
+      const prior = (await this.store.listScans(job.projectId)).find(
+        (s) => s.id !== job.scanId && s.status === 'succeeded',
+      );
       const analysis = this.analyze.reliability(graph);
       await this.store.updateScan(job.scanId, {
         status: 'succeeded',
@@ -112,6 +140,10 @@ export class ScanProcessor implements OnModuleInit {
         recommendations: analysis.recommendations,
         finishedAt: new Date().toISOString(),
       });
+      // Best-effort: notify the org of new critical / verified risks.
+      void this.alert(job.projectId, analysis.findings, (prior?.findings as Finding[]) ?? []).catch((e) =>
+        this.logger.warn(`Alert for scan ${job.scanId} failed: ${(e as Error).message}`),
+      );
     } catch (err) {
       this.logger.error(`Scan ${job.scanId} failed: ${(err as Error).message}`);
       await this.store.updateScan(job.scanId, {
