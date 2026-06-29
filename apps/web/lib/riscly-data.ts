@@ -34,6 +34,8 @@ export type Risk = {
   components: string[]
   file?: string
   line?: number
+  /** "owner/name" of the repo, for code-located findings (enables one-click fix). */
+  repo?: string
   rule?: string
   /** How trustworthy this finding is: verified > high (AST) > heuristic (regex). */
   confidence?: 'verified' | 'high' | 'heuristic'

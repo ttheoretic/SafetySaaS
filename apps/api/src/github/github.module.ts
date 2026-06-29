@@ -43,6 +43,7 @@ function findingFromIssue(i: CodeIssue): Finding {
     rule: i.rule,
     file: i.file,
     line: i.line,
+    repo: i.repo,
   };
 }
 

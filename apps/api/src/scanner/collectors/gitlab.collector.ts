@@ -63,7 +63,7 @@ export class GitlabCollector implements ProviderCollector {
       return undefined;
     });
 
-    const codeFindings = code?.findings ?? [];
+    const codeFindings = (code?.findings ?? []).map((f) => ({ ...f, repo }));
     const codeIssues = (code?.issues ?? []).map((i) => ({ ...i, repo }));
     if (codeFindings.length === 0 && codeIssues.length === 0) return undefined;
 

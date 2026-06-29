@@ -37,6 +37,7 @@ export interface ApiFinding {
   rule?: string
   file?: string
   line?: number
+  repo?: string
   confidence?: 'verified' | 'high' | 'heuristic'
 }
 
@@ -482,6 +483,7 @@ export function findingsToRisks(findings: ApiFinding[]): Risk[] {
         rule: f.rule ?? f.category,
         file: f.file,
         line: f.line,
+        repo: f.repo,
         confidence: f.confidence,
         fix: rec?.fix ?? '',
         riskReductionPct: rec?.riskReductionPct,

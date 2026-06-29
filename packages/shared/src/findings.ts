@@ -32,6 +32,8 @@ export interface Finding {
   file?: string;
   /** 1-based line, when the finding is located to source. */
   line?: number;
+  /** "owner/name" of the repo, when the finding is located to source. */
+  repo?: string;
   /** How trustworthy this finding is (verified > high > heuristic). */
   confidence?: Confidence;
 }

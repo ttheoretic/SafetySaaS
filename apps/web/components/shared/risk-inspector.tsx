@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   X,
@@ -12,11 +13,13 @@ import {
   BookOpen,
   Loader2,
   TrendingDown,
+  ExternalLink,
 } from 'lucide-react'
 import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { ActionButton } from '@/components/layout/screen-header'
 import type { Risk } from '@/lib/riscly-data'
-import { useRemediationPr } from '@/lib/use-project-data'
+import { api } from '@/lib/api'
+import { useActiveProject, useRemediationPr } from '@/lib/use-project-data'
 
 function Section({
   label,
@@ -47,6 +50,52 @@ export function RiskInspector({
 }) {
   const router = useRouter()
   const remediation = useRemediationPr()
+  const { projectId } = useActiveProject()
+
+  // A code-located finding (file + rule + repo) can get a real AI code fix.
+  const canFix = Boolean(projectId && risk.repo && risk.file && risk.rule)
+  const [fix, setFix] = useState<{ fixed: string | null; explanation: string | null; aiEnabled: boolean } | null>(null)
+  const [fixBusy, setFixBusy] = useState(false)
+  const [prUrl, setPrUrl] = useState<string | null>(null)
+  const [prBusy, setPrBusy] = useState(false)
+  const [fixError, setFixError] = useState<string | null>(null)
+
+  const fixBody = () => ({
+    repo: risk.repo as string,
+    file: risk.file as string,
+    line: risk.line,
+    rule: risk.rule as string,
+    title: risk.title,
+    description: risk.description,
+  })
+
+  async function seeFix() {
+    if (!projectId || !canFix) return
+    setFixBusy(true)
+    setFixError(null)
+    try {
+      setFix(await api.codeFix(projectId, fixBody()))
+    } catch (e) {
+      setFixError((e as Error).message)
+    } finally {
+      setFixBusy(false)
+    }
+  }
+
+  async function applyFix() {
+    if (!projectId || !canFix) return
+    setPrBusy(true)
+    setFixError(null)
+    try {
+      const r = await api.codeFixPr(projectId, fixBody())
+      setPrUrl(r.url)
+      if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer')
+    } catch (e) {
+      setFixError((e as Error).message)
+    } finally {
+      setPrBusy(false)
+    }
+  }
 
   function askAi() {
     const q = `I'm looking at the risk "${risk.title}". ${risk.description} What's the business impact and exactly how do I fix it?`
@@ -161,6 +210,25 @@ export function RiskInspector({
           </Section>
         )}
 
+        {fix && (
+          <Section label="AI code fix" icon={<WandSparkles className="size-3 text-primary" />}>
+            {fix.explanation && (
+              <p className="mb-2 text-xs leading-relaxed text-foreground/90">{fix.explanation}</p>
+            )}
+            {fix.fixed ? (
+              <pre className="max-h-56 overflow-auto rounded-md bg-muted p-2 font-mono text-[11px] leading-relaxed">
+                {fix.fixed}
+              </pre>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {fix.aiEnabled
+                  ? 'No automated fix could be generated for this finding — apply the recommended fix manually.'
+                  : 'AI fixes are not enabled on this server (set ANTHROPIC_API_KEY).'}
+              </p>
+            )}
+          </Section>
+        )}
+
         {risk.references && risk.references.length > 0 && (
           <Section label="References" icon={<BookOpen className="size-3" />}>
             <ul className="space-y-1.5">
@@ -189,34 +257,64 @@ export function RiskInspector({
 
       {/* sticky actions */}
       <div className="shrink-0 space-y-2 border-t border-border p-3">
-        <ActionButton
-          variant="primary"
-          className="w-full justify-center"
-          onClick={remediation.open}
-          disabled={!remediation.canOpen || remediation.busy}
-          title="Open a pull request on your connected repo with a remediation plan for these risks"
-        >
-          {remediation.busy ? (
-            <Loader2 className="size-3.5 animate-spin" />
+        {canFix ? (
+          !fix ? (
+            // Step 1: generate & explain the fix.
+            <ActionButton
+              variant="primary"
+              className="w-full justify-center"
+              onClick={seeFix}
+              disabled={fixBusy}
+              title="Generate an AI code fix and explain the change"
+            >
+              {fixBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+              {fixBusy ? 'Generating fix…' : 'See fix'}
+            </ActionButton>
           ) : (
-            <GitPullRequestArrow className="size-3.5" />
-          )}
-          {remediation.busy ? 'Opening PR…' : 'Open PR'}
-        </ActionButton>
-        <div className="grid grid-cols-2 gap-2">
-          <ActionButton className="justify-center" onClick={askAi}>
-            <Bot className="size-3.5" />
-            Ask AI
-          </ActionButton>
+            // Step 2: push the fix as a pull request.
+            <ActionButton
+              variant="primary"
+              className="w-full justify-center"
+              onClick={applyFix}
+              disabled={prBusy || !fix.fixed}
+              title="Open a pull request that applies this fix to your repo"
+            >
+              {prBusy ? <Loader2 className="size-3.5 animate-spin" /> : <GitPullRequestArrow className="size-3.5" />}
+              {prUrl ? 'PR opened' : prBusy ? 'Pushing fix…' : 'Apply fix — open PR'}
+            </ActionButton>
+          )
+        ) : (
+          // No code location → fall back to a remediation-plan PR.
           <ActionButton
-            className="justify-center"
-            disabled
-            title="Direct one-click code fixes need line-level analysis — coming soon. Use Ask AI or Open PR for now."
+            variant="primary"
+            className="w-full justify-center"
+            onClick={remediation.open}
+            disabled={!remediation.canOpen || remediation.busy}
+            title="Open a pull request on your connected repo with a remediation plan"
           >
-            <WandSparkles className="size-3.5" />
-            Apply fix
+            {remediation.busy ? <Loader2 className="size-3.5 animate-spin" /> : <GitPullRequestArrow className="size-3.5" />}
+            {remediation.busy ? 'Opening PR…' : 'Open remediation PR'}
           </ActionButton>
-        </div>
+        )}
+
+        {prUrl && (
+          <a
+            href={prUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-1.5 text-xs font-medium text-ok hover:bg-ok/15"
+          >
+            <ExternalLink className="size-3.5" /> View pull request
+          </a>
+        )}
+        {(fixError || remediation.error) && (
+          <p className="text-[11px] text-destructive">{fixError ?? remediation.error}</p>
+        )}
+
+        <ActionButton className="w-full justify-center" onClick={askAi}>
+          <Bot className="size-3.5" />
+          Ask AI
+        </ActionButton>
       </div>
     </div>
   )

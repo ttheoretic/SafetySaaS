@@ -278,7 +278,7 @@ export class GithubCollector implements ProviderCollector {
       ]);
       vulnerabilities = sca?.vulnerabilities;
       components = sca?.components;
-      codeFindings = code?.findings;
+      codeFindings = code?.findings.map((f) => ({ ...f, repo }));
       codeIssues = code?.issues.map((i) => ({ ...i, repo }));
     }
 
