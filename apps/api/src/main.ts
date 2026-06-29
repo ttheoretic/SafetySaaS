@@ -21,6 +21,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { createErrorReporter } from './common/error-reporter';
 
 async function bootstrap() {
   // CORS: restrict to an allowlist when configured, otherwise allow all (dev).
@@ -64,7 +65,10 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, transform: true }),
   );
   // Catch-all first (most general), Prisma filter last so it wins for DB errors.
-  app.useGlobalFilters(new AllExceptionsFilter(), new PrismaExceptionFilter());
+  app.useGlobalFilters(
+    new AllExceptionsFilter(createErrorReporter()),
+    new PrismaExceptionFilter(),
+  );
 
   // Hosts like Render/Railway/Fly inject the port via $PORT; honor it first.
   const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);

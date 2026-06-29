@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
+import type { ErrorReporter } from './error-reporter';
 
 /**
  * Catch-all exception filter — production hygiene. A security product must not
@@ -18,6 +19,8 @@ import type { Request, Response } from 'express';
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('Exceptions');
+
+  constructor(private readonly reporter?: ErrorReporter) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -50,6 +53,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `[${requestId}] ${req?.method} ${req?.url} — ${(exception as Error)?.message ?? exception}`,
       (exception as Error)?.stack,
     );
+    this.reporter?.captureException(exception, {
+      requestId,
+      method: req?.method,
+      url: req?.url,
+    });
     res.setHeader('X-Request-Id', requestId);
     res.status(500).json({ statusCode: 500, message: 'Internal server error', requestId });
   }
