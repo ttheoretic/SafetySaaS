@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Global, Headers, Logger, Module, Post, Req,
+  BadRequestException, Body, Controller, Get, Global, Headers, Logger, Module, Post, Req,
 } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import type { Request } from 'express';
@@ -55,6 +55,18 @@ class BillingController {
     const result = await this.billing.createCheckout(auth.org, dto.plan, auth.user.email);
     this.audit.record(auth, 'billing.checkout', { type: 'org', id: auth.org.id }, { plan: dto.plan });
     return result;
+  }
+
+  /** Stripe customer-portal URL for managing the subscription. */
+  @Post('portal')
+  @RequirePermission('billing:manage')
+  async portal(@Auth() auth: AuthContext) {
+    const returnUrl = `${process.env.APP_URL ?? 'http://localhost:3000'}/settings`;
+    const url = await this.billing.portalUrl(auth.org, returnUrl);
+    if (!url) {
+      throw new BadRequestException('No billing portal available for this workspace.');
+    }
+    return { url };
   }
 
   /**

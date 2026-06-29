@@ -206,6 +206,8 @@ export const api = {
   billing: () => get<BillingResponse>('/billing'),
   billingDetails: () => get<BillingDetailsResponse>('/billing/details'),
   checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
+  /** Stripe customer-portal URL to manage the subscription (change/cancel/card). */
+  billingPortal: () => post<{ url: string }>('/billing/portal', {}),
   /** Confirm a Stripe Checkout Session on return so access is granted at once. */
   confirmCheckout: (sessionId: string) =>
     post<{ active: boolean }>('/billing/confirm', { sessionId }),

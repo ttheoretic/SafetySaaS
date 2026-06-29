@@ -43,6 +43,11 @@ export interface BillingProvider {
    * providers that can't surface this (the local provider) omit it.
    */
   billingDetails?(stripeCustomerId: string): Promise<BillingDetails>;
+  /**
+   * Create a customer-portal session so the user can manage their subscription
+   * (change plan, update card, cancel). Optional — only the Stripe provider.
+   */
+  createPortalSession?(stripeCustomerId: string, returnUrl: string): Promise<{ url: string }>;
 }
 
 /** A past invoice for the billing customer. */

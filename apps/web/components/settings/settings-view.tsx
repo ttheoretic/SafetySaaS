@@ -895,6 +895,22 @@ function BillingPanel() {
   const invoices = details.data?.invoices ?? []
   const card = details.data?.paymentMethod ?? null
   const billingEmail = me.data?.user.email ?? ''
+  const plan = (me.data?.activeOrg.plan as Plan | undefined) ?? 'starter'
+  const repoMax = PLAN_LIMITS[plan]?.maxProjects ?? 1
+  const [portalBusy, setPortalBusy] = useState(false)
+
+  async function manageSubscription() {
+    setPortalBusy(true)
+    try {
+      const { url } = await api.billingPortal()
+      window.location.href = url
+    } catch {
+      // No Stripe portal (e.g. local provider) → fall back to the plans page.
+      router.push('/billing')
+    } finally {
+      setPortalBusy(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -922,23 +938,23 @@ function BillingPanel() {
             </p>
           </div>
           <button
-            onClick={() => router.push('/billing')}
-            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            onClick={active ? manageSubscription : () => router.push('/billing')}
+            disabled={portalBusy}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {active ? 'Change plan' : 'Choose plan'} <ArrowUpRight className="size-3.5" />
+            {portalBusy ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : null}
+            {active ? 'Manage subscription' : 'Choose plan'} <ArrowUpRight className="size-3.5" />
           </button>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-border border-t border-border">
-          {[
-            { label: 'Repositories', value: '14 / 25' },
-            { label: 'Seats', value: '8 / 15' },
-            { label: 'Scans this month', value: '1,284' },
-          ].map((s) => (
-            <div key={s.label} className="px-3 py-3">
-              <p className="font-mono text-lg font-semibold">{s.value}</p>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-            </div>
-          ))}
+        <div className="border-t border-border px-3 py-3">
+          <p className="text-xs text-muted-foreground">
+            Your <span className="capitalize text-foreground">{planLabel}</span> plan
+            includes {Number.isFinite(repoMax) ? repoMax : 'unlimited'} repositor
+            {repoMax === 1 ? 'y' : 'ies'}. Manage your plan, payment method or cancel
+            via the billing portal.
+          </p>
         </div>
       </Panel>
 
@@ -957,8 +973,9 @@ function BillingPanel() {
           }
           control={
             <button
-              onClick={() => router.push('/billing')}
-              className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              onClick={active ? manageSubscription : () => router.push('/billing')}
+              disabled={portalBusy}
+              className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
             >
               {card ? 'Update' : 'Add'}
             </button>

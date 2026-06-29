@@ -61,6 +61,22 @@ export class BillingService {
     }
   }
 
+  /**
+   * A Stripe customer-portal URL for the org to manage its subscription, or
+   * null when there's no portal (local provider) or no customer yet.
+   */
+  async portalUrl(org: OrganizationRecord, returnUrl: string): Promise<string | null> {
+    if (!this.provider.createPortalSession) return null;
+    const sub = await this.store.getSubscription(org.id);
+    if (!sub?.stripeCustomerId) return null;
+    try {
+      const { url } = await this.provider.createPortalSession(sub.stripeCustomerId, returnUrl);
+      return url;
+    } catch {
+      return null;
+    }
+  }
+
   parseWebhook(rawBody: string, signature?: string): BillingEvent | null {
     return this.provider.parseWebhook(rawBody, signature);
   }

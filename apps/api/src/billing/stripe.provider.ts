@@ -80,6 +80,15 @@ export class StripeBillingProvider implements BillingProvider {
     }
   }
 
+  /** Customer-portal session: manage plan / card / cancellation on Stripe. */
+  async createPortalSession(stripeCustomerId: string, returnUrl: string): Promise<{ url: string }> {
+    const session = await this.stripe.billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: returnUrl,
+    });
+    return { url: session.url };
+  }
+
   /** Recent invoices + default card for the Stripe customer. */
   async billingDetails(stripeCustomerId: string): Promise<BillingDetails> {
     const [invoiceList, customer] = await Promise.all([
