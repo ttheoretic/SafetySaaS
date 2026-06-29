@@ -122,6 +122,88 @@ export class OAuthService {
     };
   }
 
+  /**
+   * Connect GitHub from an already-issued access token (e.g. the provider_token
+   * captured during GitHub social login), so the OAuth/connect step happens
+   * automatically at sign-in. Lists the user's repos and stores an encrypted
+   * connection. Idempotent: if the org already has a GitHub connection, its repo
+   * list is refreshed and its project reused — no duplicate project.
+   */
+  async connectGithubFromToken(
+    orgId: string,
+    accessToken: string,
+    fetchImpl: typeof fetch = fetch,
+  ): Promise<{ projectId: string; repos: string[] }> {
+    const headers = {
+      authorization: `Bearer ${accessToken}`,
+      accept: 'application/vnd.github+json',
+      'user-agent': 'riscly',
+    };
+    const login = await this.ghJson<string | undefined>(
+      fetchImpl,
+      'https://api.github.com/user',
+      headers,
+      (b) => (b as { login?: string })?.login,
+    );
+    const repos =
+      (await this.ghJson<string[]>(
+        fetchImpl,
+        'https://api.github.com/user/repos?per_page=50&sort=updated',
+        headers,
+        (b) => (Array.isArray(b) ? b.map((r) => r.full_name).filter(Boolean) : []),
+      )) ?? [];
+
+    // Idempotent: reuse an existing GitHub connection (refresh its repos).
+    const projects = await this.store.listProjects(orgId);
+    for (const p of projects) {
+      const conns = await this.store.listConnections(p.id);
+      const gh = conns.find((c) => c.provider === 'github');
+      if (gh) {
+        await this.store.updateConnectionMetadata(gh.id, {
+          ...(gh.metadata ?? {}),
+          login,
+          repos,
+        });
+        return { projectId: p.id, repos };
+      }
+    }
+
+    const name = 'My SaaS';
+    const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
+    const project = await this.store.createProject({
+      orgId,
+      name,
+      slug,
+      environment: 'production',
+    });
+    await this.store.createConnection({
+      orgId,
+      projectId: project.id,
+      provider: 'github',
+      status: 'active',
+      metadata: { login, repos },
+      encryptedToken: this.secrets.encrypt(accessToken),
+    });
+    return { projectId: project.id, repos };
+  }
+
+  private async ghJson<T>(
+    fetchImpl: typeof fetch,
+    url: string,
+    headers: Record<string, string>,
+    pick: (body: any) => T,
+  ): Promise<T | undefined> {
+    try {
+      const res = await fetchImpl(url, { headers });
+      if (!res.ok) return undefined;
+      return pick(await res.json());
+    } catch {
+      return undefined;
+    }
+  }
+
   async handleCallback(providerName: string, code: string, rawState: string) {
     const provider = this.get(providerName);
 

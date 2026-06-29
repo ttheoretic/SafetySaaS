@@ -33,6 +33,28 @@ export async function signInUser(email: string, password: string): Promise<SignI
   return { token: mintDevToken({ sub: email, email, name: email.split('@')[0] }) };
 }
 
+/**
+ * Start a social login (Google / GitHub) via Supabase OAuth. For GitHub we also
+ * request the `repo` scope, so the repository authorization happens as part of
+ * sign-in — the onboarding "connect GitHub" step is then automatic. Redirects
+ * the browser; the session (and GitHub provider_token) is picked up at
+ * /auth/callback.
+ */
+export async function signInWithProvider(provider: 'google' | 'github'): Promise<void> {
+  const cfg = await getAuthConfig();
+  if (!cfg.supabase) throw new Error('Social login requires Supabase auth on the server.');
+  const sb = getSupabase(cfg.supabaseUrl);
+  if (!sb) throw new Error(MISSING_ANON);
+  const { error } = await sb.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      ...(provider === 'github' ? { scopes: 'read:user user:email repo' } : {}),
+    },
+  });
+  if (error) throw new Error(error.message);
+}
+
 /** Create a new account (name + email + password). Follows the server's auth mode. */
 export async function signUpUser({ firstName, lastName, email, password }: SignUpInput): Promise<SignInResult> {
   const fullName = `${firstName} ${lastName}`.trim();

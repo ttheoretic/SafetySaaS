@@ -1,7 +1,8 @@
 import {
-  BadRequestException, Controller, Get, Logger, Module, OnModuleInit, Param,
-  Query, Res,
+  BadRequestException, Body, Controller, Get, Logger, Module, OnModuleInit, Param,
+  Post, Query, Res,
 } from '@nestjs/common';
+import { IsString, MinLength } from 'class-validator';
 import type { Response } from 'express';
 import { StoreModule } from '../store/store.module';
 import {
@@ -11,6 +12,11 @@ import { OAuthService } from './oauth.service';
 import { GithubOAuthProvider } from './github-oauth';
 import { GenericOAuth2Provider, OAUTH2_PROVIDERS } from './generic-oauth2';
 import { isGithubAppConfigured } from './github-app';
+
+class GithubTokenDto {
+  @IsString() @MinLength(10)
+  accessToken!: string;
+}
 
 // Connecting a stack is part of onboarding, before the dashboard is unlocked.
 @AllowWithoutSubscription()
@@ -41,6 +47,16 @@ class OAuthController {
         ? this.oauth.githubAppInstallUrl(ctx)
         : this.oauth.authorizeUrl(provider, ctx);
     return { url };
+  }
+
+  /**
+   * Connect GitHub from a token already obtained at sign-in (the Supabase GitHub
+   * provider_token). Auto-completes the onboarding "connect GitHub" step.
+   */
+  @Post('github/from-token')
+  @RequirePermission('connection:write')
+  githubFromToken(@Auth() auth: AuthContext, @Body() dto: GithubTokenDto) {
+    return this.oauth.connectGithubFromToken(auth.org.id, dto.accessToken);
   }
 
   /** Provider redirect target — public (trust comes from the signed state). */

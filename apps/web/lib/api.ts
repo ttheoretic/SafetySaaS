@@ -366,6 +366,9 @@ export const api = {
         actor: { id: string; name?: string; email?: string } | null
       }>
     >('/orgs/audit-logs'),
+  /** Auto-connect GitHub from a sign-in provider token (skips the OAuth step). */
+  connectGithubFromToken: (accessToken: string) =>
+    post<{ projectId: string; repos: string[] }>('/oauth/github/from-token', { accessToken }),
   /** Send a support request (delivered to the team inbox, reply-to the user). */
   support: (subject: string, message: string) =>
     post<{ ok: boolean }>('/support', { subject, message }),

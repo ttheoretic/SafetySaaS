@@ -12,7 +12,7 @@ import { useActiveProjectStore } from '@/lib/active-project'
 // '/' is the marketing landing page; the dashboard lives under /dashboard.
 const MARKETING_ROUTES = ['/', '/pricing']
 // Auth-flow routes — full-bleed, no chrome; they manage their own auth/redirects.
-const AUTH_ROUTES = ['/login', '/get-started', '/billing']
+const AUTH_ROUTES = ['/login', '/get-started', '/billing', '/auth']
 // Launchpad — the repo picker you land on before entering a workspace. Full-bleed
 // (no sidebar/top nav) but still behind the auth gate.
 const LAUNCH_ROUTES = ['/portfolio']

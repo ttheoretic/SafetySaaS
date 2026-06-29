@@ -30,6 +30,35 @@ function makeService() {
   return { service, store, secrets };
 }
 
+const ghFetch = (repos: string[]) =>
+  (async (url: string) => {
+    if (String(url).includes('/user/repos')) {
+      return { ok: true, json: async () => repos.map((full_name) => ({ full_name })) } as unknown as Response;
+    }
+    return { ok: true, json: async () => ({ login: 'octocat' }) } as unknown as Response;
+  }) as unknown as typeof fetch;
+
+describe('connectGithubFromToken (social login auto-connect)', () => {
+  it('creates a project + encrypted connection with the listed repos', async () => {
+    const { service, store } = makeService();
+    const res = await service.connectGithubFromToken('org-1', 'gho_token_abc', ghFetch(['octocat/app', 'octocat/api']));
+    expect(res.repos).toEqual(['octocat/app', 'octocat/api']);
+    const conns = await store.listConnections(res.projectId);
+    expect(conns[0].provider).toBe('github');
+    expect(conns[0].encryptedToken).toBeTruthy();
+    expect(conns[0].encryptedToken).not.toContain('gho_token_abc'); // encrypted at rest
+    expect(conns[0].metadata?.repos).toEqual(['octocat/app', 'octocat/api']);
+  });
+
+  it('is idempotent — re-login reuses the project and refreshes repos', async () => {
+    const { service } = makeService();
+    const first = await service.connectGithubFromToken('org-1', 'gho_a', ghFetch(['o/a']));
+    const second = await service.connectGithubFromToken('org-1', 'gho_b', ghFetch(['o/a', 'o/b']));
+    expect(second.projectId).toBe(first.projectId);
+    expect(second.repos).toEqual(['o/a', 'o/b']);
+  });
+});
+
 describe('OAuthService', () => {
   it('builds an authorize URL carrying an encrypted state', () => {
     const { service } = makeService();
