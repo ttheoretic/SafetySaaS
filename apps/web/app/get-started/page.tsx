@@ -260,17 +260,23 @@ export default function GetStartedPage() {
         })
       }
       const scan = await api.startScan(projectId)
-      let g: SystemGraph | null = null
-      try {
-        const scans = await api.listScans(projectId)
-        const latest = scans.find((s) => s.id === scan.id) as
-          | { graph?: SystemGraph }
-          | undefined
-        g = latest?.graph ?? null
-      } catch {
-        /* ignore */
+      // With the async queue (Redis) startScan returns "queued" and the graph
+      // isn't ready yet — poll the scan until it finishes before reading it,
+      // otherwise the review step shows "0 modules" until a manual rescan.
+      type ScanRow = { id: string; status: string; graph?: SystemGraph }
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+      let finished: ScanRow = scan as ScanRow
+      for (let i = 0; i < 40 && finished.status !== 'succeeded' && finished.status !== 'failed'; i++) {
+        await wait(1500)
+        try {
+          const scans = (await api.listScans(projectId)) as ScanRow[]
+          const s = scans.find((x) => x.id === scan.id)
+          if (s) finished = s
+        } catch {
+          /* keep polling */
+        }
       }
-      setDetectedGraph(g)
+      setDetectedGraph(finished.graph ?? null)
       setStep('review')
     } catch (err) {
       setError((err as Error).message)
