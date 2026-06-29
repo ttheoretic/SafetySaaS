@@ -12,23 +12,24 @@ function esc(s: string): string {
 const shell = (body: string) =>
   `<div style="font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:560px;color:#111">${body}<p style="color:#aaa;font-size:12px;margin-top:24px">Riscly — architecture &amp; security intelligence.</p></div>`;
 
-/** Welcome email sent on first signup (product sender). */
+/**
+ * Welcome email sent on first signup (product sender). Purely informational —
+ * onboarding happens inside the app, so this is a greeting and a primer, with no
+ * required action / button to click.
+ */
 export function buildWelcomeEmail(name?: string, appUrl?: string): { subject: string; html: string } {
   const hi = name ? `Hi ${esc(name.split(' ')[0])},` : 'Welcome,';
-  const cta = appUrl
-    ? `<p style="margin-top:16px"><a href="${esc(appUrl)}" style="background:#4f46e5;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Connect a repository</a></p>`
+  const link = appUrl
+    ? `<p style="color:#888;margin:16px 0 0;font-size:13px">You can return to Riscly any time at <a href="${esc(appUrl)}" style="color:#4f46e5">${esc(appUrl.replace(/^https?:\/\//, ''))}</a>.</p>`
     : '';
   return {
     subject: 'Welcome to Riscly',
     html: shell(
       `<h2 style="margin:0 0 8px">${hi}</h2>
-       <p style="color:#444;margin:0 0 12px">Welcome to Riscly. Connect a repository and we'll map your architecture, find security &amp; reliability risks, and show you exactly how to fix them.</p>
-       <ul style="padding-left:18px;color:#444">
-         <li>Verified findings from your code, dependencies and cloud</li>
-         <li>A clear risk score, traceable to its causes</li>
-         <li>Failure simulations and AI-suggested fixes</li>
-       </ul>
-       ${cta}`,
+       <p style="color:#444;margin:0 0 12px">Thanks for signing up. Riscly maps your architecture, finds security &amp; reliability risks across your code, dependencies and cloud, and shows you exactly how to fix them — with a clear risk score you can trace back to its causes.</p>
+       <p style="color:#444;margin:0 0 12px">There's nothing to do here — just continue in the app: connect a repository, get your first score, and explore your findings.</p>
+       <p style="color:#444;margin:0">We'll also email you the moment a new <strong>critical</strong> risk appears, so you never have to go looking.</p>
+       ${link}`,
     ),
   };
 }
