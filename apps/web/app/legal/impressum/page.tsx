@@ -9,40 +9,37 @@ export default function ImpressumPage() {
 
       <H2>Diensteanbieter</H2>
       <P>
-        [VORNAME NACHNAME]
+        Theo Handschug
         <br />
-        [STRASSE HAUSNUMMER]
+        Ahornallee 14c
         <br />
-        [PLZ ORT]
+        16548 Glienicke/Nordbahn
         <br />
         Deutschland
       </P>
 
       <H2>Kontakt</H2>
       <P>
-        E-Mail: [E-MAIL, z. B. legal@deinedomain.de]
+        E-Mail: legal@riscly.app
         <br />
-        Telefon: [TELEFONNUMMER — Pflichtangabe, schnelle Kontaktaufnahme]
+        Telefon: +491738152845
       </P>
 
       <H2>Umsatzsteuer-Identifikationsnummer</H2>
       <P>
         Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:
-        [USt-IdNr., falls vorhanden — sonst diesen Abschnitt entfernen]
+        DE361468234
       </P>
 
       <H2>Verantwortlich für den Inhalt</H2>
       <P>
-        Verantwortlich i. S. d. § 18 Abs. 2 MStV: [VORNAME NACHNAME], Anschrift
+        Verantwortlich i. S. d. § 18 Abs. 2 MStV: Theo Handschug, Anschrift
         wie oben.
       </P>
 
       <H2>Rechtsform</H2>
       <P>
-        [Einzelunternehmer / Kleinunternehmer gemäß § 19 UStG — bzw. bei
-        Gesellschaft: Firma, Rechtsform (z. B. UG/GmbH), Sitz, Registergericht
-        und Handelsregisternummer (HRB …), vertretungsberechtigte Person(en)
-        ergänzen.]
+        Einzelunternehmen
       </P>
 
       <H2>EU-Streitschlichtung</H2>

@@ -44,8 +44,8 @@ function De() {
 
       <H2>1. Verantwortlicher</H2>
       <P>
-        [VORNAME NACHNAME], [ANSCHRIFT], Deutschland. E-Mail:
-        [datenschutz@deinedomain.de]. Vollständige Kontaktdaten siehe Impressum.
+        Theo Handschug, Ahornallee 14c, 16548 Glienicke/Nordbahn, Deutschland. E-Mail:
+        datenschutz@riscly.app. Vollständige Kontaktdaten siehe Impressum.
       </P>
 
       <H2>2. Welche Daten wir verarbeiten</H2>
@@ -126,7 +126,7 @@ function De() {
         Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung,
         Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter
         Einwilligungen. Außerdem besteht ein Beschwerderecht bei einer
-        Aufsichtsbehörde. Anfragen an [datenschutz@deinedomain.de].
+        Aufsichtsbehörde. Anfragen an datenschutz@riscly.app.
       </P>
 
       <H2>9. Cookies</H2>
@@ -157,7 +157,7 @@ function En() {
 
       <H2>1. Controller</H2>
       <P>
-        [FULL NAME], [ADDRESS], Germany. Email: [privacy@yourdomain.com]. See the
+        Theo Handschug, Ahornallee 14c, 16548 Glienicke/Nordbahn, Germany. Email: privacy@riscly.app. See the
         Impressum for full contact details.
       </P>
 
@@ -226,7 +226,7 @@ function En() {
       <P>
         You have the right to access, rectify, erase, restrict, port and object to
         processing, and to withdraw consent. You may also lodge a complaint with a
-        supervisory authority. Requests: [privacy@yourdomain.com].
+        supervisory authority. Requests: privacy@riscly.app.
       </P>
 
       <H2>9. Cookies</H2>

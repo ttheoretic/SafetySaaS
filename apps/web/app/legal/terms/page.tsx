@@ -22,8 +22,8 @@ function De() {
     <>
       <P>
         Diese Allgemeinen Geschäftsbedingungen („AGB") regeln die Nutzung von
-        Riscly (der „Dienst"), angeboten von [VORNAME NACHNAME / FIRMA],
-        [ANSCHRIFT], Deutschland („wir", „uns"). Mit der Registrierung oder
+        Riscly (der „Dienst"), angeboten von Theo Handschug,
+        Ahornallee 14c, 16548 Glienicke/Nordbahn, Deutschland („wir", „uns"). Mit der Registrierung oder
         Nutzung des Dienstes stimmst du diesen AGB zu.
       </P>
 
@@ -146,7 +146,7 @@ function En() {
     <>
       <P>
         These Terms of Service (“Terms”) govern the use of Riscly (the
-        “Service”), provided by [FULL NAME / COMPANY], [ADDRESS], Germany (“we”,
+        “Service”), provided by Theo Handschug, Ahornallee 14c, 16548 Glienicke/Nordbahn, Germany (“we”,
         “us”). By registering for or using the Service you agree to these Terms.
       </P>
 
