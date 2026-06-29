@@ -30,6 +30,7 @@ import { PLAN_LIMITS, type Plan } from '@riscly/shared'
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { api } from '@/lib/api'
+import { updatePassword } from '@/lib/sign-in'
 import { useAuth } from '@/lib/auth-store'
 import {
   useProjects,
@@ -620,6 +621,69 @@ function AddRepositorySection({
   )
 }
 
+function ChangePasswordPanel() {
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    if (password.length < 6) return setError('Password must be at least 6 characters.')
+    if (password !== confirm) return setError('Passwords do not match.')
+    setBusy(true)
+    setError(null)
+    try {
+      await updatePassword(password)
+      setSaved(true)
+      setPassword('')
+      setConfirm('')
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Panel>
+      <PanelHeader title="Password" icon={<KeyRound className="size-3.5 text-primary" />} />
+      <div className="grid grid-cols-1 gap-2.5 p-3 sm:grid-cols-2">
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="New password"
+          autoComplete="new-password"
+          className="rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-primary/50"
+        />
+        <input
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          placeholder="Confirm new password"
+          autoComplete="new-password"
+          className="rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-primary/50"
+        />
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2.5">
+        <span className="text-[11px] text-muted-foreground">
+          {error ? <span className="text-destructive">{error}</span> : 'Changes your sign-in password.'}
+        </span>
+        <button
+          onClick={save}
+          disabled={busy || !password}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+        >
+          {busy ? <Loader2 className="size-3.5 animate-spin" /> : saved ? <Check className="size-3.5" /> : null}
+          {saved ? 'Saved' : 'Update password'}
+        </button>
+      </div>
+    </Panel>
+  )
+}
+
 function SupportPanel() {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
@@ -792,34 +856,7 @@ function AccountPanel() {
         </div>
       </Panel>
 
-      <Panel>
-        <PanelHeader title="Security" icon={<ShieldCheck className="size-3.5 text-primary" />} />
-        <div className="divide-y divide-border">
-          <SettingRow
-            title="Two-factor authentication"
-            desc="Require an authenticator code at sign-in"
-            control={<Toggle on />}
-          />
-          <SettingRow
-            title="Active sessions"
-            desc="3 devices · last active 4 minutes ago"
-            control={
-              <button className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-                Sign out all
-              </button>
-            }
-          />
-          <SettingRow
-            title="Password"
-            desc="Last changed 2 months ago"
-            control={
-              <button className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
-                Update
-              </button>
-            }
-          />
-        </div>
-      </Panel>
+      <ChangePasswordPanel />
 
       <SupportPanel />
 
@@ -1114,6 +1151,8 @@ function IntegrationCard({
   const isGitlab = provider === 'gitlab'
   // AWS needs an access key id + region (metadata) and the secret key (token).
   const isAws = provider === 'aws'
+  // Vercel org tokens see every project — let the user scope to specific ones.
+  const isVercel = provider === 'vercel'
 
   async function connect() {
     if (!provider || !projectId) return
@@ -1142,6 +1181,12 @@ function IntegrationCard({
           ...(awsKeyInput ? { accessKeyId: awsKeyInput } : {}),
           ...(urlInput ? { region: urlInput } : {}),
         }
+      } else if (isVercel && reposInput) {
+        const selectedProjects = reposInput
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
+        if (selectedProjects.length) metadata = { selectedProjects }
       }
       await api.createConnection(projectId, {
         provider,
@@ -1281,6 +1326,14 @@ function IntegrationCard({
                     className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
                   />
                 </>
+              )}
+              {isVercel && projectId && (
+                <input
+                  value={reposInput}
+                  onChange={(e) => setReposInput(e.target.value)}
+                  placeholder="Projects to include (optional) — my-app, my-api"
+                  className="mb-2 w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs outline-none focus:border-primary/50"
+                />
               )}
               {isAws && projectId && (
                 <>

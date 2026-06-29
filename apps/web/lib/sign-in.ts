@@ -55,6 +55,28 @@ export async function signInWithProvider(provider: 'google' | 'github'): Promise
   if (error) throw new Error(error.message);
 }
 
+/** Send a password-reset email (Supabase). The link returns to /auth/reset. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const cfg = await getAuthConfig();
+  if (!cfg.supabase) throw new Error('Password reset requires Supabase auth.');
+  const sb = getSupabase(cfg.supabaseUrl);
+  if (!sb) throw new Error(MISSING_ANON);
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/auth/reset`,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/** Set a new password for the current session (recovery or signed-in). */
+export async function updatePassword(password: string): Promise<void> {
+  const cfg = await getAuthConfig();
+  if (!cfg.supabase) throw new Error('Password change requires Supabase auth.');
+  const sb = getSupabase(cfg.supabaseUrl);
+  if (!sb) throw new Error(MISSING_ANON);
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) throw new Error(error.message);
+}
+
 /** Create a new account (name + email + password). Follows the server's auth mode. */
 export async function signUpUser({ firstName, lastName, email, password }: SignUpInput): Promise<SignInResult> {
   const fullName = `${firstName} ${lastName}`.trim();

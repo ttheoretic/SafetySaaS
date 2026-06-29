@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/lib/auth-store'
 import { api } from '@/lib/api'
-import { signInUser, signUpUser, signInWithProvider } from '@/lib/sign-in'
+import { signInUser, signUpUser, signInWithProvider, requestPasswordReset } from '@/lib/sign-in'
 
 type Mode = 'signin' | 'signup'
 
@@ -50,6 +50,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [socialBusy, setSocialBusy] = useState<'google' | 'github' | null>(null)
+  const [resetSent, setResetSent] = useState(false)
+
+  async function forgotPassword() {
+    if (!email) {
+      setError('Enter your email above first, then click "Forgot password?".')
+      return
+    }
+    setError(null)
+    try {
+      await requestPasswordReset(email)
+      setResetSent(true)
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
 
   async function startSocial(provider: 'google' | 'github') {
     setSocialBusy(provider)
@@ -200,6 +215,18 @@ export default function LoginPage() {
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
             />
 
+            {mode === 'signin' && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={forgotPassword}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -208,6 +235,11 @@ export default function LoginPage() {
               {loading && <Loader2 className="size-4 animate-spin" />}
               {mode === 'signin' ? 'Sign in' : 'Create account'}
             </button>
+            {resetSent && (
+              <p className="text-sm text-ok">
+                Password-reset link sent — check your email.
+              </p>
+            )}
             {error && <p className="text-sm text-destructive">{error}</p>}
           </form>
 

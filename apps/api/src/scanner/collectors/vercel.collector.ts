@@ -46,7 +46,16 @@ export class VercelCollector implements ProviderCollector {
       });
       if (!res.ok) throw new Error(`Vercel API ${res.status}`);
       const body = (await res.json()) as { projects?: VercelProject[] };
-      const projects = (body.projects ?? []).slice(0, 25);
+      // Org tokens see every project; honor an explicit selection so unrelated
+      // projects don't pollute the architecture.
+      const selected = Array.isArray(meta.selectedProjects)
+        ? (meta.selectedProjects as string[]).map((s) => s.toLowerCase())
+        : null;
+      const all = body.projects ?? [];
+      const projects = (selected
+        ? all.filter((p) => selected.includes(p.name.toLowerCase()))
+        : all
+      ).slice(0, 25);
       const services: NonNullable<CloudSignals['services']> = projects.map((p) => ({
         id: `vercel-${p.name}`,
         name: p.name,

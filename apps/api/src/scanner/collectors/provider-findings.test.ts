@@ -76,6 +76,23 @@ describe('VercelCollector verified findings', () => {
     expect(res.clouds?.[0]?.services?.[0]?.name).toBe('web');
   });
 
+  it('scopes to selected projects when set', async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('/v9/projects') && !url.includes('/env')) {
+        return json({ projects: [{ id: 'p1', name: 'web' }, { id: 'p2', name: 'unrelated' }] });
+      }
+      if (url.includes('/env')) return json({ envs: [] });
+      return json({}, false, 404);
+    }) as unknown as typeof fetch;
+
+    const res = await new VercelCollector().collect(
+      conn('vercel', { selectedProjects: ['web'] }),
+      ctxWith(fetchImpl, 'tok'),
+    );
+    const names = res.clouds?.[0]?.services?.map((s) => s.name);
+    expect(names).toEqual(['web']); // "unrelated" filtered out
+  });
+
   it('no findings when env vars are encrypted', async () => {
     const fetchImpl = vi.fn(async (url: string) => {
       if (url.includes('/env')) return json({ envs: [{ key: 'X', type: 'encrypted' }] });
