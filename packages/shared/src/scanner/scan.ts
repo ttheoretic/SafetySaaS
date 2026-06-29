@@ -25,7 +25,7 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   for (const db of collection.databases ?? []) fragments.push(databaseFragment(db));
   for (const b of collection.billing ?? []) fragments.push(billingFragment(b));
 
-  const graph = connectOrphans(mergeFragments(fragments));
+  const graph = connectOrphans(dedupeEstimated(mergeFragments(fragments)));
 
   // Carry any per-repo code-analysis results (SCA vulnerabilities + code/config
   // findings) up to the graph, so they flow through persistence and the
@@ -59,6 +59,61 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
     ...(codeFindings.length ? { codeFindings } : {}),
     ...(codeIssues.length ? { codeIssues } : {}),
   };
+}
+
+/**
+ * Collapse code-inferred ("estimated") nodes into the verified node a connected
+ * collector produced for the same thing, so connecting Vercel/Supabase/… doesn't
+ * leave a duplicate (and a disconnected one). An estimated node merges into a
+ * verified node when they share provider+kind, or — for an estimated node with
+ * no provider — when there's exactly one verified node of that kind. The
+ * verified node keeps its facts and inherits the estimated node's edges.
+ */
+function dedupeEstimated(graph: SystemGraph): SystemGraph {
+  const estimated = graph.nodes.filter((n) => n.estimated);
+  const verified = graph.nodes.filter((n) => !n.estimated);
+  if (estimated.length === 0 || verified.length === 0) return graph;
+
+  const remap = new Map<string, string>(); // estimated id → verified id
+  for (const e of estimated) {
+    let v =
+      e.provider !== undefined
+        ? verified.find((x) => x.kind === e.kind && x.provider === e.provider)
+        : undefined;
+    if (!v) {
+      const sameKind = verified.filter((x) => x.kind === e.kind);
+      if (sameKind.length === 1) v = sameKind[0];
+    }
+    if (v && v.id !== e.id) remap.set(e.id, v.id);
+  }
+  if (remap.size === 0) return graph;
+
+  // Fill any gaps on the verified node from its estimated twin (verified wins).
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  for (const [eid, vid] of remap) {
+    const e = byId.get(eid)!;
+    const v = byId.get(vid)!;
+    if (v.hasRateLimit === undefined) v.hasRateLimit = e.hasRateLimit;
+    if (v.hasAuth === undefined) v.hasAuth = e.hasAuth;
+    if (v.hasBackup === undefined) v.hasBackup = e.hasBackup;
+    if (v.redundant === undefined) v.redundant = e.redundant;
+    if (v.region === undefined) v.region = e.region;
+  }
+
+  const nodes = graph.nodes.filter((n) => !remap.has(n.id));
+  const seen = new Set<string>();
+  const edges = graph.edges
+    .map((ed) => ({
+      ...ed,
+      from: remap.get(ed.from) ?? ed.from,
+      to: remap.get(ed.to) ?? ed.to,
+    }))
+    .filter((ed) => ed.from !== ed.to)
+    .filter((ed) => {
+      const key = `${ed.from}->${ed.to}`;
+      return seen.has(key) ? false : (seen.add(key), true);
+    });
+  return { nodes, edges };
 }
 
 /**

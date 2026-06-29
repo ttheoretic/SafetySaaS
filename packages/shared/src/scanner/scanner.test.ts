@@ -98,4 +98,41 @@ describe('buildSystemGraph (end to end)', () => {
   it('is deterministic', () => {
     expect(buildSystemGraph(collection)).toEqual(buildSystemGraph(collection));
   });
+
+  it('merges an inferred service into the connected provider (no duplicate)', () => {
+    // A repo that uses Supabase (inferred DB) AND a connected Supabase collector.
+    const repo: RepoSignals = {
+      provider: 'github',
+      repo: 'acme/app',
+      dependencies: ['@supabase/supabase-js', 'next'],
+      frameworks: ['nextjs'],
+    } as RepoSignals;
+    const graph = buildSystemGraph({
+      repos: [repo],
+      databases: [{ provider: 'supabase', name: 'acme-db', hasBackup: true }],
+    });
+    const supabases = graph.nodes.filter((n) => n.provider === 'supabase' && n.kind === 'database');
+    expect(supabases).toHaveLength(1); // not two
+    // The surviving (verified) node is connected, not floating.
+    const id = supabases[0].id;
+    expect(graph.edges.some((e) => e.to === id)).toBe(true);
+    // No estimated supabase node remains.
+    expect(graph.nodes.some((n) => n.id === 'supabase-db')).toBe(false);
+  });
+
+  it('merges an inferred Vercel frontend into the connected Vercel project', () => {
+    const repo: RepoSignals = {
+      provider: 'github',
+      repo: 'acme/web',
+      dependencies: ['next'],
+      frameworks: ['nextjs'],
+      hostProvider: 'vercel',
+    } as RepoSignals;
+    const graph = buildSystemGraph({
+      repos: [repo],
+      clouds: [{ provider: 'vercel', regions: ['global'], services: [{ id: 'vercel-web', name: 'web', kind: 'frontend', redundant: true }] }],
+    });
+    const frontends = graph.nodes.filter((n) => n.kind === 'frontend');
+    expect(frontends).toHaveLength(1); // merged, not duplicated
+  });
 });

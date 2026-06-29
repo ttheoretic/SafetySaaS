@@ -54,6 +54,11 @@ export interface SystemNode {
   /** Whether failure of this node takes the whole system down. Usually
    *  derived by the scanner, but may be provided explicitly. */
   isSinglePointOfFailure?: boolean;
+  /** True when this node was *inferred* from code (deps/env), not read from a
+   *  connected provider. An estimated node is merged into a verified node of the
+   *  same provider+kind when one exists (so connecting a service doesn't create
+   *  a duplicate). */
+  estimated?: boolean;
 }
 
 export interface SystemEdge {

@@ -53,6 +53,7 @@ export function repoFragment(repo: RepoSignals): GraphFragment {
       provider: repo.hostProvider,
       // Edge/CDN hosting (Vercel/Cloudflare) is typically redundant.
       redundant: repo.hostProvider === 'vercel' || undefined,
+      estimated: true,
     });
   }
 
@@ -66,6 +67,7 @@ export function repoFragment(repo: RepoSignals): GraphFragment {
       hasRateLimit: detectRateLimit(repo),
       hasAuth: detectAuth(repo),
       redundant: repo.hasKubernetes ? true : undefined,
+      estimated: true,
     });
   }
 
@@ -90,6 +92,7 @@ export function repoFragment(repo: RepoSignals): GraphFragment {
       name: hint.name,
       provider: hint.provider,
       ...hint.defaults,
+      estimated: true,
     });
     if (sourceId) {
       edges.push({
