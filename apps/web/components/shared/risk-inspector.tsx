@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import {
   X,
   WandSparkles,
-  GitPullRequestArrow,
   FileCode,
   Boxes,
   TriangleAlert,
@@ -20,7 +19,7 @@ import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { ActionButton } from '@/components/layout/screen-header'
 import type { Risk } from '@/lib/riscly-data'
 import { api } from '@/lib/api'
-import { useActiveProject, useRemediationPr } from '@/lib/use-project-data'
+import { useActiveProject } from '@/lib/use-project-data'
 
 function Section({
   label,
@@ -50,7 +49,6 @@ export function RiskInspector({
   onClose?: () => void
 }) {
   const router = useRouter()
-  const remediation = useRemediationPr()
   const { projectId } = useActiveProject()
 
   // A code-located finding (file + rule) can get a real AI code fix that we
@@ -261,50 +259,36 @@ export function RiskInspector({
 
       {/* sticky actions */}
       <div className="shrink-0 space-y-2 border-t border-border p-3">
-        {canFix ? (
-          committed ? (
-            // Done — pushed directly to the repo.
-            <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
-              <CircleCheck className="size-3.5" /> Fix pushed to your repo
-            </div>
-          ) : !fix ? (
-            // Step 1: generate & explain the fix.
-            <ActionButton
-              variant="primary"
-              className="w-full justify-center"
-              onClick={viewFix}
-              disabled={fixBusy}
-              title="Generate the AI code fix and explain the exact change"
-            >
-              {fixBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
-              {fixBusy ? 'Generating fix…' : 'View fix'}
-            </ActionButton>
-          ) : (
-            // Step 2: apply by committing directly (no PR to manage).
-            <ActionButton
-              variant="primary"
-              className="w-full justify-center"
-              onClick={applyFix}
-              disabled={applyBusy || !fix.fixed}
-              title="Commit this fix directly to your repo"
-            >
-              {applyBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
-              {applyBusy ? 'Pushing fix…' : 'Apply fix — push to repo'}
-            </ActionButton>
-          )
-        ) : (
-          // No code location (infra/topology) → a remediation-plan PR.
+        {committed ? (
+          // Code fix pushed directly to the repo.
+          <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
+            <CircleCheck className="size-3.5" /> Fix pushed to your repo
+          </div>
+        ) : canFix && fix ? (
+          // Code finding, fix generated → apply by committing directly (no PR).
           <ActionButton
             variant="primary"
             className="w-full justify-center"
-            onClick={remediation.open}
-            disabled={!remediation.canOpen || remediation.busy}
-            title="Open a pull request on your connected repo with a remediation plan"
+            onClick={applyFix}
+            disabled={applyBusy || !fix.fixed}
+            title="Commit this fix directly to your repo"
           >
-            {remediation.busy ? <Loader2 className="size-3.5 animate-spin" /> : <GitPullRequestArrow className="size-3.5" />}
-            {remediation.busy ? 'Opening PR…' : 'Open remediation PR'}
+            {applyBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+            {applyBusy ? 'Pushing fix…' : 'Apply fix — push to repo'}
           </ActionButton>
-        )}
+        ) : canFix ? (
+          // Code finding → generate the AI fix + explanation.
+          <ActionButton
+            variant="primary"
+            className="w-full justify-center"
+            onClick={viewFix}
+            disabled={fixBusy}
+            title="See the fix, why it works, and apply it with one click"
+          >
+            {fixBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+            {fixBusy ? 'Generating fix…' : 'View fix'}
+          </ActionButton>
+        ) : null}
 
         {commitUrl && (
           <a
@@ -316,9 +300,7 @@ export function RiskInspector({
             <ExternalLink className="size-3.5" /> View commit
           </a>
         )}
-        {(fixError || remediation.error) && (
-          <p className="text-[11px] text-destructive">{fixError ?? remediation.error}</p>
-        )}
+        {fixError && <p className="text-[11px] text-destructive">{fixError}</p>}
 
         <ActionButton className="w-full justify-center" onClick={askAi}>
           <Bot className="size-3.5" />
