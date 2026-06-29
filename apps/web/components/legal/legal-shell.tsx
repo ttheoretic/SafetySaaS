@@ -9,6 +9,8 @@ const NAV = [
   { href: '/legal/impressum', label: 'Impressum' },
   { href: '/legal/privacy', label: 'Datenschutz / Privacy' },
   { href: '/legal/terms', label: 'AGB / Terms' },
+  { href: '/legal/cookies', label: 'Cookies' },
+  { href: '/legal/subprocessors', label: 'Subprocessors' },
   { href: '/docs', label: 'Docs' },
 ]
 

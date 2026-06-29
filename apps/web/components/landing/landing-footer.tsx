@@ -6,29 +6,37 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { label: 'Overview', href: '/#capabilities' },
-      { label: 'Architecture', href: '/#capabilities' },
-      { label: 'Risks', href: '/#capabilities' },
+      { label: 'Features', href: '/#capabilities' },
       { label: 'Pricing', href: '/pricing' },
-      { label: 'Get started', href: '/get-started' },
+      { label: 'Roadmap', href: '/roadmap' },
+      { label: 'API', href: '/docs/api' },
     ],
   },
   {
     title: 'Resources',
     links: [
       { label: 'Documentation', href: '/docs' },
-      { label: 'Data & security', href: '/docs#data-security' },
-      { label: 'FAQ', href: '/docs#faq' },
-      { label: 'Status', href: '/docs' },
+      { label: 'Blog', href: '/blog' },
+      { label: 'Changelog', href: '/changelog' },
+    ],
+  },
+  {
+    title: 'Company',
+    links: [
+      { label: 'About', href: '/about' },
+      { label: 'Contact', href: '/contact' },
+      { label: 'Careers', href: '/careers' },
     ],
   },
   {
     title: 'Legal',
     links: [
-      { label: 'Privacy / Datenschutz', href: '/legal/privacy' },
-      { label: 'Terms / AGB', href: '/legal/terms' },
-      { label: 'Impressum', href: '/legal/impressum' },
-      { label: 'Contact', href: '/legal/impressum' },
+      { label: 'Privacy Policy', href: '/legal/privacy' },
+      { label: 'Terms of Service', href: '/legal/terms' },
+      { label: 'Cookie Policy', href: '/legal/cookies' },
+      { label: 'Security', href: '/docs/security' },
+      { label: 'Subprocessors', href: '/legal/subprocessors' },
+      { label: 'Imprint', href: '/legal/impressum' },
     ],
   },
 ]
@@ -68,7 +76,7 @@ export function LandingFooter() {
   return (
     <footer className="border-t border-border bg-panel/40">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
           <div>
             <Link href="/" className="flex items-center gap-2">
               <span className="flex size-7 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">

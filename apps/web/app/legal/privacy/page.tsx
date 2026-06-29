@@ -110,7 +110,7 @@ function De() {
       <P>
         Soweit wir in deinem Auftrag personenbezogene Daten verarbeiten (z. B. in
         deinem Quellcode), stellen wir einen Auftragsverarbeitungsvertrag (AVV /
-        DPA) bereit. Kontaktiere uns unter [datenschutz@deinedomain.de].
+        DPA) bereit. Kontaktiere uns unter datenschutz@riscly.app.
       </P>
 
       <H2>7. Speicherdauer</H2>
@@ -212,7 +212,7 @@ function En() {
       <P>
         Where we process personal data on your behalf (e.g. within your source
         code), we provide a Data Processing Agreement (DPA). Contact
-        [privacy@yourdomain.com].
+        privacy@riscly.app.
       </P>
 
       <H2>7. Retention</H2>
