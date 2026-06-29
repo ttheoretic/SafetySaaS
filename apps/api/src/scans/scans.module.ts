@@ -12,7 +12,7 @@ import { AnalyzeModule } from '../analyze/analyze.module';
 import { AiModule } from '../ai/ai.module';
 import { PredictionService } from '../ai/prediction.service';
 import { ScannerModule } from '../scanner/scanner.module';
-import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { AllowWithoutSubscription, Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { BillingService } from '../billing/billing.service';
 import { ScanProcessor } from './scan.processor';
@@ -56,6 +56,7 @@ class ScansController {
   ) {}
 
   @Get()
+  @AllowWithoutSubscription()
   @RequirePermission('project:read')
   async list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
     await this.requireProject(auth, projectId);
@@ -63,6 +64,7 @@ class ScansController {
   }
 
   @Post()
+  @AllowWithoutSubscription()
   @RequirePermission('scan:run')
   async start(
     @Auth() auth: AuthContext,
@@ -97,6 +99,7 @@ class ScansController {
    * authorizes once and gets a switchable project per repo.
    */
   @Post('fan-out')
+  @AllowWithoutSubscription()
   @RequirePermission('scan:run')
   async fanOut(
     @Auth() auth: AuthContext,
@@ -194,6 +197,7 @@ class ScansController {
   }
 
   @Get(':scanId')
+  @AllowWithoutSubscription()
   @RequirePermission('project:read')
   async get(@Auth() auth: AuthContext, @Param('scanId') scanId: string) {
     const scan = await this.store.getScan(scanId);

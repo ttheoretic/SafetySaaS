@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { IsArray, IsIn, IsNumber, IsObject, IsOptional, IsString, Min, Max, Length } from 'class-validator';
 import { Store, StoreModule } from '../store/store.module';
-import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { AllowWithoutSubscription, Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { BillingService } from '../billing/billing.service';
 import { SecretBox } from '../crypto/secret-box';
@@ -36,6 +36,9 @@ class ArchitectureOverlayDto {
   @IsOptional() @IsArray() addedEdges?: unknown[];
 }
 
+// Onboarding (create a project, connect, run the first scan, see the score)
+// happens BEFORE the paywall — the dashboard is gated on the frontend instead.
+@AllowWithoutSubscription()
 @Controller('projects')
 class ProjectsController {
   constructor(

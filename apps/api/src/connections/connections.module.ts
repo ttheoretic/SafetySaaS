@@ -5,7 +5,7 @@ import {
 import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 import { planLimits } from '@riscly/shared';
 import { Store, StoreModule, ProjectRecord } from '../store/store.module';
-import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { AllowWithoutSubscription, Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuditService } from '../auth/audit.service';
 import { SecretBox } from '../crypto/secret-box';
 
@@ -27,6 +27,8 @@ class UpdateConnectionDto {
   @IsObject() metadata!: Record<string, unknown>;
 }
 
+// Connecting a stack is part of onboarding (pre-paywall).
+@AllowWithoutSubscription()
 @Controller('projects/:projectId/connections')
 class ConnectionsController {
   constructor(
