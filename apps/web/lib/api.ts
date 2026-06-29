@@ -263,7 +263,7 @@ export const api = {
   codeFix: (
     projectId: string,
     body: {
-      repo: string
+      repo?: string
       file: string
       line?: number
       rule: string
@@ -277,6 +277,22 @@ export const api = {
       fixed: string | null
       explanation: string | null
     }>(`/projects/${projectId}/code/fix`, body),
+  /** Apply an AI fix by committing it directly to the default branch (no PR). */
+  codeFixCommit: (
+    projectId: string,
+    body: {
+      repo?: string
+      file: string
+      line?: number
+      rule: string
+      title: string
+      description?: string
+    },
+  ) =>
+    post<{ url: string; repo: string; branch: string }>(
+      `/projects/${projectId}/code/fix/commit`,
+      body,
+    ),
   /** Deep AI code analysis over the repo's source files (merged into the scan). */
   deepScan: (projectId: string) =>
     post<{

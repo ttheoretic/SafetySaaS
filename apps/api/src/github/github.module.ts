@@ -48,7 +48,7 @@ function findingFromIssue(i: CodeIssue): Finding {
 }
 
 class CodeFixDto {
-  @IsString() repo!: string;
+  @IsOptional() @IsString() repo?: string;
   @IsString() file!: string;
   @IsOptional() @IsInt() @Min(1) line?: number;
   @IsString() rule!: string;
@@ -66,6 +66,14 @@ class GithubController {
     private readonly analyze: AnalyzeService,
   ) {}
 
+  /** Resolve the repo to act on: the one given, else the project's first repo. */
+  private async resolveRepo(projectId: string, orgId: string, repo?: string): Promise<string> {
+    if (repo) return repo;
+    const repos = await this.github.listRepos(projectId, orgId);
+    if (!repos[0]) throw new BadRequestException('No connected GitHub repository.');
+    return repos[0];
+  }
+
   /** Generate an AI fix for a located code issue (preview: original + fixed). */
   @Post('code/fix')
   @RequirePermission('project:read')
@@ -75,12 +83,8 @@ class GithubController {
     @Body() dto: CodeFixDto,
   ) {
     this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI fix generation');
-    const content = await this.github.readFile(
-      projectId,
-      auth.org.id,
-      dto.repo,
-      dto.file,
-    );
+    const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
+    const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
     if (content == null) {
       throw new BadRequestException('Could not read the file from the repo.');
     }
@@ -107,12 +111,8 @@ class GithubController {
     @Body() dto: CodeFixDto,
   ) {
     this.billing.assertHasFeature(auth.org, 'prExport', 'AI PR export');
-    const content = await this.github.readFile(
-      projectId,
-      auth.org.id,
-      dto.repo,
-      dto.file,
-    );
+    const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
+    const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
     if (content == null) {
       throw new BadRequestException('Could not read the file from the repo.');
     }
@@ -139,6 +139,42 @@ class GithubController {
       body:
         `Automated fix for **${dto.title}** (\`${dto.rule}\`) in \`${dto.file}\`.\n\n` +
         `${result.explanation ?? ''}\n\nReview carefully before merging.`,
+    });
+  }
+
+  /** Apply an AI fix by committing it directly to the default branch (no PR). */
+  @Post('code/fix/commit')
+  @RequirePermission('connection:write')
+  async codeFixCommit(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Body() dto: CodeFixDto,
+  ) {
+    this.billing.assertHasFeature(auth.org, 'prExport', 'AI fix apply');
+    const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
+    const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
+    if (content == null) {
+      throw new BadRequestException('Could not read the file from the repo.');
+    }
+    const result = await this.ai.fixCode(
+      {
+        file: dto.file,
+        content,
+        line: dto.line ?? 1,
+        rule: dto.rule,
+        title: dto.title,
+        description: dto.description ?? '',
+      },
+      { plan: auth.org.plan },
+    );
+    if (!result.fixed) {
+      throw new BadRequestException('Could not generate a fix to apply. The AI may be unavailable.');
+    }
+    return this.github.commitFile(projectId, auth.org.id, {
+      repo,
+      path: dto.file,
+      content: result.fixed,
+      message: `Riscly fix: ${dto.title} (${dto.rule})`,
     });
   }
 

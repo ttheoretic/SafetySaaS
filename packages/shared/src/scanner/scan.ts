@@ -74,13 +74,18 @@ function dedupeEstimated(graph: SystemGraph): SystemGraph {
   const verified = graph.nodes.filter((n) => !n.estimated);
   if (estimated.length === 0 || verified.length === 0) return graph;
 
+  // Only frontend/api are logically singletons per repo, so a no-provider
+  // estimate may merge into the sole verified one of that kind. Backing services
+  // (databases, caches, …) require an EXACT provider match — an app can have a
+  // separate Postgres AND a Supabase, so never collapse them by kind alone.
+  const SINGLETON_KINDS = new Set(['frontend', 'api']);
   const remap = new Map<string, string>(); // estimated id → verified id
   for (const e of estimated) {
     let v =
       e.provider !== undefined
         ? verified.find((x) => x.kind === e.kind && x.provider === e.provider)
         : undefined;
-    if (!v) {
+    if (!v && e.provider === undefined && SINGLETON_KINDS.has(e.kind)) {
       const sameKind = verified.filter((x) => x.kind === e.kind);
       if (sameKind.length === 1) v = sameKind[0];
     }

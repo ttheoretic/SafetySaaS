@@ -14,6 +14,7 @@ import {
   Loader2,
   TrendingDown,
   ExternalLink,
+  CircleCheck,
 } from 'lucide-react'
 import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { ActionButton } from '@/components/layout/screen-header'
@@ -52,16 +53,19 @@ export function RiskInspector({
   const remediation = useRemediationPr()
   const { projectId } = useActiveProject()
 
-  // A code-located finding (file + rule + repo) can get a real AI code fix.
-  const canFix = Boolean(projectId && risk.repo && risk.file && risk.rule)
+  // A code-located finding (file + rule) can get a real AI code fix that we
+  // commit directly to the repo. The repo is resolved server-side if not on the
+  // finding.
+  const canFix = Boolean(projectId && risk.file && risk.rule)
   const [fix, setFix] = useState<{ fixed: string | null; explanation: string | null; aiEnabled: boolean } | null>(null)
   const [fixBusy, setFixBusy] = useState(false)
-  const [prUrl, setPrUrl] = useState<string | null>(null)
-  const [prBusy, setPrBusy] = useState(false)
+  const [commitUrl, setCommitUrl] = useState<string | null>(null)
+  const [committed, setCommitted] = useState(false)
+  const [applyBusy, setApplyBusy] = useState(false)
   const [fixError, setFixError] = useState<string | null>(null)
 
   const fixBody = () => ({
-    repo: risk.repo as string,
+    ...(risk.repo ? { repo: risk.repo } : {}),
     file: risk.file as string,
     line: risk.line,
     rule: risk.rule as string,
@@ -69,7 +73,7 @@ export function RiskInspector({
     description: risk.description,
   })
 
-  async function seeFix() {
+  async function viewFix() {
     if (!projectId || !canFix) return
     setFixBusy(true)
     setFixError(null)
@@ -84,16 +88,16 @@ export function RiskInspector({
 
   async function applyFix() {
     if (!projectId || !canFix) return
-    setPrBusy(true)
+    setApplyBusy(true)
     setFixError(null)
     try {
-      const r = await api.codeFixPr(projectId, fixBody())
-      setPrUrl(r.url)
-      if (r.url) window.open(r.url, '_blank', 'noopener,noreferrer')
+      const r = await api.codeFixCommit(projectId, fixBody())
+      setCommitUrl(r.url)
+      setCommitted(true)
     } catch (e) {
       setFixError((e as Error).message)
     } finally {
-      setPrBusy(false)
+      setApplyBusy(false)
     }
   }
 
@@ -258,33 +262,38 @@ export function RiskInspector({
       {/* sticky actions */}
       <div className="shrink-0 space-y-2 border-t border-border p-3">
         {canFix ? (
-          !fix ? (
+          committed ? (
+            // Done — pushed directly to the repo.
+            <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
+              <CircleCheck className="size-3.5" /> Fix pushed to your repo
+            </div>
+          ) : !fix ? (
             // Step 1: generate & explain the fix.
             <ActionButton
               variant="primary"
               className="w-full justify-center"
-              onClick={seeFix}
+              onClick={viewFix}
               disabled={fixBusy}
-              title="Generate an AI code fix and explain the change"
+              title="Generate the AI code fix and explain the exact change"
             >
               {fixBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
-              {fixBusy ? 'Generating fix…' : 'See fix'}
+              {fixBusy ? 'Generating fix…' : 'View fix'}
             </ActionButton>
           ) : (
-            // Step 2: push the fix as a pull request.
+            // Step 2: apply by committing directly (no PR to manage).
             <ActionButton
               variant="primary"
               className="w-full justify-center"
               onClick={applyFix}
-              disabled={prBusy || !fix.fixed}
-              title="Open a pull request that applies this fix to your repo"
+              disabled={applyBusy || !fix.fixed}
+              title="Commit this fix directly to your repo"
             >
-              {prBusy ? <Loader2 className="size-3.5 animate-spin" /> : <GitPullRequestArrow className="size-3.5" />}
-              {prUrl ? 'PR opened' : prBusy ? 'Pushing fix…' : 'Apply fix — open PR'}
+              {applyBusy ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+              {applyBusy ? 'Pushing fix…' : 'Apply fix — push to repo'}
             </ActionButton>
           )
         ) : (
-          // No code location → fall back to a remediation-plan PR.
+          // No code location (infra/topology) → a remediation-plan PR.
           <ActionButton
             variant="primary"
             className="w-full justify-center"
@@ -297,14 +306,14 @@ export function RiskInspector({
           </ActionButton>
         )}
 
-        {prUrl && (
+        {commitUrl && (
           <a
-            href={prUrl}
+            href={commitUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-1.5 text-xs font-medium text-ok hover:bg-ok/15"
+            className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
-            <ExternalLink className="size-3.5" /> View pull request
+            <ExternalLink className="size-3.5" /> View commit
           </a>
         )}
         {(fixError || remediation.error) && (

@@ -257,6 +257,55 @@ export class GithubService {
     return { url: pr.html_url ?? '', branch, repo };
   }
 
+  /**
+   * Commit a single file directly to the repo's default branch (no PR). Used to
+   * apply an accepted AI fix in one click. Returns the commit URL.
+   */
+  async commitFile(
+    projectId: string,
+    orgId: string,
+    opts: { repo?: string; path: string; content: string; message: string },
+  ): Promise<{ url: string; repo: string; branch: string }> {
+    const ctx = await this.context(projectId, orgId);
+    if (!ctx || ctx.repos.length === 0) {
+      throw new BadRequestException('No connected GitHub repository to commit to.');
+    }
+    const repo = opts.repo && ctx.repos.includes(opts.repo) ? opts.repo : ctx.repos[0];
+    const h = this.headers(ctx.token);
+    const api = `https://api.github.com/repos/${repo}`;
+    const json = async (res: Response, action: string) => {
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new BadRequestException(
+          `GitHub ${action} failed (${res.status}). The connection may be read-only or branch-protected. ${detail.slice(0, 200)}`,
+        );
+      }
+      return res.json() as Promise<any>;
+    };
+
+    const repoInfo = await json(await this.fetchImpl(api, { headers: h }), 'repo lookup');
+    const base: string = repoInfo.default_branch ?? 'main';
+
+    let sha: string | undefined;
+    const existing = await this.fetchImpl(`${api}/contents/${opts.path}?ref=${base}`, { headers: h });
+    if (existing.ok) sha = ((await existing.json()) as { sha?: string }).sha;
+
+    const commit = await json(
+      await this.fetchImpl(`${api}/contents/${opts.path}`, {
+        method: 'PUT',
+        headers: h,
+        body: JSON.stringify({
+          message: opts.message,
+          content: Buffer.from(opts.content, 'utf8').toString('base64'),
+          branch: base,
+          ...(sha ? { sha } : {}),
+        }),
+      }),
+      'commit file',
+    );
+    return { url: commit.commit?.html_url ?? commit.content?.html_url ?? '', repo, branch: base };
+  }
+
   /** Decoded UTF-8 content of a file, or null. */
   async readFile(
     projectId: string,
