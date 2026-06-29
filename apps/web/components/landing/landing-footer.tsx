@@ -5,15 +5,31 @@ import { GetStartedButton } from './get-started-button'
 const columns = [
   {
     title: 'Product',
-    links: ['Overview', 'Architecture', 'Risks', 'Security', 'Simulation'],
+    links: [
+      { label: 'Overview', href: '/#capabilities' },
+      { label: 'Architecture', href: '/#capabilities' },
+      { label: 'Risks', href: '/#capabilities' },
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Get started', href: '/get-started' },
+    ],
   },
   {
     title: 'Resources',
-    links: ['Documentation', 'Changelog', 'Security model', 'Status'],
+    links: [
+      { label: 'Documentation', href: '/docs' },
+      { label: 'Data & security', href: '/docs#data-security' },
+      { label: 'FAQ', href: '/docs#faq' },
+      { label: 'Status', href: '/docs' },
+    ],
   },
   {
-    title: 'Company',
-    links: ['About', 'Careers', 'Contact', 'Privacy'],
+    title: 'Legal',
+    links: [
+      { label: 'Privacy / Datenschutz', href: '/legal/privacy' },
+      { label: 'Terms / AGB', href: '/legal/terms' },
+      { label: 'Impressum', href: '/legal/impressum' },
+      { label: 'Contact', href: '/legal/impressum' },
+    ],
   },
 ]
 
@@ -75,13 +91,13 @@ export function LandingFooter() {
               </h4>
               <ul className="mt-3 space-y-2">
                 {c.links.map((l) => (
-                  <li key={l}>
-                    <a
-                      href="#"
+                  <li key={l.label}>
+                    <Link
+                      href={l.href}
                       className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      {l}
-                    </a>
+                      {l.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
