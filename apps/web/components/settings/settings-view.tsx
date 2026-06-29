@@ -1042,16 +1042,18 @@ function IntegrationsPanel() {
           <div className="divide-y divide-border">
             {group.items.map((i) => {
               const provider = NAME_TO_PROVIDER[i.name] ?? null
+              const conn = provider
+                ? (connections.data ?? []).find((c) => c.provider === provider)
+                : undefined
               // Real status overrides the static flag for backed providers.
-              const isConnected = provider
-                ? connectedProviders.has(provider)
-                : i.connected
+              const isConnected = provider ? Boolean(conn) : i.connected
               return (
                 <IntegrationCard
                   key={i.name}
                   integration={i}
                   provider={provider}
                   isConnected={isConnected}
+                  connectionId={conn?.id}
                   projectId={projectId}
                   onChanged={refresh}
                 />
@@ -1068,12 +1070,14 @@ function IntegrationCard({
   integration: i,
   provider,
   isConnected,
+  connectionId,
   projectId,
   onChanged,
 }: {
   integration: Integration
   provider: string | null
   isConnected: boolean
+  connectionId?: string
   projectId: string | null
   onChanged: () => void
 }) {
@@ -1084,7 +1088,22 @@ function IntegrationCard({
   const [reposInput, setReposInput] = useState('')
   const [awsKeyInput, setAwsKeyInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  async function disconnect() {
+    if (!projectId || !connectionId || disconnecting) return
+    setDisconnecting(true)
+    setError(null)
+    try {
+      await api.deleteConnection(projectId, connectionId)
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setDisconnecting(false)
+    }
+  }
 
   const canConnect = Boolean(provider && projectId && !isConnected)
   const isOAuth = provider ? OAUTH_PROVIDERS.has(provider) : false
@@ -1211,6 +1230,23 @@ function IntegrationCard({
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-medium" />
             <p className="text-[11px] leading-relaxed text-foreground">{i.note}</p>
           </div>
+
+          {isConnected && connectionId && projectId && (
+            <div className="mt-3 flex items-center gap-3">
+              <button
+                onClick={disconnect}
+                disabled={disconnecting}
+                className="inline-flex items-center gap-1.5 rounded-md border border-critical/40 bg-critical/10 px-3 py-1.5 text-xs font-medium text-critical hover:bg-critical/20 disabled:opacity-50"
+              >
+                {disconnecting ? <Loader2 className="size-3.5 animate-spin" /> : <Plug className="size-3.5" />}
+                Disconnect
+              </button>
+              <span className="text-[11px] text-muted-foreground">
+                Removes the stored credential; findings from this source are dropped on the next scan.
+              </span>
+              {error && <span className="text-[11px] text-destructive">{error}</span>}
+            </div>
+          )}
 
           {!isConnected && (
             <div className="mt-3">

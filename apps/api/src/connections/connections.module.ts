@@ -1,5 +1,5 @@
 import {
-  Body, Controller, ForbiddenException, Get, Module, NotFoundException,
+  Body, Controller, Delete, ForbiddenException, Get, Module, NotFoundException,
   Param, Patch, Post,
 } from '@nestjs/common';
 import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
@@ -107,6 +107,26 @@ class ConnectionsController {
     return {
       id: updated.id, provider: updated.provider, status: updated.status, metadata: updated.metadata,
     };
+  }
+
+  /** Disconnect a connected service. */
+  @Delete(':connectionId')
+  @RequirePermission('connection:write')
+  async remove(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Param('connectionId') connectionId: string,
+  ) {
+    await this.requireProject(auth, projectId);
+    const conn = await this.store.getConnection(connectionId);
+    if (!conn || conn.projectId !== projectId || conn.orgId !== auth.org.id) {
+      throw new NotFoundException('Connection not found');
+    }
+    await this.store.deleteConnection(connectionId);
+    void this.audit.record(auth, 'connection.delete', { type: 'connection', id: connectionId }, {
+      provider: conn.provider,
+    });
+    return { ok: true };
   }
 
   private async requireProject(auth: AuthContext, projectId: string): Promise<ProjectRecord> {

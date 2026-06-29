@@ -67,6 +67,12 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function del<T>(path: string): Promise<T> {
+  const res = await apiFetch(path, { method: 'DELETE', headers: authHeaders() });
+  if (!res.ok) await readError(res, path);
+  return res.json() as Promise<T>;
+}
+
 async function getBlob(path: string): Promise<Blob> {
   const res = await apiFetch(path, { headers: authHeaders() });
   if (!res.ok) await readError(res, path);
@@ -340,6 +346,9 @@ export const api = {
       `/projects/${projectId}/connections/${connectionId}`,
       { metadata },
     ),
+  /** Disconnect a connected service. */
+  deleteConnection: (projectId: string, connectionId: string) =>
+    del<{ ok: boolean }>(`/projects/${projectId}/connections/${connectionId}`),
   listScenarios: (projectId: string) =>
     get<Array<{ id: string; name: string; prompt: string; createdAt: string; lastResult?: unknown }>>(
       `/projects/${projectId}/scenarios`,

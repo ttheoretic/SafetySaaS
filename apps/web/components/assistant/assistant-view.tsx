@@ -12,6 +12,7 @@ import {
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { SeverityBadge } from '@/components/ui/severity'
 import { cn } from '@/lib/utils'
+import { Markdown } from '@/components/ui/markdown'
 import { api } from '@/lib/api'
 import { useActiveProject } from '@/lib/use-project-data'
 
@@ -206,7 +207,7 @@ function Message({ msg, onAction }: { msg: Msg; onAction: (a: string) => void })
               : 'border border-border bg-panel text-foreground/90',
           )}
         >
-          {msg.content}
+          {isUser ? msg.content : <Markdown content={msg.content} />}
         </div>
 
         {msg.refs && (

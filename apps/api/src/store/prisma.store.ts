@@ -164,6 +164,9 @@ export class PrismaStore extends Store {
     });
     return this.toConnection(row);
   }
+  async deleteConnection(id: string) {
+    await this.prisma.connection.delete({ where: { id } }).catch(() => undefined);
+  }
   private toConnection(r: any): ConnectionRecord {
     return {
       id: r.id, orgId: r.orgId, projectId: r.projectId, provider: r.provider,

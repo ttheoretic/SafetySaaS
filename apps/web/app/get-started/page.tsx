@@ -290,7 +290,7 @@ export default function GetStartedPage() {
           selectedRepos: [selectedRepos[0]],
         })
       }
-      const scan = await api.startScan(projectId)
+      const started = await api.startScan(projectId)
       // Each additional selected repo becomes its own switchable project.
       if (selectedRepos.length > 1) {
         try {
@@ -299,19 +299,30 @@ export default function GetStartedPage() {
           /* extras are best-effort; the first repo is set up regardless */
         }
       }
-      const score = scan.reliabilityScore ?? 0
-      let f: { title: string; severity: string }[] = []
-      try {
-        const scans = await api.listScans(projectId)
-        const latest = scans.find((s) => s.id === scan.id) as
-          | { findings?: { title: string; severity: string }[] }
-          | undefined
-        f = latest?.findings ?? []
-      } catch {
-        /* ignore */
+
+      // With the async queue (Redis), startScan returns "queued" — poll the
+      // scan until it actually finishes before showing the score.
+      type ScanRow = {
+        id: string
+        status: string
+        reliabilityScore?: number
+        findings?: { title: string; severity: string }[]
       }
-      setFindings(f.slice(0, 3))
-      setTargetScore(score)
+      const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+      let finished: ScanRow = started as ScanRow
+      for (let i = 0; i < 40 && finished.status !== 'succeeded' && finished.status !== 'failed'; i++) {
+        await wait(1500)
+        try {
+          const scans = (await api.listScans(projectId)) as ScanRow[]
+          const s = scans.find((x) => x.id === started.id)
+          if (s) finished = s
+        } catch {
+          /* keep polling */
+        }
+      }
+
+      setFindings((finished.findings ?? []).slice(0, 3))
+      setTargetScore(finished.reliabilityScore ?? 0)
       setStep('result')
       // Onboarding is now complete for this repo — refresh the provisioning
       // state so the dashboard guard sees "ready" instead of bouncing back.
