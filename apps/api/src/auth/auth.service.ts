@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Store, UserRecord, OrganizationRecord } from '../store/store.module';
+import { EMAIL_PROVIDER, EmailProvider, senderFor } from '../email/email.module';
+import { buildWelcomeEmail } from '../email/templates';
 import { AuthClaims } from './jwt';
 
 /**
@@ -10,7 +12,12 @@ import { AuthClaims } from './jwt';
  */
 @Injectable()
 export class AuthService {
-  constructor(private readonly store: Store) {}
+  private readonly logger = new Logger(AuthService.name);
+
+  constructor(
+    private readonly store: Store,
+    @Inject(EMAIL_PROVIDER) private readonly email: EmailProvider,
+  ) {}
 
   async resolveUser(claims: AuthClaims): Promise<UserRecord> {
     const email = claims.email ?? `${claims.sub}@users.riscly.ai`;
@@ -23,6 +30,11 @@ export class AuthService {
           email,
           name: claims.name,
         });
+        // Best-effort welcome (product sender). Never blocks sign-in.
+        const welcome = buildWelcomeEmail(claims.name, process.env.APP_URL);
+        void this.email
+          .send({ to: email, from: senderFor('product'), ...welcome })
+          .catch((e) => this.logger.warn(`Welcome email failed: ${(e as Error).message}`));
       } catch (err) {
         if ((err as { code?: string }).code !== 'P2002') throw err;
         // Unique-constraint clash. Either a concurrent first-login race (same

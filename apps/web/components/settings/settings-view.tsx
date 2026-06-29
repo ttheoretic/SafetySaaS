@@ -620,6 +620,74 @@ function AddRepositorySection({
   )
 }
 
+function SupportPanel() {
+  const [subject, setSubject] = useState('')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const canSend = subject.trim().length >= 3 && message.trim().length >= 10 && !busy
+
+  async function send() {
+    if (!canSend) return
+    setBusy(true)
+    setError(null)
+    try {
+      await api.support(subject.trim(), message.trim())
+      setSent(true)
+      setSubject('')
+      setMessage('')
+      setTimeout(() => setSent(false), 4000)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Panel>
+      <PanelHeader title="Contact support" icon={<Mail className="size-3.5 text-primary" />} />
+      <div className="space-y-2.5 p-3">
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          placeholder="Subject"
+          className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-primary/50"
+        />
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="How can we help?"
+          rows={4}
+          className="w-full resize-y rounded-md border border-border bg-background px-2.5 py-2 text-sm outline-none focus:border-primary/50"
+        />
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground">
+            Replies go to your account email.
+          </p>
+          <button
+            onClick={send}
+            disabled={!canSend}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : sent ? (
+              <Check className="size-3.5" />
+            ) : (
+              <Mail className="size-3.5" />
+            )}
+            {sent ? 'Sent' : 'Send message'}
+          </button>
+        </div>
+        {error && <p className="text-[11px] text-destructive">{error}</p>}
+      </div>
+    </Panel>
+  )
+}
+
 function initialsOf(nameOrEmail: string): string {
   const parts = nameOrEmail.trim().split(/[\s@.]+/).filter(Boolean)
   return (parts[0]?.[0] ?? '?').concat(parts[1]?.[0] ?? '').toUpperCase()
@@ -752,6 +820,8 @@ function AccountPanel() {
           />
         </div>
       </Panel>
+
+      <SupportPanel />
 
       <Panel>
         <PanelHeader title="Danger zone" icon={<UserRound className="size-3.5 text-critical" />} />

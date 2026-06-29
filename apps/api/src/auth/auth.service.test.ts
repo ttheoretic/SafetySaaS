@@ -8,7 +8,8 @@ describe('AuthService.resolveUser (first-login provisioning)', () => {
 
   beforeEach(() => {
     store = new InMemoryStore();
-    auth = new AuthService(store);
+    const email = { name: 'test', send: async () => {} };
+    auth = new AuthService(store, email);
   });
 
   it('provisions a user + personal org on first login', async () => {

@@ -6,7 +6,7 @@ import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
 import { JOB_QUEUE, JobQueue } from '../jobs/job-queue';
 import { SecretBox } from '../crypto/secret-box';
-import { EMAIL_PROVIDER, EmailProvider } from '../email/email.module';
+import { EMAIL_PROVIDER, EmailProvider, senderFor } from '../email/email.module';
 import { buildCriticalAlertEmail, newAlertableFindings } from './alerts';
 import { isGithubAppConfigured, mintInstallationToken } from '../oauth/github-app';
 
@@ -55,7 +55,8 @@ export class ScanProcessor implements OnModuleInit {
     if (recipients.length === 0) return;
 
     const { subject, html } = buildCriticalAlertEmail(project.name, fresh, process.env.APP_URL);
-    await Promise.all(recipients.map((to) => this.email.send({ to, subject, html })));
+    const from = senderFor('alerts');
+    await Promise.all(recipients.map((to) => this.email.send({ to, from, subject, html })));
     this.logger.log(`Sent ${fresh.length}-risk alert for ${project.name} to ${recipients.length} recipient(s)`);
   }
 

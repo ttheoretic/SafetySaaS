@@ -366,6 +366,9 @@ export const api = {
         actor: { id: string; name?: string; email?: string } | null
       }>
     >('/orgs/audit-logs'),
+  /** Send a support request (delivered to the team inbox, reply-to the user). */
+  support: (subject: string, message: string) =>
+    post<{ ok: boolean }>('/support', { subject, message }),
   orgMembers: () =>
     get<Array<{ userId: string; email?: string; name?: string; role: string }>>('/orgs/members'),
   listInvitations: () =>

@@ -3,6 +3,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuthConfigModule } from './auth/auth-config.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { EmailModule } from './email/email.module';
+import { SupportModule } from './email/support.module';
 import { JobsModule } from './jobs/jobs.module';
 import { HealthModule } from './health/health.module';
 import { AnalyzeModule } from './analyze/analyze.module';
@@ -23,6 +24,7 @@ import { BillingModule } from './billing/billing.module';
     AuthConfigModule,
     CryptoModule,
     EmailModule,
+    SupportModule,
     JobsModule,
     BillingModule,
     HealthModule,
