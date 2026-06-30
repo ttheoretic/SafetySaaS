@@ -14,6 +14,7 @@ import { StoreModule, Store } from '../store/store.module';
 import { Auth, AuthContext, AllowWithoutSubscription } from '../auth/auth-context';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
+import { AdminStripeService } from './admin-stripe.service';
 
 class FeedbackPatchDto {
   @IsOptional() @IsIn(['open', 'planned', 'in_progress', 'completed', 'archived']) status?: string;
@@ -158,6 +159,6 @@ class FeedbackController {
 @Module({
   imports: [StoreModule],
   controllers: [AdminController, FeedbackController],
-  providers: [AdminService, AdminGuard],
+  providers: [AdminService, AdminStripeService, AdminGuard],
 })
 export class AdminModule {}

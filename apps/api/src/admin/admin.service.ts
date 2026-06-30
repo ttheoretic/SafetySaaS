@@ -6,6 +6,7 @@ import {
   type ScanRecord,
   type ConnectionRecord,
 } from '../store/store.module';
+import { AdminStripeService } from './admin-stripe.service';
 
 const CLOUD_PROVIDERS = new Set(['aws', 'azure', 'gcp', 'vercel', 'railway', 'render', 'supabase', 'neon']);
 const PAYING_STATUSES = new Set(['active', 'past_due', 'trialing']);
@@ -42,7 +43,10 @@ function dailySeries<T>(
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly store: Store) {}
+  constructor(
+    private readonly store: Store,
+    private readonly stripe: AdminStripeService,
+  ) {}
 
   /** The latest succeeded scan per project, used for posture averages. */
   private latestScoredByProject(scans: ScanRecord[]): Map<string, ScanRecord> {
@@ -302,16 +306,26 @@ export class AdminService {
         stripeCustomerId: s.stripeCustomerId ?? null,
       };
     });
+    // When Riscly's own Stripe is connected, prefer its real numbers (MRR,
+    // refunds, failed payments, recent invoices); else fall back to the
+    // plan-derived figures computed from our subscription records.
+    const stripe = await this.stripe.summary();
+
     return {
+      stripeConnected: Boolean(stripe?.connected),
       summary: {
-        mrr: Math.round(mrr),
-        arr: Math.round(mrr * 12),
-        activeSubscriptions: paying.length,
-        trials: subs.filter((s) => s.status === 'trialing').length,
+        mrr: stripe?.mrr ?? Math.round(mrr),
+        arr: stripe?.arr ?? Math.round(mrr * 12),
+        activeSubscriptions: stripe?.activeSubscriptions ?? paying.length,
+        trials: stripe?.trials ?? subs.filter((s) => s.status === 'trialing').length,
         pastDue: subs.filter((s) => s.status === 'past_due').length,
-        canceled: subs.filter((s) => s.status === 'canceled').length,
+        canceled: stripe?.canceledLast30d ?? subs.filter((s) => s.status === 'canceled').length,
         newThisMonth: orgs.filter((o) => Date.now() - new Date(o.createdAt).getTime() < 30 * 86400_000).length,
+        refunds: stripe?.refundsLast30d.count ?? null,
+        refundsAmount: stripe?.refundsLast30d.amount ?? null,
+        failedPayments: stripe?.failedPaymentsLast30d ?? null,
       },
+      invoices: stripe?.invoices ?? [],
       customers: rows.sort((a, b) => b.mrr - a.mrr),
     };
   }

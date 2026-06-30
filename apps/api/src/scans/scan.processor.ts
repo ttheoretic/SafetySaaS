@@ -9,6 +9,7 @@ import { SecretBox } from '../crypto/secret-box';
 import { EMAIL_PROVIDER, EmailProvider, senderFor } from '../email/email.module';
 import { buildCriticalAlertEmail, newAlertableFindings } from './alerts';
 import { isGithubAppConfigured, mintInstallationToken } from '../oauth/github-app';
+import { createErrorReporter } from '../common/error-reporter';
 
 export interface ScanJob {
   scanId: string;
@@ -29,6 +30,8 @@ export interface ScanJob {
 @Injectable()
 export class ScanProcessor implements OnModuleInit {
   private readonly logger = new Logger(ScanProcessor.name);
+  // Worker-side error reporting (Sentry when SENTRY_DSN is set, else no-op).
+  private readonly reporter = createErrorReporter();
 
   constructor(
     private readonly store: Store,
@@ -149,6 +152,12 @@ export class ScanProcessor implements OnModuleInit {
       );
     } catch (err) {
       this.logger.error(`Scan ${job.scanId} failed: ${(err as Error).message}`);
+      const scan = await this.store.getScan(job.scanId);
+      this.reporter.captureException(err, {
+        source: 'worker',
+        url: `scan:${job.scanId}`,
+        workspaceId: scan?.orgId,
+      });
       await this.store.updateScan(job.scanId, {
         status: 'failed',
         finishedAt: new Date().toISOString(),

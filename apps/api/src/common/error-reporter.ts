@@ -12,6 +12,12 @@ export interface ErrorContext {
   requestId?: string;
   method?: string;
   url?: string;
+  /** Acting user, for Sentry's `user` context. */
+  user?: { id?: string; email?: string };
+  /** Active workspace/org id, surfaced as a Sentry tag. */
+  workspaceId?: string;
+  /** Where the error originated, e.g. 'api' | 'worker'. */
+  source?: string;
 }
 
 export interface ErrorReporter {
@@ -60,7 +66,14 @@ export function buildSentryEvent(
         },
       ],
     },
-    tags: { ...(context.requestId ? { request_id: context.requestId } : {}) },
+    tags: {
+      ...(context.requestId ? { request_id: context.requestId } : {}),
+      ...(context.workspaceId ? { workspace_id: context.workspaceId } : {}),
+      ...(context.source ? { source: context.source } : {}),
+    },
+    ...(context.user?.id || context.user?.email
+      ? { user: { id: context.user.id, email: context.user.email } }
+      : {}),
     request:
       context.method || context.url
         ? { method: context.method, url: context.url }

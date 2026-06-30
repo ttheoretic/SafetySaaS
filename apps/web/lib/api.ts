@@ -476,10 +476,13 @@ export interface AdminCustomerDetail {
 }
 
 export interface AdminBilling {
+  stripeConnected?: boolean;
   summary: {
     mrr: number; arr: number; activeSubscriptions: number; trials: number;
     pastDue: number; canceled: number; newThisMonth: number;
+    refunds?: number | null; refundsAmount?: number | null; failedPayments?: number | null;
   };
+  invoices?: Array<{ id: string; customer: string | null; amount: number; status: string; created: string; url: string | null }>;
   customers: Array<{
     orgId: string; customer: string; plan: string; status: string;
     renewalDate: string | null; mrr: number; ltv: number; stripeCustomerId: string | null;

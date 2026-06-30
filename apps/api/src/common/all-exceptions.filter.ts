@@ -53,10 +53,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       `[${requestId}] ${req?.method} ${req?.url} — ${(exception as Error)?.message ?? exception}`,
       (exception as Error)?.stack,
     );
+    // Attach the acting user + workspace (set by AuthGuard) for Sentry context.
+    const auth = (req as unknown as { auth?: { user?: { id?: string; email?: string }; org?: { id?: string } } }).auth;
     this.reporter?.captureException(exception, {
       requestId,
       method: req?.method,
       url: req?.url,
+      source: 'api',
+      user: auth?.user ? { id: auth.user.id, email: auth.user.email } : undefined,
+      workspaceId: auth?.org?.id,
     });
     res.setHeader('X-Request-Id', requestId);
     res.status(500).json({ statusCode: 500, message: 'Internal server error', requestId });
