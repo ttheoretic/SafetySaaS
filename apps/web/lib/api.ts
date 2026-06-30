@@ -426,6 +426,7 @@ export const api = {
     exportWorkspace: (orgId: string) => get<Record<string, unknown>>(`/admin/customers/${orgId}/export`),
     billing: () => get<AdminBilling>('/admin/billing'),
     aiUsage: () => get<AdminAiUsage>('/admin/ai-usage'),
+    analytics: () => get<AdminAnalytics>('/admin/analytics'),
     feedback: () => get<AdminFeedback[]>('/admin/feedback'),
     updateFeedback: (id: string, body: Record<string, unknown>) =>
       patch(`/admin/feedback/${id}`, body),
@@ -496,6 +497,20 @@ export interface AdminAiUsage {
   };
   charts: { dailyCost: Series; byModel: { model: string; requests: number; cost: number }[] };
   customers: Array<{ orgId: string; company: string; requests: number; tokens: number; cost: number; model: string; last: string }>;
+}
+
+export interface AdminAnalytics {
+  connected: boolean;
+  dau: number | null;
+  wau: number | null;
+  mau: number | null;
+  avgSessionSec: number | null;
+  bounceRatePct: number | null;
+  returningPct: number | null;
+  dauSeries: Series;
+  topPages: { label: string; value: number }[];
+  topFeatures: { label: string; value: number }[];
+  funnel: { step: string; users: number }[];
 }
 
 export interface AdminFeedback {

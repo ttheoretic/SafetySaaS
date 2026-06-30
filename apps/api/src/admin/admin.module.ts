@@ -15,6 +15,7 @@ import { Auth, AuthContext, AllowWithoutSubscription } from '../auth/auth-contex
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import { AdminStripeService } from './admin-stripe.service';
+import { AdminAnalyticsService } from './admin-analytics.service';
 
 class FeedbackPatchDto {
   @IsOptional() @IsIn(['open', 'planned', 'in_progress', 'completed', 'archived']) status?: string;
@@ -39,7 +40,15 @@ class SubmitFeedbackDto {
 @UseGuards(AdminGuard)
 @Controller('admin')
 class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly analytics: AdminAnalyticsService,
+  ) {}
+
+  @Get('analytics')
+  productAnalytics() {
+    return this.analytics.analytics();
+  }
 
   @Get('overview')
   overview() {
@@ -159,6 +168,6 @@ class FeedbackController {
 @Module({
   imports: [StoreModule],
   controllers: [AdminController, FeedbackController],
-  providers: [AdminService, AdminStripeService, AdminGuard],
+  providers: [AdminService, AdminStripeService, AdminAnalyticsService, AdminGuard],
 })
 export class AdminModule {}
