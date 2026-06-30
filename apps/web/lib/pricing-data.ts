@@ -33,13 +33,15 @@ export const plans: Plan[] = [
     name: 'Growth',
     price: '$99',
     priceSuffix: '/month',
-    tagline: 'For small teams shipping to production.',
+    tagline: 'Everything most teams need to ship safely.',
+    highlight: true,
     cta: 'Get started',
     aiModel: 'Claude Sonnet',
     features: [
       'Up to 10 repositories',
       'Daily scans',
       'Security posture (SAST + SCA)',
+      'Code quality hotspots',
       'AI fixes with PR export',
       'Email support',
     ],
@@ -47,14 +49,13 @@ export const plans: Plan[] = [
   {
     id: 'pro',
     name: 'Pro',
-    price: '$299',
+    price: '$199',
     priceSuffix: '/month',
-    tagline: 'For scaling orgs that need depth and speed.',
-    highlight: true,
+    tagline: 'For larger teams and projects that need depth and scale.',
     cta: 'Get started',
     aiModel: 'Claude Opus',
     features: [
-      'Unlimited repositories',
+      'Unlimited repositories & projects',
       'Continuous scans',
       'Full security suite + secrets + IaC',
       'Failure simulation',
@@ -159,6 +160,10 @@ export const comparison: FeatureGroup[] = [
       },
       {
         label: 'Dependency scanning (SCA)',
+        values: { starter: false, growth: true, pro: true, enterprise: true },
+      },
+      {
+        label: 'Code quality hotspots',
         values: { starter: false, growth: true, pro: true, enterprise: true },
       },
       {

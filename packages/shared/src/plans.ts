@@ -6,8 +6,8 @@
  * table (apps/web pricing page). These limits mirror that table so entitlements
  * match what customers are sold:
  *   - Starter  $29  · Haiku  · architecture + risk triage only
- *   - Growth   $99  · Sonnet · + SAST/SCA + AI PR export
- *   - Pro      $299 · Opus   · + secrets/IaC + failure simulation + SSO
+ *   - Growth   $99  · Sonnet · + SAST/SCA + code quality + AI PR export (most popular)
+ *   - Pro      $199 · Opus   · + secrets/IaC + failure simulation + SSO
  *   - Enterprise     · Opus+ · everything, custom
  *
  * A paid subscription covers one project; a second project means a second
@@ -34,6 +34,7 @@ export type Feature =
   | 'revenueImpact'
   | 'sast'
   | 'sca'
+  | 'codeQuality'
   | 'secretScanning'
   | 'iac'
   | 'prExport'
@@ -72,6 +73,8 @@ export interface PlanLimits {
   sast: boolean;
   /** Software composition analysis (dependency scanning). */
   sca: boolean;
+  /** Code-quality / maintainability hotspots (future-problem signals). */
+  codeQuality: boolean;
   /** Secret scanning. */
   secretScanning: boolean;
   /** Infrastructure-as-Code scanning. */
@@ -109,6 +112,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     revenueImpact: false,
     sast: false,
     sca: false,
+    codeQuality: false,
     secretScanning: false,
     iac: false,
     prExport: false,
@@ -132,6 +136,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     revenueImpact: true,
     sast: true,
     sca: true,
+    codeQuality: true,
     secretScanning: false,
     iac: false,
     prExport: true,
@@ -139,7 +144,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     maxMembers: 15,
   },
   pro: {
-    priceEur: 299,
+    priceEur: 199,
     maxProjects: Infinity,
     maxRepos: 1,
     maxScansPerDay: Infinity,
@@ -155,6 +160,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     revenueImpact: true,
     sast: true,
     sca: true,
+    codeQuality: true,
     secretScanning: true,
     iac: true,
     prExport: true,
@@ -178,6 +184,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     revenueImpact: true,
     sast: true,
     sca: true,
+    codeQuality: true,
     secretScanning: true,
     iac: true,
     prExport: true,

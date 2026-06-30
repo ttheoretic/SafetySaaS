@@ -8,6 +8,7 @@ import {
 import { cn } from '@/lib/utils'
 
 const planIds: PlanId[] = ['starter', 'growth', 'pro', 'enterprise']
+const highlightedPlan: PlanId | undefined = plans.find((p) => p.highlight)?.id
 
 export function PricingTable() {
   return (
@@ -26,8 +27,15 @@ export function PricingTable() {
                   plan.highlight && 'bg-primary/5',
                 )}
               >
-                <div className="text-sm font-semibold text-foreground">
-                  {plan.name}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold text-foreground">
+                    {plan.name}
+                  </span>
+                  {plan.highlight && (
+                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                      Popular
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs font-normal text-muted-foreground">
                   {plan.price}
@@ -73,7 +81,7 @@ function FeatureGroupRows({
           {planIds.map((id) => (
             <td
               key={id}
-              className={cn('px-4 py-3', id === 'pro' && 'bg-primary/5')}
+              className={cn('px-4 py-3', id === highlightedPlan && 'bg-primary/5')}
             >
               <CellValue value={row.values[id]} />
             </td>

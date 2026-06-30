@@ -15,14 +15,14 @@ export type RouteGate = { prefix: string; req: GateReq; label: string }
 /**
  * Which entitlement each plan-restricted route needs. Mirrors the pricing table:
  *   Starter  → architecture + risk triage only
- *   Growth   → + SAST / SCA / reports / PR export
+ *   Growth   → + SAST / SCA / code quality / reports / PR export
  *   Pro      → + secrets / IaC / simulation / SSO / audit
  * Routes not listed here are available on every plan.
  */
 export const ROUTE_GATES: RouteGate[] = [
   { prefix: '/security', req: { feature: 'sast' }, label: 'Security posture' },
   { prefix: '/code', req: { feature: 'sast' }, label: 'Code analysis (SAST)' },
-  { prefix: '/quality', req: { feature: 'sast' }, label: 'Code quality' },
+  { prefix: '/quality', req: { feature: 'codeQuality' }, label: 'Code quality' },
   { prefix: '/attack-paths', req: { feature: 'sast' }, label: 'Attack paths' },
   { prefix: '/dependencies', req: { feature: 'sca' }, label: 'Dependency scanning' },
   { prefix: '/inventory/sbom', req: { feature: 'sca' }, label: 'Software bill of materials' },
