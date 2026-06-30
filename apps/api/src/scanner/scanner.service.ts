@@ -48,6 +48,10 @@ export class ScannerService {
   ): Promise<SystemGraph> {
     const fetchImpl = opts.fetchImpl ?? fetch;
 
+    // The repos connected to this project (from the source connections), so
+    // account-scoped providers can narrow to the relevant projects.
+    const repoHints = collectRepoHints(connections);
+
     const collected = await Promise.all(
       connections.map(async (conn) => {
         const collector = this.specific.get(conn.provider) ?? this.metadata;
@@ -55,6 +59,7 @@ export class ScannerService {
           token: opts.tokens?.[conn.id] ?? opts.token,
           fetchImpl,
           entitlements: opts.entitlements,
+          repoHints,
         };
         const work = collector.collect(conn, ctx).catch((err) => {
           this.logger.warn(
@@ -73,6 +78,23 @@ export class ScannerService {
 
     return buildSystemGraph(mergeCollections(collected));
   }
+}
+
+/**
+ * Gather the `owner/name` repositories tied to this project from its source
+ * connections. Prefers an explicit `selectedRepos` narrowing, else all `repos`.
+ */
+function collectRepoHints(connections: ConnectionRecord[]): string[] {
+  const hints = new Set<string>();
+  for (const conn of connections) {
+    const meta = conn.metadata ?? {};
+    const selected = Array.isArray(meta.selectedRepos) ? (meta.selectedRepos as string[]) : null;
+    const all = Array.isArray(meta.repos) ? (meta.repos as string[]) : [];
+    for (const r of selected ?? all) {
+      if (typeof r === 'string' && r) hints.add(r.toLowerCase());
+    }
+  }
+  return [...hints];
 }
 
 function mergeCollections(parts: Partial<ScanCollection>[]): ScanCollection {

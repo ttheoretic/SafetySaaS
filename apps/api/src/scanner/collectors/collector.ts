@@ -21,6 +21,13 @@ export interface CollectorContext {
   /** Injected so collectors are testable without hitting the network. */
   fetchImpl: typeof fetch;
   /**
+   * Repositories connected to THIS project (as `owner/name`), gathered from the
+   * sibling source connections. Lets account/org-scoped providers (e.g. a Vercel
+   * org token that sees every project) narrow to just the ones linked to this
+   * project's repo, instead of polluting the map with unrelated projects.
+   */
+  repoHints?: string[];
+  /**
    * Plan entitlements gating deep analysis. Undefined defaults to enabled, so
    * tests and the public analyze path keep full behavior.
    */

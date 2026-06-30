@@ -11,6 +11,8 @@ import {
 interface VercelProject {
   id: string;
   name: string;
+  /** Connected git repository, when the project is linked to one. */
+  link?: { type?: string; org?: string; repo?: string; repoId?: number };
 }
 
 interface VercelEnv {
@@ -46,16 +48,32 @@ export class VercelCollector implements ProviderCollector {
       });
       if (!res.ok) throw new Error(`Vercel API ${res.status}`);
       const body = (await res.json()) as { projects?: VercelProject[] };
-      // Org tokens see every project; honor an explicit selection so unrelated
-      // projects don't pollute the architecture.
+      const all = body.projects ?? [];
+      // Org tokens see every project. Narrow to the ones that belong to THIS
+      // Riscly project so unrelated projects don't pollute the architecture:
+      //   1. an explicit `selectedProjects` list always wins;
+      //   2. otherwise keep projects whose linked git repo matches a connected
+      //      repo (`owner/name`); 3. if neither applies (no hints, no link
+      //      data), fall back to all so a standalone Vercel connection still works.
       const selected = Array.isArray(meta.selectedProjects)
         ? (meta.selectedProjects as string[]).map((s) => s.toLowerCase())
         : null;
-      const all = body.projects ?? [];
-      const projects = (selected
-        ? all.filter((p) => selected.includes(p.name.toLowerCase()))
-        : all
-      ).slice(0, 25);
+      const hints = (ctx.repoHints ?? []).map((s) => s.toLowerCase());
+      const byRepo = (p: VercelProject): boolean => {
+        if (!p.link?.repo) return false;
+        const full = `${p.link.org ?? ''}/${p.link.repo}`.toLowerCase();
+        const name = p.link.repo.toLowerCase();
+        return hints.some((h) => h === full || h.split('/').pop() === name);
+      };
+      let projects: VercelProject[];
+      if (selected) {
+        projects = all.filter((p) => selected.includes(p.name.toLowerCase()));
+      } else if (hints.length && all.some(byRepo)) {
+        projects = all.filter(byRepo);
+      } else {
+        projects = all;
+      }
+      projects = projects.slice(0, 25);
       const services: NonNullable<CloudSignals['services']> = projects.map((p) => ({
         id: `vercel-${p.name}`,
         name: p.name,
