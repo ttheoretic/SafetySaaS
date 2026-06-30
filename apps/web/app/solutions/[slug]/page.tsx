@@ -5,11 +5,13 @@ export function generateStaticParams() {
   return SOLUTION_SLUGS.map((slug) => ({ slug }))
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  const f = FEATURES[params.slug]
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const f = FEATURES[slug]
   return { title: f ? `${f.title} — Riscly` : 'Riscly' }
 }
 
-export default function Page({ params }: { params: { slug: string } }) {
-  return <FeaturePage slug={params.slug} />
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  return <FeaturePage slug={slug} />
 }
