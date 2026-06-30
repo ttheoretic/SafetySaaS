@@ -39,21 +39,30 @@ interface CouponLike {
   duration?: string | null;
 }
 
-/** The currently-applied, recurring coupon on a subscription (forever /
- *  repeating). One-time ('once') coupons don't reduce MRR, so they're ignored. */
-function activeCoupon(sub: unknown): CouponLike | null {
-  const s = sub as {
+/** Pull the coupon off a discount holder's `discount` (single, deprecated) or
+ *  `discounts` (array, current) field, whichever is populated and expanded. */
+function couponFrom(holder: unknown): CouponLike | null {
+  const h = holder as {
     discount?: { coupon?: CouponLike } | null;
     discounts?: Array<{ coupon?: CouponLike } | string> | null;
-  };
-  const discounts = Array.isArray(s.discounts)
-    ? s.discounts.filter((d): d is { coupon?: CouponLike } => typeof d === 'object' && d !== null)
-    : [];
-  const disc = s.discount ?? discounts[0] ?? null;
-  const coupon = disc?.coupon ?? null;
-  if (!coupon) return null;
-  if (coupon.duration === 'once') return null;
-  return coupon;
+  } | null;
+  if (!h) return null;
+  const fromArray = Array.isArray(h.discounts)
+    ? h.discounts.find((d): d is { coupon?: CouponLike } => typeof d === 'object' && d !== null && Boolean(d.coupon))
+    : undefined;
+  const disc = h.discount ?? fromArray ?? null;
+  return disc?.coupon ?? null;
+}
+
+/** The coupon currently reducing what a subscription actually bills. A coupon
+ *  may sit on the subscription OR on the customer (checkout often attaches it to
+ *  the customer), so we check both. Any still-attached coupon — including a
+ *  one-time ('once') one that hasn't been consumed yet — reduces the amount the
+ *  customer is billed right now, so it counts toward MRR. A 100%-off coupon
+ *  therefore zeroes the subscription's contribution. */
+function activeCoupon(sub: unknown): CouponLike | null {
+  const s = sub as { customer?: unknown };
+  return couponFrom(sub) ?? couponFrom(s.customer) ?? null;
 }
 
 /** Reduce a monthly amount (cents) by an active coupon. */
@@ -94,14 +103,34 @@ export class AdminStripeService {
     return Boolean(this.stripe);
   }
 
+  /** List subscriptions with coupon data expanded so 100%-off (and partial)
+   *  coupons are reflected in MRR. Coupons can live on the subscription
+   *  (`discounts`) or on the customer, so we expand both. If a particular
+   *  account/API version rejects the expand, fall back to an unexpanded list
+   *  rather than failing the whole summary (which would silently revert MRR to
+   *  full plan price). */
+  private async listSubscriptions(
+    stripe: InstanceType<typeof Stripe>,
+  ): Promise<Awaited<ReturnType<InstanceType<typeof Stripe>['subscriptions']['list']>>> {
+    try {
+      return await stripe.subscriptions.list({
+        status: 'all',
+        limit: 100,
+        expand: ['data.discounts', 'data.customer'],
+      });
+    } catch (err) {
+      this.logger.warn(`Stripe subscription expand failed, retrying plain: ${(err as Error).message}`);
+      return stripe.subscriptions.list({ status: 'all', limit: 100 });
+    }
+  }
+
   async summary(): Promise<StripeAdminSummary | null> {
     if (!this.stripe) return null;
     const stripe = this.stripe;
     const since = Math.floor((Date.now() - 30 * 86400_000) / 1000);
     try {
       const [subs, refunds, charges, invoices] = await Promise.all([
-        // Expand discounts so coupons (e.g. 100%-off) are applied to MRR.
-        stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.discounts'] }),
+        this.listSubscriptions(stripe),
         stripe.refunds.list({ limit: 100, created: { gte: since } }),
         stripe.charges.list({ limit: 100, created: { gte: since } }),
         stripe.invoices.list({ limit: 10 }),
@@ -128,8 +157,9 @@ export class AdminStripeService {
               p.recurring.interval_count ?? 1,
             );
           }
-          // Apply an active, recurring coupon (percent_off / amount_off). A
-          // 100%-off forever coupon therefore contributes 0 to MRR.
+          // Apply the coupon currently attached to the subscription or its
+          // customer (percent_off / amount_off). A 100%-off coupon therefore
+          // contributes 0 to MRR.
           mrrCents += applyDiscount(subMonthlyCents, activeCoupon(s));
         }
       }

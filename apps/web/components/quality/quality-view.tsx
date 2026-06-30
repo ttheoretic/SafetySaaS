@@ -1,10 +1,13 @@
 'use client'
 
-import { useMemo } from 'react'
-import { Activity, FileWarning, Boxes, ListTodo, FileCode } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Activity, FileWarning, Boxes, ListTodo, FileCode, ChevronRight } from 'lucide-react'
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { useSystemGraph } from '@/lib/use-project-data'
+import { RiskInspector } from '@/components/shared/risk-inspector'
+import { findingFingerprint, type QualityHotspot } from '@riscly/shared'
+import type { Risk, Severity } from '@/lib/riscly-data'
 import { cn } from '@/lib/utils'
 
 type Band = 'critical' | 'high' | 'medium' | 'low'
@@ -30,6 +33,43 @@ const TAG_LABEL: Record<string, string> = {
   todos: 'Unfinished (TODOs)',
 }
 
+const QUALITY_RULE = 'quality/maintainability'
+
+/** Turn a maintainability hotspot into a Risk so the shared inspector can open
+ *  the file, generate an AI refactor and — after the user reviews it — push it
+ *  to the repo (file + rule are set, so `canFix` is true). */
+function hotspotToRisk(h: QualityHotspot): Risk {
+  const b = band(h.score)
+  const fileName = h.file.split('/').pop() || h.file
+  const tagText = h.tags.map((t) => TAG_LABEL[t] ?? t).join(', ')
+  const description =
+    `This file scores ${h.score}/100 for maintainability risk: ` +
+    `${h.loc} lines, branching complexity ${h.complexity}, max nesting ${h.maxNesting}` +
+    (h.todos > 0 ? `, ${h.todos} unfinished marker${h.todos === 1 ? '' : 's'} (TODO/FIXME)` : '') +
+    (tagText ? `. Flagged for: ${tagText}.` : '.')
+  return {
+    id: `QLT-${h.score}`,
+    title: `Maintainability risk: ${fileName}`,
+    category: 'Code',
+    severity: b as Severity,
+    description,
+    impact:
+      'Large, complex or deeply nested files are harder to change safely and are a common source of ' +
+      'future defects and incidents. Refactoring and adding test coverage here lowers the risk of regressions.',
+    components: [],
+    file: h.file,
+    line: 1,
+    repo: h.repo,
+    rule: QUALITY_RULE,
+    confidence: 'heuristic',
+    fix:
+      'Break this file into smaller, focused units, reduce nesting by extracting helpers and early returns, ' +
+      'simplify branching, and resolve the outstanding TODO/FIXME markers. Add tests around the extracted pieces.',
+    status: 'open',
+    fingerprint: findingFingerprint({ rule: QUALITY_RULE, file: h.file, title: h.file }),
+  }
+}
+
 /**
  * Code Quality / maintainability — "future-problem" signals. Surfaces files
  * that are large, complex, deeply nested or TODO-heavy: code that isn't a
@@ -39,9 +79,16 @@ export function QualityView() {
   const { graph } = useSystemGraph()
   const hotspots = useMemo(() => graph?.qualityHotspots ?? [], [graph])
   const summary = graph?.qualitySummary
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+
+  const selectedRisk = useMemo(() => {
+    if (!selectedKey) return null
+    const h = hotspots.find((x) => `${x.repo ?? ''}:${x.file}` === selectedKey)
+    return h ? hotspotToRisk(h) : null
+  }, [selectedKey, hotspots])
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <ScreenHeader
         title="Code Quality"
         subtitle="Maintainability hotspots — code likely to cause future problems"
@@ -71,8 +118,16 @@ export function QualityView() {
             <div className="divide-y divide-border">
               {hotspots.map((h) => {
                 const b = band(h.score)
+                const key = `${h.repo ?? ''}:${h.file}`
                 return (
-                  <div key={`${h.repo ?? ''}:${h.file}`} className="flex items-center gap-3 px-3 py-2.5">
+                  <button
+                    key={key}
+                    onClick={() => setSelectedKey(key)}
+                    className={cn(
+                      'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/40',
+                      selectedKey === key && 'bg-accent/60',
+                    )}
+                  >
                     {/* score */}
                     <div className="flex w-12 shrink-0 flex-col items-center">
                       <span className={cn('font-mono text-lg font-semibold tabular-nums', bandColor[b])}>{h.score}</span>
@@ -99,7 +154,8 @@ export function QualityView() {
                         </span>
                       ))}
                     </div>
-                  </div>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground/40" />
+                  </button>
                 )
               })}
             </div>
@@ -110,6 +166,14 @@ export function QualityView() {
             They flag maintainability risk, not security vulnerabilities — high-scoring files are the best
             candidates for refactoring and extra test coverage.
           </p>
+        </div>
+      )}
+
+      {/* hotspot inspector — slides in over the right edge. Lets the user open
+          the file, generate an AI refactor and push it once they're happy. */}
+      {selectedRisk && (
+        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-md border-l border-border bg-panel shadow-2xl">
+          <RiskInspector risk={selectedRisk} onClose={() => setSelectedKey(null)} />
         </div>
       )}
     </div>
