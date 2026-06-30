@@ -88,11 +88,6 @@ export function LegalShell({
         <article className="legal-prose space-y-4 text-sm leading-relaxed text-foreground/90">
           {children}
         </article>
-
-        <p className="mt-10 border-t border-border pt-4 text-[11px] text-muted-foreground">
-          This document is a template provided for convenience and is not legal
-          advice. Have it reviewed by qualified counsel before relying on it.
-        </p>
       </main>
     </div>
   )

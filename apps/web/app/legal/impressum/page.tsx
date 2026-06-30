@@ -4,7 +4,7 @@ import { LegalShell, H2, P, UL } from '@/components/legal/legal-shell'
 
 export default function ImpressumPage() {
   return (
-    <LegalShell title="Impressum" updated="[DATUM]">
+    <LegalShell title="Impressum" updated="30. Juni 2026">
       <P>Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz, vormals § 5 TMG).</P>
 
       <H2>Diensteanbieter</H2>

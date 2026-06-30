@@ -10,7 +10,7 @@ export default function CookiePage() {
       title={lang === 'de' ? 'Cookie-Richtlinie' : 'Cookie Policy'}
       lang={lang}
       onLang={setLang}
-      updated="[DATUM]"
+      updated="30. Juni 2026"
     >
       {lang === 'de' ? <De /> : <En />}
     </LegalShell>

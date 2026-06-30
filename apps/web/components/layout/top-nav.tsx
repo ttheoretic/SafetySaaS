@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import {
   Search,
-  Bell,
   ChevronDown,
   GitBranch,
   Check,
@@ -15,6 +14,8 @@ import {
 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { FeedbackWidget } from './feedback-widget'
+import { NotificationBell } from './notification-bell'
+import { ProfileMenu } from './profile-menu'
 import { useAuth } from '@/lib/auth-store'
 import {
   useProjects,
@@ -73,11 +74,6 @@ function RiskScore({ score }: { score: number | null }) {
   )
 }
 
-function initialsOf(s: string): string {
-  const parts = s.trim().split(/[\s@.]+/).filter(Boolean)
-  return (parts[0]?.[0] ?? '?').concat(parts[1]?.[0] ?? '').toUpperCase()
-}
-
 export function TopNav() {
   const [open, setOpen] = useState(false)
   const addRepo = useAddRepository()
@@ -88,7 +84,6 @@ export function TopNav() {
   const { score: reliability } = useReliability()
 
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) })
-  const userLabel = me.data?.user.name ?? me.data?.user.email ?? ''
   const list = projects.data ?? []
 
   // Top-bar risk = inverse of reliability (higher reliability = lower risk).
@@ -191,17 +186,9 @@ export function TopNav() {
 
         <FeedbackWidget />
 
-        <button className="relative flex size-8 items-center justify-center rounded-md border border-border bg-background hover:border-muted-foreground/40">
-          <Bell className="size-4 text-muted-foreground" />
-          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-critical" />
-        </button>
+        <NotificationBell />
 
-        <button className="flex items-center gap-2 rounded-md border border-border bg-background py-1 pl-1 pr-2 hover:border-muted-foreground/40">
-          <span className="flex size-6 items-center justify-center rounded-sm bg-secondary font-mono text-[11px] font-semibold">
-            {userLabel ? initialsOf(userLabel) : 'DO'}
-          </span>
-          <ChevronDown className="size-3.5 text-muted-foreground" />
-        </button>
+        <ProfileMenu />
       </div>
     </header>
   )

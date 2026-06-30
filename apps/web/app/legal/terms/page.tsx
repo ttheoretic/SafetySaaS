@@ -10,7 +10,7 @@ export default function TermsPage() {
       title={lang === 'de' ? 'Allgemeine Geschäftsbedingungen (AGB)' : 'Terms of Service'}
       lang={lang}
       onLang={setLang}
-      updated="[DATUM]"
+      updated="30. Juni 2026"
     >
       {lang === 'de' ? <De /> : <En />}
     </LegalShell>

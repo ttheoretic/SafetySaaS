@@ -18,7 +18,7 @@ const ROWS: Row[] = [
 
 export default function SubprocessorsPage() {
   return (
-    <LegalShell title="Subprocessors" updated="[DATUM]">
+    <LegalShell title="Subprocessors" updated="30. Juni 2026">
       <P>
         Riscly uses the following subprocessors to provide the Service. They
         process personal data on our behalf under data processing agreements
