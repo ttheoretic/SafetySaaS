@@ -12,6 +12,8 @@ import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { CodeIssue, Finding, Severity, SystemGraph } from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
+import { AuthModule } from '../auth/auth.module';
+import { AuditService } from '../auth/audit.service';
 import { BillingService } from '../billing/billing.service';
 import { AiModule } from '../ai/ai.module';
 import { PredictionService } from '../ai/prediction.service';
@@ -64,6 +66,7 @@ class GithubController {
     private readonly billing: BillingService,
     private readonly ai: PredictionService,
     private readonly analyze: AnalyzeService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Resolve the repo to act on: the one given, else the project's first repo. */
@@ -132,7 +135,7 @@ class GithubController {
         'Could not generate a fix to apply. The AI may be unavailable.',
       );
     }
-    return this.github.openPullRequest(projectId, auth.org.id, {
+    const pr = await this.github.openPullRequest(projectId, auth.org.id, {
       path: dto.file,
       content: result.fixed,
       title: `Riscly fix: ${dto.title}`,
@@ -140,6 +143,10 @@ class GithubController {
         `Automated fix for **${dto.title}** (\`${dto.rule}\`) in \`${dto.file}\`.\n\n` +
         `${result.explanation ?? ''}\n\nReview carefully before merging.`,
     });
+    void this.audit.record(auth, 'code.fix.pr', { type: 'project', id: projectId }, {
+      file: dto.file, rule: dto.rule, repo,
+    });
+    return pr;
   }
 
   /** Apply an AI fix by committing it directly to the default branch (no PR). */
@@ -170,12 +177,16 @@ class GithubController {
     if (!result.fixed) {
       throw new BadRequestException('Could not generate a fix to apply. The AI may be unavailable.');
     }
-    return this.github.commitFile(projectId, auth.org.id, {
+    const commit = await this.github.commitFile(projectId, auth.org.id, {
       repo,
       path: dto.file,
       content: result.fixed,
       message: `Riscly fix: ${dto.title} (${dto.rule})`,
     });
+    void this.audit.record(auth, 'code.fix.commit', { type: 'project', id: projectId }, {
+      file: dto.file, rule: dto.rule, repo,
+    });
+    return commit;
   }
 
   /**
@@ -347,7 +358,7 @@ class GithubController {
 }
 
 @Module({
-  imports: [StoreModule, AiModule, AnalyzeModule],
+  imports: [StoreModule, AiModule, AnalyzeModule, AuthModule],
   controllers: [GithubController],
   providers: [GithubService],
   exports: [GithubService],
