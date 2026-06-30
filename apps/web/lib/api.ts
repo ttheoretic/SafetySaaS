@@ -280,7 +280,8 @@ export const api = {
       fixed: string | null
       explanation: string | null
     }>(`/projects/${projectId}/code/fix`, body),
-  /** Apply an AI fix by committing it directly to the default branch (no PR). */
+  /** Apply an AI fix by committing it directly to the default branch (no PR).
+   *  Pass `content` (the verified fixed file) to commit exactly that. */
   codeFixCommit: (
     projectId: string,
     body: {
@@ -290,6 +291,7 @@ export const api = {
       rule: string
       title: string
       description?: string
+      content?: string
     },
   ) =>
     post<{ url: string; repo: string; branch: string }>(

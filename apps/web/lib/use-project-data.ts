@@ -195,6 +195,9 @@ export interface CodeFixBody {
   rule: string
   title: string
   description?: string
+  /** Verified fixed file content (sent on commit so what's pushed is exactly
+   *  what the user previewed). */
+  content?: string
 }
 
 /**
@@ -252,10 +255,17 @@ export function useCodeFix(
   const commit = useCallback(
     async (body: CodeFixBody) => {
       if (!projectId) return
+      // Commit the exact content the user verified in the preview — never
+      // re-generate at push time.
+      const verified = fix?.fixed
+      if (!verified) {
+        setError('Generate and review a fix before pushing it.')
+        return
+      }
       setCommitting(true)
       setError(null)
       try {
-        const res = await api.codeFixCommit(projectId, body)
+        const res = await api.codeFixCommit(projectId, { ...body, content: verified })
         setCommitUrl(res.url)
         // Refetch the file + scan so the next region starts from committed code.
         await qc.invalidateQueries({ queryKey: ['code-file-content', projectId, repo, file] })
@@ -266,7 +276,7 @@ export function useCodeFix(
         setCommitting(false)
       }
     },
-    [projectId, qc, repo, file],
+    [projectId, qc, repo, file, fix],
   )
 
   return { fix, generate, generating, commit, committing, commitUrl, error, reset }

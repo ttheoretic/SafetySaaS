@@ -56,6 +56,11 @@ class CodeFixDto {
   @IsString() rule!: string;
   @IsString() title!: string;
   @IsOptional() @IsString() description?: string;
+  /** The exact fixed file content the user already previewed and verified. When
+   *  present, apply/PR commit THIS verbatim instead of re-running the AI — so
+   *  what gets pushed is exactly what was reviewed (and the push can't silently
+   *  no-op if a second generation comes back empty). */
+  @IsOptional() @IsString() content?: string;
 }
 
 @Controller('projects/:projectId')
@@ -75,6 +80,41 @@ class GithubController {
     const repos = await this.github.listRepos(projectId, orgId);
     if (!repos[0]) throw new BadRequestException('No connected GitHub repository.');
     return repos[0];
+  }
+
+  /**
+   * The fixed file content to push. Prefer the verified content the user
+   * already previewed (so what's committed is exactly what was reviewed);
+   * otherwise read the file and generate a fix with the AI as a fallback.
+   */
+  private async resolveFix(
+    projectId: string,
+    auth: AuthContext,
+    repo: string,
+    dto: CodeFixDto,
+  ): Promise<{ content: string; explanation: string | null }> {
+    if (dto.content != null && dto.content.trim() !== '') {
+      return { content: dto.content, explanation: null };
+    }
+    const original = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
+    if (original == null) {
+      throw new BadRequestException('Could not read the file from the repo.');
+    }
+    const result = await this.ai.fixCode(
+      {
+        file: dto.file,
+        content: original,
+        line: dto.line ?? 1,
+        rule: dto.rule,
+        title: dto.title,
+        description: dto.description ?? '',
+      },
+      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
+    );
+    if (!result.fixed) {
+      throw new BadRequestException('Could not generate a fix to apply. The AI may be unavailable.');
+    }
+    return { content: result.fixed, explanation: result.explanation ?? null };
   }
 
   /** Generate an AI fix for a located code issue (preview: original + fixed). */
@@ -115,33 +155,19 @@ class GithubController {
   ) {
     this.billing.assertHasFeature(auth.org, 'prExport', 'AI PR export');
     const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
-    const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
-    if (content == null) {
-      throw new BadRequestException('Could not read the file from the repo.');
-    }
-    const result = await this.ai.fixCode(
-      {
-        file: dto.file,
-        content,
-        line: dto.line ?? 1,
-        rule: dto.rule,
-        title: dto.title,
-        description: dto.description ?? '',
-      },
-      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
+    const { content: fixedContent, explanation } = await this.resolveFix(
+      projectId,
+      auth,
+      repo,
+      dto,
     );
-    if (!result.fixed) {
-      throw new BadRequestException(
-        'Could not generate a fix to apply. The AI may be unavailable.',
-      );
-    }
     const pr = await this.github.openPullRequest(projectId, auth.org.id, {
       path: dto.file,
-      content: result.fixed,
+      content: fixedContent,
       title: `Riscly fix: ${dto.title}`,
       body:
         `Automated fix for **${dto.title}** (\`${dto.rule}\`) in \`${dto.file}\`.\n\n` +
-        `${result.explanation ?? ''}\n\nReview carefully before merging.`,
+        `${explanation ?? ''}\n\nReview carefully before merging.`,
     });
     void this.audit.record(auth, 'code.fix.pr', { type: 'project', id: projectId }, {
       file: dto.file, rule: dto.rule, repo,
@@ -159,28 +185,11 @@ class GithubController {
   ) {
     this.billing.assertHasFeature(auth.org, 'prExport', 'AI fix apply');
     const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
-    const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
-    if (content == null) {
-      throw new BadRequestException('Could not read the file from the repo.');
-    }
-    const result = await this.ai.fixCode(
-      {
-        file: dto.file,
-        content,
-        line: dto.line ?? 1,
-        rule: dto.rule,
-        title: dto.title,
-        description: dto.description ?? '',
-      },
-      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
-    );
-    if (!result.fixed) {
-      throw new BadRequestException('Could not generate a fix to apply. The AI may be unavailable.');
-    }
+    const { content: fixedContent } = await this.resolveFix(projectId, auth, repo, dto);
     const commit = await this.github.commitFile(projectId, auth.org.id, {
       repo,
       path: dto.file,
-      content: result.fixed,
+      content: fixedContent,
       message: `Riscly fix: ${dto.title} (${dto.rule})`,
     });
     void this.audit.record(auth, 'code.fix.commit', { type: 'project', id: projectId }, {
