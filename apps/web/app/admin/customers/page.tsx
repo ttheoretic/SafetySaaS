@@ -100,6 +100,23 @@ function CustomerDrawer({ orgId, onClose }: { orgId: string; onClose: () => void
   const reactivate = useMutation({ mutationFn: () => api.admin.reactivate(orgId), onSuccess })
   const reset = useMutation({ mutationFn: () => api.admin.resetSubscription(orgId), onSuccess })
 
+  const [exporting, setExporting] = useState(false)
+  async function exportWorkspace() {
+    setExporting(true)
+    try {
+      const data = await api.admin.exportWorkspace(orgId)
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `riscly-workspace-${d?.org.slug ?? orgId}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onClick={onClose}>
       <div
@@ -157,6 +174,7 @@ function CustomerDrawer({ orgId, onClose }: { orgId: string; onClose: () => void
                 <ActionBtn label="Suspend workspace" busy={suspend.isPending} onClick={() => suspend.mutate()} danger />
                 <ActionBtn label="Reactivate" busy={reactivate.isPending} onClick={() => reactivate.mutate()} />
                 <ActionBtn label="Reset subscription" busy={reset.isPending} onClick={() => reset.mutate()} />
+                <ActionBtn label="Export workspace" busy={exporting} onClick={exportWorkspace} />
               </div>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Suspending cancels the subscription (revokes app access). Actions are written to the admin audit log.

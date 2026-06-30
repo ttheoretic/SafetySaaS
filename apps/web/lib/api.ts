@@ -423,6 +423,7 @@ export const api = {
     suspend: (orgId: string) => post(`/admin/customers/${orgId}/suspend`, {}),
     reactivate: (orgId: string) => post(`/admin/customers/${orgId}/reactivate`, {}),
     resetSubscription: (orgId: string) => post(`/admin/customers/${orgId}/reset-subscription`, {}),
+    exportWorkspace: (orgId: string) => get<Record<string, unknown>>(`/admin/customers/${orgId}/export`),
     billing: () => get<AdminBilling>('/admin/billing'),
     aiUsage: () => get<AdminAiUsage>('/admin/ai-usage'),
     feedback: () => get<AdminFeedback[]>('/admin/feedback'),

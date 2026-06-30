@@ -32,6 +32,7 @@ import {
   useActiveProject,
 } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
+import { track } from '@/lib/analytics'
 
 type Scenario = {
   id: string
@@ -139,6 +140,7 @@ export function SimulationView() {
     setError(null)
     setRes(null)
     setReveal(0)
+    track('simulation_started', { type: active.type })
     try {
       const r = (await api.simulate(graph, active.type, {
         params: active.params,
@@ -146,6 +148,7 @@ export function SimulationView() {
         durationHours: 1,
       })) as SimResponse
       setRes(r)
+      track('simulation_completed', { type: active.type })
     } catch (e) {
       setError((e as Error).message)
     } finally {

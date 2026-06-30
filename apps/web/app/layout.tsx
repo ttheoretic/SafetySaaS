@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppShell } from '@/components/layout/app-shell'
 import { Providers } from '@/components/Providers'
+import { AnalyticsProvider } from '@/components/analytics-provider'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -37,6 +38,7 @@ export default function RootLayout({
         <Providers>
           <AppShell>{children}</AppShell>
         </Providers>
+        <AnalyticsProvider />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

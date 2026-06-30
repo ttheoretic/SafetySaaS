@@ -22,6 +22,7 @@ import { Markdown } from '@/components/ui/markdown'
 import type { Risk } from '@/lib/riscly-data'
 import { api } from '@/lib/api'
 import { useActiveProject } from '@/lib/use-project-data'
+import { track } from '@/lib/analytics'
 
 function Section({
   label,
@@ -83,6 +84,7 @@ export function RiskInspector({
     try {
       setFix(await api.codeFix(projectId, fixBody()))
       setView('fix')
+      track('ai_fix_generated', { rule: risk.rule })
     } catch (e) {
       setFixError((e as Error).message)
     } finally {

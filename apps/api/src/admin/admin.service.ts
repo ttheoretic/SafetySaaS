@@ -477,6 +477,27 @@ export class AdminService {
     return this.store.upsertSubscription({ orgId, plan: 'starter', status: 'none' });
   }
 
+  /** A portable JSON bundle of a workspace (no secrets — tokens are excluded). */
+  async exportWorkspace(orgId: string) {
+    const detail = await this.customer(orgId);
+    if (!detail) return null;
+    return {
+      exportedAt: new Date().toISOString(),
+      workspace: detail.org,
+      subscription: detail.subscription,
+      members: detail.members,
+      projects: detail.projects.map((p) => ({
+        name: p.name,
+        reliabilityScore: p.reliabilityScore,
+        businessContext: p.businessContext,
+        integrations: p.integrations.map((i) => ({ provider: i.provider, status: i.status })),
+        scans: p.scans,
+        scenarios: p.scenarios,
+      })),
+      aiUsage: detail.aiUsage,
+    };
+  }
+
   /** The admin-console audit trail, with the acting admin resolved. */
   async logs() {
     const rows = await this.store.listAdminLogs();

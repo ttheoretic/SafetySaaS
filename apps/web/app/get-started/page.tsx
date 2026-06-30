@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/lib/auth-store'
 import { api } from '@/lib/api'
 import { useActiveProjectStore } from '@/lib/active-project'
+import { track } from '@/lib/analytics'
 import type { SystemGraph } from '@riscly/shared'
 
 type Step = 'workspace' | 'connect' | 'review' | 'scan' | 'result'
@@ -134,7 +135,10 @@ export default function GetStartedPage() {
         const connectError = params.get('connect_error')
         // "Add repository": always create a NEW project/repo, don't resume.
         const isNew = params.get('new') === '1' && !connectedProvider
-        if (connectedProvider) setConnected(connectedProvider)
+        if (connectedProvider) {
+          setConnected(connectedProvider)
+          if (connectedProvider === 'github') track('github_connected')
+        }
         // The provider connect was abandoned/expired (e.g. a password-reset
         // detour). Surface it so the user simply retries instead of being stuck.
         if (connectError)
@@ -329,6 +333,7 @@ export default function GetStartedPage() {
 
       setFindings((finished.findings ?? []).slice(0, 3))
       setTargetScore(finished.reliabilityScore ?? 0)
+      track('architecture_generated')
       setStep('result')
       // Onboarding is now complete for this repo — refresh the provisioning
       // state so the dashboard guard sees "ready" instead of bouncing back.

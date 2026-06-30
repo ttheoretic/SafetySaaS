@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Loader2, Check } from 'lucide-react'
 import { api, type AdminSettings } from '@/lib/api'
-import { Panel, SectionTitle, StatusBadge, Skeleton } from '@/components/admin/ui'
+import { Panel, SectionTitle, StatusBadge, Skeleton, relTime } from '@/components/admin/ui'
 
 export default function AdminSettingsPage() {
   const qc = useQueryClient()
@@ -56,9 +56,35 @@ export default function AdminSettingsPage() {
               <Info label="Node" value={d.system.node} />
             </dl>
           </Panel>
+
+          <AdminAuditLog />
         </>
       )}
     </div>
+  )
+}
+
+function AdminAuditLog() {
+  const q = useQuery({ queryKey: ['admin', 'logs'], queryFn: () => api.admin.logs() })
+  return (
+    <Panel title="Admin audit log">
+      {q.isLoading ? (
+        <div className="space-y-1.5">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-6" />)}</div>
+      ) : !q.data?.length ? (
+        <p className="py-6 text-center text-xs text-muted-foreground">No admin actions recorded yet.</p>
+      ) : (
+        <ul className="divide-y divide-border text-sm">
+          {q.data.slice(0, 40).map((l) => (
+            <li key={l.id} className="flex items-center gap-3 py-1.5">
+              <span className="font-mono text-[11px] text-primary">{l.action}</span>
+              {l.targetId && <span className="truncate font-mono text-[10px] text-muted-foreground">{l.targetType}:{l.targetId}</span>}
+              <span className="ml-auto text-[11px] text-muted-foreground">{l.actor?.email ?? l.actorUserId}</span>
+              <span className="font-mono text-[10px] text-muted-foreground">{relTime(l.createdAt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   )
 }
 

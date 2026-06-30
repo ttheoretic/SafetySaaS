@@ -81,6 +81,13 @@ class AdminController {
     return r;
   }
 
+  @Get('customers/:orgId/export')
+  async exportWorkspace(@Auth() auth: AuthContext, @Param('orgId') orgId: string) {
+    const data = await this.admin.exportWorkspace(orgId);
+    await this.admin.logAction(auth.user.id, 'workspace.export', { type: 'org', id: orgId });
+    return data;
+  }
+
   @Get('billing')
   billing() {
     return this.admin.billing();
