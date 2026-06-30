@@ -10,16 +10,24 @@
 set -e
 
 if [ -n "$DATABASE_URL" ] || [ -n "$DIRECT_URL" ]; then
-  echo "[entrypoint] Applying database migrations (prisma migrate deploy)..."
-  if npx prisma migrate deploy; then
+  # Bound every Prisma step so a connection that hangs (e.g. migrate's advisory
+  # lock over a transaction pooler when DIRECT_URL is missing) can never wedge
+  # the deploy — the API still starts instead of sitting "in progress" forever.
+  MIGRATE_TIMEOUT="${MIGRATE_TIMEOUT:-180}"
+  echo "[entrypoint] Applying database migrations (prisma migrate deploy, ${MIGRATE_TIMEOUT}s timeout)..."
+  if timeout "$MIGRATE_TIMEOUT" npx prisma migrate deploy; then
     echo "[entrypoint] Migrations applied."
   else
-    # A drifted DB (e.g. created ad-hoc / via db push) can't be migrated with a
-    # clean history. Force the schema to match so columns/tables can't be missing
-    # at runtime. Idempotent; a no-op when already in sync.
-    echo "[entrypoint] migrate deploy failed — syncing schema with prisma db push..."
-    npx prisma db push --accept-data-loss \
-      || echo "[entrypoint] WARNING: db push failed; starting anyway."
+    rc=$?
+    if [ "$rc" = "124" ]; then
+      echo "[entrypoint] migrate deploy TIMED OUT — is DIRECT_URL a direct (non-pooler, :5432) connection?"
+    else
+      echo "[entrypoint] migrate deploy failed (exit $rc) — syncing schema with prisma db push..."
+    fi
+    # A drifted/locked DB can't be migrated with a clean history. Force the
+    # schema to match so columns/tables can't be missing at runtime.
+    timeout "$MIGRATE_TIMEOUT" npx prisma db push --accept-data-loss \
+      || echo "[entrypoint] WARNING: schema sync failed; starting anyway (admin features may error until migrations run)."
   fi
 else
   echo "[entrypoint] No DATABASE_URL/DIRECT_URL set — using in-memory store, skipping migrations."
