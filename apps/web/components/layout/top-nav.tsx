@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import {
   Search,
@@ -10,8 +11,10 @@ import {
   Check,
   Plus,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { FeedbackWidget } from './feedback-widget'
 import { useAuth } from '@/lib/auth-store'
 import {
   useProjects,
@@ -175,6 +178,18 @@ export function TopNav() {
 
       <div className="ml-auto flex items-center gap-2">
         <RiskScore score={riskScore} />
+
+        {me.data?.platformAdmin && (
+          <Link
+            href="/admin"
+            title="Admin console"
+            className="hidden size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground sm:flex"
+          >
+            <ShieldCheck className="size-4" />
+          </Link>
+        )}
+
+        <FeedbackWidget />
 
         <button className="relative flex size-8 items-center justify-center rounded-md border border-border bg-background hover:border-muted-foreground/40">
           <Bell className="size-4 text-muted-foreground" />
