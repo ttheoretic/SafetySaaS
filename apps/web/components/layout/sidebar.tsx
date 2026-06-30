@@ -22,9 +22,11 @@ import {
   Bot,
   Settings,
   ShieldCheck,
+  Lock,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { usePlan } from '@/lib/use-plan'
 
 type Child = { label: string; icon: LucideIcon; href: string; beta?: boolean }
 type Group = { id: string; label: string; children: Child[] }
@@ -88,6 +90,7 @@ const UTILITIES: { label: string; icon: LucideIcon; href: string }[] = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { isPathLocked } = usePlan()
   const isActive = (href: string) =>
     href === '/dashboard'
       ? pathname === '/dashboard'
@@ -121,7 +124,12 @@ export function Sidebar() {
                 {g.label}
               </div>
               {g.children.map((c) => (
-                <RowLink key={c.href} child={c} active={isActive(c.href)} />
+                <RowLink
+                  key={c.href}
+                  child={c}
+                  active={isActive(c.href)}
+                  locked={isPathLocked(c.href)}
+                />
               ))}
             </div>
           ))}
@@ -142,17 +150,26 @@ export function Sidebar() {
   )
 }
 
-function RowLink({ child, active }: { child: Child; active: boolean }) {
+function RowLink({
+  child,
+  active,
+  locked = false,
+}: {
+  child: Child
+  active: boolean
+  locked?: boolean
+}) {
   const Icon = child.icon
   return (
     <Link
       href={child.href}
-      title={child.label}
+      title={locked ? `${child.label} — upgrade to unlock` : child.label}
       className={cn(
         'relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
         active
           ? 'bg-sidebar-accent text-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
+        locked && !active && 'text-muted-foreground/50',
       )}
     >
       {active && (
@@ -162,11 +179,13 @@ function RowLink({ child, active }: { child: Child; active: boolean }) {
       <span className="flex-1 whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
         {child.label}
       </span>
-      {child.beta && (
+      {locked ? (
+        <Lock className="size-3 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100" />
+      ) : child.beta ? (
         <span className="whitespace-nowrap rounded-sm bg-muted px-1.5 font-mono text-[9px] uppercase tracking-wide text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
           Soon
         </span>
-      )}
+      ) : null}
     </Link>
   )
 }

@@ -34,14 +34,53 @@ export interface CollectorContext {
   entitlements?: {
     /** Dependency scanning (SCA). */
     sca?: boolean;
-    /** Code / secret / IaC analysis (SAST family). */
+    /** Code analysis (SAST). */
     codeAudit?: boolean;
+    /** Secret scanning — gated separately from SAST (pro+). */
+    secrets?: boolean;
+    /** Infrastructure-as-Code scanning (Dockerfile/IaC) — separate from SAST (pro+). */
+    iac?: boolean;
     /** Max repositories to scan (plan limit). Infinity / undefined = unlimited. */
     maxRepos?: number;
   };
 }
 
 export const EMPTY: Partial<ScanCollection> = {};
+
+/** Secret-detection rules (committed secrets + secret-bearing files). */
+function isSecretRule(rule?: string): boolean {
+  return Boolean(rule && (rule.startsWith('secret/') || rule.startsWith('secret-file/')));
+}
+
+/** Infrastructure-as-Code rules (Dockerfile, k8s, terraform). */
+function isIacRule(rule?: string): boolean {
+  return Boolean(
+    rule &&
+      (rule.startsWith('docker/') ||
+        rule.startsWith('iac/') ||
+        rule.startsWith('k8s/') ||
+        rule.startsWith('terraform/')),
+  );
+}
+
+/**
+ * Drop secret / IaC findings the plan isn't entitled to. SAST (codeAudit) covers
+ * generic code rules; secret scanning and IaC are separately gated tiers, so a
+ * plan with SAST but not those must not receive their findings. Undefined
+ * entitlements default to enabled (tests / public path).
+ */
+export function filterByEntitlements<T extends { rule?: string }>(
+  items: T[] | undefined,
+  ent?: CollectorContext['entitlements'],
+): T[] | undefined {
+  if (!items || !ent) return items;
+  const secretsOk = ent.secrets !== false;
+  const iacOk = ent.iac !== false;
+  if (secretsOk && iacOk) return items;
+  return items.filter(
+    (i) => (secretsOk || !isSecretRule(i.rule)) && (iacOk || !isIacRule(i.rule)),
+  );
+}
 
 /** DI token for the registered provider-specific collectors. */
 export const PROVIDER_COLLECTORS = Symbol('PROVIDER_COLLECTORS');

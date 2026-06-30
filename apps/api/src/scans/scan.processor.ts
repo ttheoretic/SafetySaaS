@@ -120,6 +120,8 @@ export class ScanProcessor implements OnModuleInit {
           ? {
               sca: hasFeature(job.plan, 'sca'),
               codeAudit: hasFeature(job.plan, 'sast'),
+              secrets: hasFeature(job.plan, 'secretScanning'),
+              iac: hasFeature(job.plan, 'iac'),
               maxRepos: planLimits(job.plan).maxRepos,
             }
           : undefined;

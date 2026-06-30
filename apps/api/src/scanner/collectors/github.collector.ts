@@ -7,7 +7,7 @@ import type {
   ProviderId,
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch, filterByEntitlements } from './collector';
 import { auditRepoDependencies, ResolvedDep } from '../dependency-audit';
 import { auditRepoCode } from '../code-audit';
 
@@ -278,8 +278,16 @@ export class GithubCollector implements ProviderCollector {
       ]);
       vulnerabilities = sca?.vulnerabilities;
       components = sca?.components;
-      codeFindings = code?.findings.map((f) => ({ ...f, repo }));
-      codeIssues = code?.issues.map((i) => ({ ...i, repo }));
+      // Secret + IaC findings are separately-gated tiers (pro+); drop them when
+      // the plan only entitles SAST.
+      codeFindings = filterByEntitlements(
+        code?.findings.map((f) => ({ ...f, repo })),
+        ctx.entitlements,
+      );
+      codeIssues = filterByEntitlements(
+        code?.issues.map((i) => ({ ...i, repo })),
+        ctx.entitlements,
+      );
     }
 
     // Skip a repo only when there's genuinely nothing to say about it.

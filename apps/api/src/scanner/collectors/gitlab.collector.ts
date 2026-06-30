@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ScanCollection, RepoSignals } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
-import { ProviderCollector, CollectorContext, resilientFetch } from './collector';
+import { ProviderCollector, CollectorContext, resilientFetch, filterByEntitlements } from './collector';
 import { auditCodeSource, RepoFileSource } from '../code-audit';
 
 interface GitlabTreeEntry {
@@ -58,13 +58,25 @@ export class GitlabCollector implements ProviderCollector {
       readFile: (path) => this.readFile(base, pid, path, branch, ctx),
     };
 
-    const code = await auditCodeSource(source, ctx.fetchImpl).catch((err) => {
-      this.logger.warn(`GitLab code audit of ${repo} failed: ${(err as Error).message}`);
-      return undefined;
-    });
+    // SAST (code audit) is plan-gated; secret + IaC findings are gated further.
+    const code =
+      ctx.entitlements?.codeAudit === false
+        ? undefined
+        : await auditCodeSource(source, ctx.fetchImpl).catch((err) => {
+            this.logger.warn(`GitLab code audit of ${repo} failed: ${(err as Error).message}`);
+            return undefined;
+          });
 
-    const codeFindings = (code?.findings ?? []).map((f) => ({ ...f, repo }));
-    const codeIssues = (code?.issues ?? []).map((i) => ({ ...i, repo }));
+    const codeFindings =
+      filterByEntitlements(
+        (code?.findings ?? []).map((f) => ({ ...f, repo })),
+        ctx.entitlements,
+      ) ?? [];
+    const codeIssues =
+      filterByEntitlements(
+        (code?.issues ?? []).map((i) => ({ ...i, repo })),
+        ctx.entitlements,
+      ) ?? [];
     if (codeFindings.length === 0 && codeIssues.length === 0) return undefined;
 
     return {
