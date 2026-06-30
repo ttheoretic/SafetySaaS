@@ -23,6 +23,7 @@ import {
   Settings,
   ShieldCheck,
   Lock,
+  Activity,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,6 +59,7 @@ const GROUPS: Group[] = [
       { label: 'All Findings', icon: ShieldAlert, href: '/risks' },
       { label: 'Security', icon: LockKeyhole, href: '/security' },
       { label: 'Code (SAST)', icon: CodeXml, href: '/code' },
+      { label: 'Code Quality', icon: Activity, href: '/quality' },
       { label: 'Dependencies', icon: Boxes, href: '/dependencies' },
       { label: 'Secrets', icon: KeyRound, href: '/secrets' },
     ],

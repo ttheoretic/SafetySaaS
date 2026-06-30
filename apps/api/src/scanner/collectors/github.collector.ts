@@ -5,6 +5,7 @@ import type {
   Finding,
   CodeIssue,
   ProviderId,
+  QualityHotspot,
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext, resilientFetch, filterByEntitlements } from './collector';
@@ -257,6 +258,7 @@ export class GithubCollector implements ProviderCollector {
     let components: ResolvedDep[] | undefined;
     let codeFindings: Finding[] | undefined;
     let codeIssues: CodeIssue[] | undefined;
+    let qualityHotspots: QualityHotspot[] | undefined;
     if (ctx.token) {
       // Deep analysis is plan-gated: SCA and code/secret analysis unlock on
       // growth+. Undefined entitlements default to enabled (tests / public path).
@@ -288,6 +290,7 @@ export class GithubCollector implements ProviderCollector {
         code?.issues.map((i) => ({ ...i, repo })),
         ctx.entitlements,
       );
+      qualityHotspots = code?.hotspots?.map((h) => ({ ...h, repo }));
     }
 
     // Skip a repo only when there's genuinely nothing to say about it.
@@ -309,6 +312,7 @@ export class GithubCollector implements ProviderCollector {
       ...(vulnerabilities && vulnerabilities.length ? { vulnerabilities } : {}),
       ...(components && components.length ? { components } : {}),
       ...(codeFindings && codeFindings.length ? { codeFindings } : {}),
+      ...(qualityHotspots && qualityHotspots.length ? { qualityHotspots } : {}),
     };
   }
 

@@ -1,8 +1,9 @@
 import { Logger } from '@nestjs/common';
-import type { CodeIssue, Finding, Severity } from '@riscly/shared';
+import type { CodeIssue, Finding, Severity, QualityHotspot, QualitySummary } from '@riscly/shared';
 import { resilientFetch, mapWithConcurrency, CollectorContext } from './collectors/collector';
 import { analyzeJsAst, isJsLike, AST_OWNED_RULES } from './ast-audit';
 import { verifySecrets } from './secret-verify';
+import { analyzeQuality } from './code-quality';
 
 /** Max source files read in parallel — bounds the request fan-out on big repos. */
 const READ_CONCURRENCY = 8;
@@ -246,6 +247,9 @@ function auditFileContent(file: string, content: string, skipRules?: Set<string>
 export interface CodeAuditResult {
   findings: Finding[];
   issues: CodeIssue[];
+  /** Maintainability hotspots (future-problem signals). */
+  hotspots?: QualityHotspot[];
+  qualitySummary?: QualitySummary;
 }
 
 /** A provider-agnostic view of a repo: list every blob path, read one file. Lets
@@ -314,7 +318,13 @@ export function analyzeContents(
   const deduped = issues
     .filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)))
     .map((i) => (i.confidence ? i : { ...i, confidence: 'heuristic' as const }));
-  return { issues: deduped, findings: deduped.map(findingFromIssue) };
+  const { hotspots, summary } = analyzeQuality(contents);
+  return {
+    issues: deduped,
+    findings: deduped.map(findingFromIssue),
+    hotspots,
+    qualitySummary: summary,
+  };
 }
 
 /** Audit any repo via a file source (provider-agnostic). When `fetchImpl` is

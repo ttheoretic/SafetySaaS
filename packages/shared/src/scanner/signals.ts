@@ -36,6 +36,8 @@ export interface RepoSignals {
   codeFindings?: import('../findings').Finding[];
   /** Line-located code issues (file + line + rule + snippet) for the code view. */
   codeIssues?: import('../findings').CodeIssue[];
+  /** Maintainability hotspots (future-problem signals). */
+  qualityHotspots?: import('../model').QualityHotspot[];
 }
 
 /** A cloud/hosting account and its notable resources. */

@@ -52,12 +52,30 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   const codeIssues = repos.flatMap((r) =>
     (r.codeIssues ?? []).map((c) => ({ ...c, repo: c.repo ?? r.repo })),
   );
+  // Maintainability hotspots, ranked across all repos (top 50 to bound size).
+  const qualityHotspots = repos
+    .flatMap((r) => (r.qualityHotspots ?? []).map((h) => ({ ...h, repo: h.repo ?? r.repo })))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 50);
+  const qualitySummary = qualityHotspots.length
+    ? {
+        filesAnalyzed: qualityHotspots.length,
+        hotspotCount: qualityHotspots.filter((h) => h.score >= 40).length,
+        avgScore: Math.round(
+          qualityHotspots.reduce((s, h) => s + h.score, 0) / qualityHotspots.length,
+        ),
+        totalTodos: qualityHotspots.reduce((s, h) => s + h.todos, 0),
+        worstFile: qualityHotspots[0]?.file,
+      }
+    : undefined;
   return {
     ...graph,
     ...(vulnerabilities.length ? { vulnerabilities } : {}),
     ...(components.length ? { components } : {}),
     ...(codeFindings.length ? { codeFindings } : {}),
     ...(codeIssues.length ? { codeIssues } : {}),
+    ...(qualityHotspots.length ? { qualityHotspots } : {}),
+    ...(qualitySummary ? { qualitySummary } : {}),
   };
 }
 

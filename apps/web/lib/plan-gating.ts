@@ -22,6 +22,7 @@ export type RouteGate = { prefix: string; req: GateReq; label: string }
 export const ROUTE_GATES: RouteGate[] = [
   { prefix: '/security', req: { feature: 'sast' }, label: 'Security posture' },
   { prefix: '/code', req: { feature: 'sast' }, label: 'Code analysis (SAST)' },
+  { prefix: '/quality', req: { feature: 'sast' }, label: 'Code quality' },
   { prefix: '/attack-paths', req: { feature: 'sast' }, label: 'Attack paths' },
   { prefix: '/dependencies', req: { feature: 'sca' }, label: 'Dependency scanning' },
   { prefix: '/inventory/sbom', req: { feature: 'sca' }, label: 'Software bill of materials' },

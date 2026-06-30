@@ -79,12 +79,15 @@ export class GitlabCollector implements ProviderCollector {
       ) ?? [];
     if (codeFindings.length === 0 && codeIssues.length === 0) return undefined;
 
+    const qualityHotspots = code?.hotspots?.map((h) => ({ ...h, repo }));
+
     return {
       provider: 'gitlab',
       repo,
       dependencies: [],
       ...(codeIssues.length ? { codeIssues } : {}),
       ...(codeFindings.length ? { codeFindings } : {}),
+      ...(qualityHotspots && qualityHotspots.length ? { qualityHotspots } : {}),
     };
   }
 

@@ -87,6 +87,39 @@ export interface SystemGraph {
   codeFindings?: import('./findings').Finding[];
   /** Line-located code issues for the code view (file + line + rule + snippet). */
   codeIssues?: import('./findings').CodeIssue[];
+  /** Maintainability hotspots — files likely to cause future problems. */
+  qualityHotspots?: QualityHotspot[];
+  /** Aggregate code-health summary across the analyzed files. */
+  qualitySummary?: QualitySummary;
+}
+
+/** A file flagged as a maintainability risk (large, complex, deeply nested,
+ *  TODO-heavy) — "code that could later cause problems", not a security bug. */
+export interface QualityHotspot {
+  file: string;
+  repo?: string;
+  /** Lines of code (non-blank). */
+  loc: number;
+  /** Cyclomatic-style complexity proxy (count of branch/loop tokens). */
+  complexity: number;
+  /** Maximum nesting depth. */
+  maxNesting: number;
+  /** TODO / FIXME / HACK / XXX markers. */
+  todos: number;
+  /** 0..100 maintainability-risk score (higher = riskier). */
+  score: number;
+  /** Why it's a hotspot, e.g. 'large-file', 'high-complexity', 'deep-nesting'. */
+  tags: string[];
+}
+
+export interface QualitySummary {
+  filesAnalyzed: number;
+  /** Mean score across hotspots. */
+  avgScore: number;
+  /** Files above the hotspot threshold. */
+  hotspotCount: number;
+  totalTodos: number;
+  worstFile?: string;
 }
 
 /** Business context used by the revenue engine. */
