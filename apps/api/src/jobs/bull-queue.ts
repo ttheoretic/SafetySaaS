@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { Queue, Worker } from 'bullmq';
-import { JobHandler, JobQueue } from './job-queue';
+import { JobHandler, JobQueue, QueueCounts } from './job-queue';
 
 /** Hard cap on a single job. Past this it fails (and BullMQ retries) rather than
  *  staying "active" forever and wedging the worker. */
@@ -31,6 +31,25 @@ export class BullJobQueue implements JobQueue {
       this.queues.set(name, queue);
     }
     return queue;
+  }
+
+  /** Aggregate job counts across every registered queue (admin console). */
+  async counts(): Promise<QueueCounts | null> {
+    const total: QueueCounts = { waiting: 0, active: 0, failed: 0, completed: 0, delayed: 0 };
+    try {
+      for (const queue of this.queues.values()) {
+        const c = await queue.getJobCounts('waiting', 'active', 'failed', 'completed', 'delayed');
+        total.waiting += c.waiting ?? 0;
+        total.active += c.active ?? 0;
+        total.failed += c.failed ?? 0;
+        total.completed += c.completed ?? 0;
+        total.delayed += c.delayed ?? 0;
+      }
+      return total;
+    } catch (err) {
+      this.logger.warn(`Queue counts failed: ${(err as Error).message}`);
+      return null;
+    }
   }
 
   process<T>(name: string, handler: JobHandler<T>): void {

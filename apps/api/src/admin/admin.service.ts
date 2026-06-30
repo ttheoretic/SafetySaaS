@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { PLAN_LIMITS, PLAN_ORDER, type Plan } from '@riscly/shared';
+import { JOB_QUEUE, type JobQueue } from '../jobs/job-queue';
 import {
   Store,
   type OrganizationRecord,
@@ -46,6 +47,7 @@ export class AdminService {
   constructor(
     private readonly store: Store,
     private readonly stripe: AdminStripeService,
+    @Inject(JOB_QUEUE) private readonly queue: JobQueue,
   ) {}
 
   /** The latest succeeded scan per project, used for posture averages. */
@@ -401,6 +403,7 @@ export class AdminService {
     const dbOk = await this.store.ping().catch(() => false);
     const dbLatency = Date.now() - t0;
     const has = (k: string) => Boolean(process.env[k]);
+    const queue = this.queue.counts ? await this.queue.counts().catch(() => null) : null;
     const service = (name: string, ok: boolean, latency?: number, note?: string | null) => ({
       name,
       status: ok ? 'operational' : 'unconfigured',
@@ -424,6 +427,7 @@ export class AdminService {
         uptimeSec: Math.round(process.uptime()),
         memoryMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
       },
+      queue: { driver: this.queue.driver, counts: queue },
     };
   }
 

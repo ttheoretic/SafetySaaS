@@ -507,6 +507,10 @@ export interface AdminFeedback {
 export interface AdminInfra {
   services: { name: string; status: string; latencyMs: number | null; note: string | null }[];
   env: { nodeVersion: string; uptimeSec: number; memoryMb: number };
+  queue: {
+    driver: string;
+    counts: { waiting: number; active: number; failed: number; completed: number; delayed: number } | null;
+  };
 }
 
 export interface AdminSettings {

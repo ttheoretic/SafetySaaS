@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, MinusCircle, Cpu, Clock, MemoryStick } from 'lucide-react'
+import { CheckCircle2, MinusCircle, Cpu, Clock, MemoryStick, ListChecks } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Kpi, Panel, SectionTitle, Skeleton, Empty } from '@/components/admin/ui'
 
@@ -44,7 +44,23 @@ export default function AdminInfrastructure() {
             <Kpi label="Node" value={d.env.nodeVersion} icon={<Cpu className="size-4" />} />
             <Kpi label="Uptime" value={`${Math.floor(d.env.uptimeSec / 3600)}h ${Math.floor((d.env.uptimeSec % 3600) / 60)}m`} icon={<Clock className="size-4" />} />
             <Kpi label="Memory (RSS)" value={`${d.env.memoryMb} MB`} icon={<MemoryStick className="size-4" />} />
+            <Kpi label="Queue driver" value={d.queue.driver} icon={<ListChecks className="size-4" />} />
           </div>
+
+          {d.queue.counts ? (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+              <Kpi label="Waiting" value={d.queue.counts.waiting} />
+              <Kpi label="Active" value={d.queue.counts.active} />
+              <Kpi label="Failed jobs" value={d.queue.counts.failed} accent={d.queue.counts.failed > 0} />
+              <Kpi label="Completed" value={d.queue.counts.completed} />
+              <Kpi label="Delayed" value={d.queue.counts.delayed} />
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Queue metrics appear when a Redis-backed worker (BullMQ) is configured. The inline
+              queue runs jobs synchronously, so it keeps no backlog.
+            </p>
+          )}
         </>
       )}
 
