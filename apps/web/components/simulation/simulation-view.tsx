@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import type {
   SimulationType,
@@ -16,11 +17,11 @@ import {
   Database,
   Boxes,
   Network,
-  WandSparkles,
   Loader2,
   TriangleAlert,
   CircleCheck,
   Activity,
+  Bot,
 } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -29,7 +30,6 @@ import { useAuth } from '@/lib/auth-store'
 import {
   useSystemGraph,
   useActiveProject,
-  useRemediationPr,
 } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
@@ -115,7 +115,7 @@ export function SimulationView() {
   const { graph } = useSystemGraph()
   const { projectId } = useActiveProject()
   const token = useAuth((s) => s.token)
-  const remediation = useRemediationPr()
+  const router = useRouter()
 
   const scenarios = useMemo(() => (graph ? buildScenarios(graph.nodes) : []), [graph])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -367,13 +367,17 @@ export function SimulationView() {
                   <ActionButton
                     variant="primary"
                     className="mt-1 h-7 w-full justify-center"
-                    onClick={remediation.open}
-                    disabled={!remediation.canOpen || remediation.busy}
+                    onClick={() => {
+                      const q =
+                        `Scenario: "${active?.label}". The simulation found these mitigations:\n` +
+                        result.mitigations.map((m) => `- ${m}`).join('\n') +
+                        `\n\nWalk me through implementing these, with concrete steps and code where it applies.`
+                      router.push(`/assistant?q=${encodeURIComponent(q)}`)
+                    }}
                   >
-                    {remediation.busy ? <Loader2 className="size-3 animate-spin" /> : <WandSparkles className="size-3" />}
-                    Open remediation PR
+                    <Bot className="size-3" />
+                    Ask AI to plan this fix
                   </ActionButton>
-                  {remediation.error && <p className="text-[10px] text-destructive">{remediation.error}</p>}
                 </div>
               )}
             </div>

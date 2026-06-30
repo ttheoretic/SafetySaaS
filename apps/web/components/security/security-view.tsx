@@ -39,10 +39,12 @@ import {
   useRunScan,
   useScanMeta,
   recommendationFor,
+  findingToRisk,
   type ApiFinding,
 } from '@/lib/use-project-data'
-import { Loader2 } from 'lucide-react'
-import type { Severity } from '@/lib/riscly-data'
+import { RiskInspector } from '@/components/shared/risk-inspector'
+import { Loader2, X } from 'lucide-react'
+import type { Severity, Risk } from '@/lib/riscly-data'
 
 type DomainMeta = (typeof mockDomains)[number]
 
@@ -95,6 +97,7 @@ function useSecurityData(): {
   loading: boolean
   domains: DomainMeta[]
   issues: SecurityIssue[]
+  riskById: Map<string, Risk>
   exposureStats: typeof mockExposureStats
   funnel: FunnelStage[]
   byService: GroupRow[]
@@ -114,6 +117,7 @@ function useSecurityData(): {
           bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
         })),
         issues: [] as SecurityIssue[],
+        riskById: new Map<string, Risk>(),
         exposureStats: {
           exploitable: 0,
           exposed: 0,
@@ -134,12 +138,17 @@ function useSecurityData(): {
       return node ? INTERNET_FACING.has(node.kind) : false
     }
 
+    // Build the issue rows and, in the same pass, a Risk per issue so a click
+    // opens the full inspector (with the code-located one-click "View fix").
+    const riskById = new Map<string, Risk>()
     const issues: SecurityIssue[] = findings.map((f, i) => {
       const node = f.nodeId ? nodeById.get(f.nodeId) : undefined
       const service = node?.name ?? f.nodeId ?? '—'
       const rec = recommendationFor(f)
+      const id = `SEC-${String(i + 1).padStart(4, '0')}`
+      riskById.set(id, findingToRisk(f, id))
       return {
-        id: `SEC-${String(i + 1).padStart(4, '0')}`,
+        id,
         title: f.title,
         severity: coerceSeverity(f.severity),
         domain: classifyDomain(f.category),
@@ -202,6 +211,7 @@ function useSecurityData(): {
     return {
       domains,
       issues,
+      riskById,
       exposureStats,
       funnel,
       byService,
@@ -234,18 +244,22 @@ type GroupTab = 'service' | 'library' | 'team'
 export function SecurityView() {
   const [domain, setDomain] = useState<SecurityDomain>('sast')
   const [group, setGroup] = useState<GroupTab>('service')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const {
     hasData,
     loading,
     domains,
     issues: allIssues,
+    riskById,
     exposureStats,
     funnel,
     byService,
   } = useSecurityData()
   const { lastScanLabel } = useScanMeta()
   const { run, isScanning, canScan } = useRunScan()
+
+  const selectedRisk = selectedId ? riskById.get(selectedId) ?? null : null
 
   const issues = useMemo(
     () => allIssues.filter((i) => i.domain === domain),
@@ -293,7 +307,7 @@ export function SecurityView() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       {header}
       <div className="flex flex-1 flex-col overflow-y-auto">
       {/* exposure stats */}
@@ -389,9 +403,13 @@ export function SecurityView() {
             {/* issues list */}
             <div className="divide-y divide-border">
               {issues.map((issue) => (
-                <div
+                <button
                   key={issue.id}
-                  className="flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-accent/40"
+                  onClick={() => setSelectedId(issue.id)}
+                  className={cn(
+                    'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/40',
+                    selectedId === issue.id && 'bg-accent/60',
+                  )}
                 >
                   <SeverityBadge severity={issue.severity} className="mt-0.5" />
                   <div className="min-w-0 flex-1">
@@ -430,7 +448,7 @@ export function SecurityView() {
                       )}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
               {issues.length === 0 && (
                 <div className="px-3 py-8 text-center text-xs text-muted-foreground">
@@ -463,14 +481,44 @@ export function SecurityView() {
               </button>
             ))}
           </div>
-          <div className="divide-y divide-border">
-            {groupRows.map((row) => (
-              <GroupRowItem key={row.name} row={row} />
-            ))}
-          </div>
+          {group === 'service' ? (
+            <div className="divide-y divide-border">
+              {groupRows.length === 0 ? (
+                <p className="px-3 py-8 text-center text-xs text-muted-foreground">
+                  No mapped services yet.
+                </p>
+              ) : (
+                groupRows.map((row) => (
+                  <GroupRowItem
+                    key={row.name}
+                    row={row}
+                    onSelect={() => {
+                      const first = allIssues.find((i) => i.service === row.name)
+                      if (first) {
+                        setDomain(first.domain)
+                        setSelectedId(first.id)
+                      }
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          ) : (
+            <p className="px-3 py-8 text-center text-xs text-muted-foreground">
+              Grouping by {group} isn’t available yet — group by service to drill
+              into findings.
+            </p>
+          )}
         </Panel>
       </div>
       </div>
+
+      {/* finding inspector — slides in over the right edge */}
+      {selectedRisk && (
+        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-md border-l border-border bg-panel shadow-2xl">
+          <RiskInspector risk={selectedRisk} onClose={() => setSelectedId(null)} />
+        </div>
+      )}
     </div>
   )
 }
@@ -611,10 +659,12 @@ function Tag({
   )
 }
 
-function GroupRowItem({ row }: { row: GroupRow }) {
-  const total = row.critical + row.high + row.medium
+function GroupRowItem({ row, onSelect }: { row: GroupRow; onSelect?: () => void }) {
   return (
-    <button className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/40">
+    <button
+      onClick={onSelect}
+      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/40"
+    >
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{row.name}</div>
         <div className="truncate text-[11px] text-muted-foreground">{row.meta}</div>

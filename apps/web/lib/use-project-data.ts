@@ -468,29 +468,33 @@ export function recommendationFor(f: ApiFinding) {
 
 /** Turn engine findings into the Risk rows the UI renders, enriched with the
  *  impact analysis, recommended fix and cited references. */
+/** Map a single finding to a Risk (with the given id), so a code-located
+ *  finding carries the file/rule/repo needed for the one-click "View fix". */
+export function findingToRisk(f: ApiFinding, id: string): Risk {
+  const rec = recommendationFor(f)
+  return {
+    id,
+    title: f.title,
+    category: coerceCategory(f.category),
+    severity: coerceSeverity(f.severity),
+    description: f.description ?? '',
+    impact: rec?.businessImpact ?? '',
+    components: f.nodeId ? [f.nodeId] : [],
+    rule: f.rule ?? f.category,
+    file: f.file,
+    line: f.line,
+    repo: f.repo,
+    confidence: f.confidence,
+    fix: rec?.fix ?? '',
+    riskReductionPct: rec?.riskReductionPct,
+    references: rec?.references,
+    status: 'open' as const,
+  }
+}
+
 export function findingsToRisks(findings: ApiFinding[]): Risk[] {
   return findings
-    .map((f, i) => {
-      const rec = recommendationFor(f)
-      return {
-        id: `RSK-${String(i + 1).padStart(4, '0')}`,
-        title: f.title,
-        category: coerceCategory(f.category),
-        severity: coerceSeverity(f.severity),
-        description: f.description ?? '',
-        impact: rec?.businessImpact ?? '',
-        components: f.nodeId ? [f.nodeId] : [],
-        rule: f.rule ?? f.category,
-        file: f.file,
-        line: f.line,
-        repo: f.repo,
-        confidence: f.confidence,
-        fix: rec?.fix ?? '',
-        riskReductionPct: rec?.riskReductionPct,
-        references: rec?.references,
-        status: 'open' as const,
-      }
-    })
+    .map((f, i) => findingToRisk(f, `RSK-${String(i + 1).padStart(4, '0')}`))
     .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 }
 

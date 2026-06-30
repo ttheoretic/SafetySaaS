@@ -4,17 +4,15 @@ import { useMemo, useState } from 'react'
 import {
   Search,
   ListFilter,
-  WandSparkles,
   FileCode,
   ChevronRight,
   CircleAlert,
-  Loader2,
 } from 'lucide-react'
-import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
+import { ScreenHeader } from '@/components/layout/screen-header'
 import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { severityOrder, type Severity, type Risk } from '@/lib/riscly-data'
-import { useRisks, useRemediationPr } from '@/lib/use-project-data'
+import { useRisks } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
 
 const filters: { key: Severity | 'all'; label: string }[] = [
@@ -27,7 +25,6 @@ const filters: { key: Severity | 'all'; label: string }[] = [
 
 export function RisksView() {
   const { risks } = useRisks()
-  const remediation = useRemediationPr()
   const [filter, setFilter] = useState<Severity | 'all'>('all')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -59,25 +56,6 @@ export function RisksView() {
       <ScreenHeader
         title="Risks"
         subtitle={`${risks.length} open · ${counts.critical} critical · ${counts.high} high`}
-        actions={
-          <ActionButton
-            variant="primary"
-            onClick={remediation.open}
-            disabled={!remediation.canOpen || remediation.busy}
-            title={
-              remediation.canOpen
-                ? 'Open a remediation-plan pull request on your connected repo'
-                : 'Connect a project to open a remediation PR'
-            }
-          >
-            {remediation.busy ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <WandSparkles className="size-3.5" />
-            )}
-            {remediation.busy ? 'Opening PR…' : 'Open remediation PR'}
-          </ActionButton>
-        }
       />
 
       <div className="flex min-h-0 flex-1">

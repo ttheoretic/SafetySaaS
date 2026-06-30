@@ -22,7 +22,6 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth-store'
 import {
   useActiveProject,
-  useRemediationPr,
   useCodeIssues,
   useDeepScan,
   type AffectedFile,
@@ -556,33 +555,12 @@ function RealCodeView({
   const content = useRepoFileContent(projectId, repo, activePath)
   const { dir, name } = splitPath(activePath)
   const lang = langOf(activePath)
-  const remediation = useRemediationPr()
 
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader
         title="Code Analysis"
         subtitle={`${dir}${name} · ${lang}`}
-        actions={
-          <>
-            <ActionButton
-              onClick={remediation.open}
-              disabled={remediation.busy}
-              title="Open a remediation-plan pull request on your connected repo"
-            >
-              {remediation.busy ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <GitPullRequestArrow className="size-3.5" />
-              )}
-              Create PR
-            </ActionButton>
-            <ActionButton variant="primary" disabled>
-              <WandSparkles className="size-3.5" />
-              Apply fix
-            </ActionButton>
-          </>
-        }
       />
 
       <div ref={containerRef} className="flex min-h-0 flex-1">
@@ -751,7 +729,6 @@ function DemoCodeView() {
     () => fileTree.find((f) => f.id === activeId)!,
     [activeId],
   )
-  const remediation = useRemediationPr()
 
   return (
     <div className="flex h-full flex-col">
@@ -759,32 +736,14 @@ function DemoCodeView() {
         title="Code Analysis"
         subtitle={`${active.path}${active.name} · ${active.lang}`}
         actions={
-          <>
-            <ActionButton
-              onClick={remediation.open}
-              disabled={!remediation.canOpen || remediation.busy}
-              title={
-                remediation.canOpen
-                  ? 'Open a remediation-plan pull request on your connected repo'
-                  : 'Connect a project to open a PR'
-              }
-            >
-              {remediation.busy ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <GitPullRequestArrow className="size-3.5" />
-              )}
-              Create PR
-            </ActionButton>
-            <ActionButton
-              variant="primary"
-              onClick={() => setApplied(true)}
-              disabled={applied}
-            >
-              {applied ? <Check className="size-3.5" /> : <WandSparkles className="size-3.5" />}
-              {applied ? 'Fix applied' : 'Apply fix'}
-            </ActionButton>
-          </>
+          <ActionButton
+            variant="primary"
+            onClick={() => setApplied(true)}
+            disabled={applied}
+          >
+            {applied ? <Check className="size-3.5" /> : <WandSparkles className="size-3.5" />}
+            {applied ? 'Fix applied' : 'Apply fix'}
+          </ActionButton>
         }
       />
 
