@@ -52,8 +52,11 @@ const sevText: Record<Severity | 'ok', string> = {
 const W = 150
 const H = 56
 
-const CANVAS_W = 1080
-const CANVAS_H = 440
+// Minimum canvas; the real canvas grows to fit the nodes so a tall column never
+// pushes a node (and its edges) off-screen — the cause of "half-drawn" paths.
+const MIN_CANVAS_W = 1080
+const MIN_CANVAS_H = 440
+const PAD = 60
 
 export function ArchitectureGraph({
   selectedId,
@@ -71,7 +74,33 @@ export function ArchitectureGraph({
   const pan = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
   const [panning, setPanning] = useState(false)
 
+  // Grow the canvas to contain every node (+ padding) so nothing is clipped.
+  const canvasW = Math.max(MIN_CANVAS_W, ...nodes.map((n) => n.x + W)) + PAD
+  const canvasH = Math.max(MIN_CANVAS_H, ...nodes.map((n) => n.y + H)) + PAD
+
   const clampScale = (s: number) => Math.min(Math.max(s, 0.4), 2.2)
+
+  // Fit the whole graph into the viewport (used on first load and "reset").
+  const fitView = useCallback(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const vw = el.clientWidth
+    const vh = el.clientHeight
+    if (!vw || !vh) return
+    const scale = clampScale(Math.min(vw / (canvasW + PAD), vh / (canvasH + PAD), 1))
+    setTf({
+      x: Math.max(PAD / 2, (vw - canvasW * scale) / 2),
+      y: Math.max(PAD / 2, (vh - canvasH * scale) / 2),
+      scale,
+    })
+  }, [canvasW, canvasH])
+
+  // Re-fit whenever the set of nodes changes (e.g. after a re-scan).
+  const nodeSig = nodes.map((n) => n.id).join(',')
+  useEffect(() => {
+    fitView()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeSig])
 
   const onWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
@@ -128,7 +157,7 @@ export function ArchitectureGraph({
 
   const zoomBy = (factor: number) =>
     setTf((prev) => ({ ...prev, scale: clampScale(prev.scale * factor) }))
-  const reset = () => setTf({ x: 40, y: 30, scale: 1 })
+  const reset = () => fitView()
 
   return (
     <div
@@ -170,15 +199,15 @@ export function ArchitectureGraph({
       <div
         className="absolute left-0 top-0 origin-top-left"
         style={{
-          width: CANVAS_W,
-          height: CANVAS_H,
+          width: canvasW,
+          height: canvasH,
           transform: `translate(${tf.x}px, ${tf.y}px) scale(${tf.scale})`,
         }}
       >
       <svg
         className="absolute inset-0"
-        width={CANVAS_W}
-        height={CANVAS_H}
+        width={canvasW}
+        height={canvasH}
       >
         {edges.map((e, i) => {
           const a = nodes.find((n) => n.id === e.from)
@@ -215,7 +244,7 @@ export function ArchitectureGraph({
         })}
       </svg>
 
-      <div className="relative" style={{ width: 1080, height: 440 }}>
+      <div className="relative" style={{ width: canvasW, height: canvasH }}>
         {nodes.map((n) => {
           const Icon = nodeIcon[n.type]
           const active = selectedId === n.id

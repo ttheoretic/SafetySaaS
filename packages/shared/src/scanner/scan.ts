@@ -81,11 +81,18 @@ function dedupeEstimated(graph: SystemGraph): SystemGraph {
   const SINGLETON_KINDS = new Set(['frontend', 'api']);
   const remap = new Map<string, string>(); // estimated id → verified id
   for (const e of estimated) {
+    // Prefer an exact provider match.
     let v =
       e.provider !== undefined
         ? verified.find((x) => x.kind === e.kind && x.provider === e.provider)
         : undefined;
-    if (!v && e.provider === undefined && SINGLETON_KINDS.has(e.kind)) {
+    // A repo has one frontend and one api: if there's no provider match, an
+    // estimated frontend/api still collapses into the sole verified node of
+    // that kind — even when it carries a (different) provider, e.g. the
+    // code-inferred "<repo> API" folding into a verified hosting/service api.
+    // Backing services (db/cache/…) are NOT singletons and still need an exact
+    // provider match, so they are never collapsed by kind alone.
+    if (!v && SINGLETON_KINDS.has(e.kind)) {
       const sameKind = verified.filter((x) => x.kind === e.kind);
       if (sameKind.length === 1) v = sameKind[0];
     }

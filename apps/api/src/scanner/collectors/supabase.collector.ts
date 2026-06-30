@@ -83,8 +83,15 @@ export class SupabaseCollector implements ProviderCollector {
         headers: { Authorization: `Bearer ${ctx.token}`, accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`Supabase API ${res.status}`);
-      const body = (await res.json()) as SupabaseProject[];
-      const dbs: DatabaseSignals[] = (body ?? []).slice(0, 25).map((p) => ({
+      const all = ((await res.json()) as SupabaseProject[]) ?? [];
+      // A management PAT lists EVERY project in the account. When we know which
+      // repos this Riscly project covers, keep only the Supabase project(s)
+      // whose name matches a connected repo, so unrelated projects don't show up
+      // as stray database nodes. No match (or no hints) → keep all.
+      const hints = (ctx.repoHints ?? []).map((h) => h.split('/').pop() ?? h).map(slug);
+      const matched = hints.length ? all.filter((p) => hints.includes(slug(p.name))) : [];
+      const projects = (matched.length ? matched : all).slice(0, 25);
+      const dbs: DatabaseSignals[] = projects.map((p) => ({
         provider: 'supabase',
         name: p.name,
         region: p.region,
@@ -193,4 +200,9 @@ function hostName(url?: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Normalize a name for loose matching (lowercase, strip non-alphanumerics). */
+function slug(s: string): string {
+  return (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
