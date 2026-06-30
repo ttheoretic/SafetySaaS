@@ -28,6 +28,13 @@ class BusinessContextDto {
   @IsOptional() @IsNumber() @Min(0) @Max(1) slaCreditRatePerHour?: number;
 }
 
+class TriageDto {
+  @IsString() @Length(1, 64) fingerprint!: string;
+  @IsIn(['open', 'false_positive', 'accepted_risk', 'resolved'])
+  status!: 'open' | 'false_positive' | 'accepted_risk' | 'resolved';
+  @IsOptional() @IsString() @Length(0, 1000) note?: string;
+}
+
 class ArchitectureOverlayDto {
   @IsOptional() @IsArray() removedNodeIds?: string[];
   @IsOptional() @IsArray() addedNodes?: unknown[];
@@ -133,6 +140,41 @@ class ProjectsController {
     });
     void this.audit.record(auth, 'project.architecture.update', { type: 'project', id }, {});
     return updated?.architectureOverlay ?? null;
+  }
+
+  /** All triage decisions for the project's findings (fingerprint → status). */
+  @Get(':id/triage')
+  @RequirePermission('project:read')
+  async listTriage(@Auth() auth: AuthContext, @Param('id') id: string) {
+    await this.requireProject(auth, id);
+    const rows = await this.store.listSuppressions(id);
+    return rows.map((r) => ({
+      fingerprint: r.fingerprint,
+      status: r.status,
+      note: r.note ?? null,
+      actorUserId: r.actorUserId ?? null,
+      updatedAt: r.updatedAt,
+    }));
+  }
+
+  /** Set a finding's triage status (false positive / accepted risk / resolved /
+   *  reopen). Persisted by fingerprint so it survives re-scans. */
+  @Put(':id/triage')
+  @RequirePermission('project:write')
+  async setTriage(@Auth() auth: AuthContext, @Param('id') id: string, @Body() dto: TriageDto) {
+    await this.requireProject(auth, id);
+    const r = await this.store.setSuppression({
+      orgId: auth.org.id,
+      projectId: id,
+      fingerprint: dto.fingerprint,
+      status: dto.status,
+      note: dto.note,
+      actorUserId: auth.user.id,
+    });
+    void this.audit.record(auth, 'finding.triage', { type: 'project', id }, {
+      fingerprint: dto.fingerprint, status: dto.status,
+    });
+    return { fingerprint: r.fingerprint, status: r.status, note: r.note ?? null, updatedAt: r.updatedAt };
   }
 
   /** Live MRR / active-subscription suggestion from a connected Stripe account. */

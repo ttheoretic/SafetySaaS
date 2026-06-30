@@ -481,3 +481,27 @@ model PlatformSetting {
   value     Json     @default("{}")
   updatedAt DateTime @updatedAt
 }
+
+enum TriageStatus {
+  open
+  false_positive
+  accepted_risk
+  resolved
+}
+
+/// A customer's triage decision on a finding, keyed by a stable fingerprint so
+/// it persists across re-scans (false positives, accepted risks, resolved).
+model FindingSuppression {
+  id          String       @id @default(uuid())
+  orgId       String
+  projectId   String
+  fingerprint String
+  status      TriageStatus @default(open)
+  note        String?
+  actorUserId String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([projectId, fingerprint])
+  @@index([projectId])
+}

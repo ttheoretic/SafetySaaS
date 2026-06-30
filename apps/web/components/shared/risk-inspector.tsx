@@ -21,8 +21,10 @@ import { ActionButton } from '@/components/layout/screen-header'
 import { Markdown } from '@/components/ui/markdown'
 import type { Risk } from '@/lib/riscly-data'
 import { api } from '@/lib/api'
-import { useActiveProject } from '@/lib/use-project-data'
+import { useActiveProject, useTriage } from '@/lib/use-project-data'
 import { track } from '@/lib/analytics'
+import { TRIAGE_LABEL, type TriageStatus } from '@riscly/shared'
+import { cn } from '@/lib/utils'
 
 function Section({
   label,
@@ -55,6 +57,8 @@ export function RiskInspector({
 }) {
   const router = useRouter()
   const { projectId } = useActiveProject()
+  const triage = useTriage(projectId)
+  const triageStatus = triage.statusFor(risk.fingerprint)
 
   // A code-located finding (file + rule) can get a real AI code fix that we
   // commit directly to the repo. The repo is resolved server-side if not on the
@@ -429,10 +433,64 @@ export function RiskInspector({
         )}
         {fixError && <p className="text-[11px] text-destructive">{fixError}</p>}
 
+        {projectId && (
+          <TriageBar
+            status={triageStatus}
+            busy={triage.setTriage.isPending}
+            onSet={(status) =>
+              risk.fingerprint && triage.setTriage.mutate({ fingerprint: risk.fingerprint, status })
+            }
+          />
+        )}
+
         <ActionButton className="w-full justify-center" onClick={askAi}>
           <Bot className="size-3.5" />
           Ask AI
         </ActionButton>
+      </div>
+    </div>
+  )
+}
+
+const TRIAGE_OPTIONS: TriageStatus[] = ['open', 'false_positive', 'accepted_risk', 'resolved']
+
+/** Lets the user triage a finding (false positive / accepted risk / resolved);
+ *  the decision persists across re-scans and silences alerts. */
+function TriageBar({
+  status,
+  onSet,
+  busy,
+}: {
+  status: TriageStatus
+  onSet: (s: TriageStatus) => void
+  busy: boolean
+}) {
+  return (
+    <div className="rounded-md border border-border p-2">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Triage
+        </span>
+        {busy && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+      </div>
+      <div className="grid grid-cols-2 gap-1">
+        {TRIAGE_OPTIONS.map((s) => (
+          <button
+            key={s}
+            onClick={() => onSet(s)}
+            disabled={busy}
+            className={cn(
+              'rounded-sm border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50',
+              s === status
+                ? s === 'open'
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-ok/40 bg-ok/10 text-ok'
+                : 'border-border text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {TRIAGE_LABEL[s]}
+          </button>
+        ))}
       </div>
     </div>
   )

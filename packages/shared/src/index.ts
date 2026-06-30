@@ -13,6 +13,7 @@ export * from './prediction';
 export * from './scenario';
 export * from './report';
 export * from './plans';
+export * from './triage';
 export * from './scanner';
 export * from './integrations';
 export * from './fixtures';

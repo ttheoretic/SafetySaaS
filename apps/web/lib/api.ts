@@ -6,6 +6,7 @@ import type {
   PlanLimits,
   Plan,
   GraphOverlay,
+  TriageStatus,
 } from '@riscly/shared';
 
 import { currentAuth, handleUnauthorized } from './auth-store';
@@ -413,6 +414,17 @@ export const api = {
   /** Submit product feedback (any authenticated user). */
   submitFeedback: (body: { title: string; body: string; category: string }) =>
     post<{ id: string; status: string }>('/feedback', body),
+
+  /** Finding triage: list decisions and set a finding's status (by fingerprint). */
+  listTriage: (projectId: string) =>
+    get<Array<{ fingerprint: string; status: TriageStatus; note: string | null; updatedAt: string }>>(
+      `/projects/${projectId}/triage`,
+    ),
+  setTriage: (projectId: string, body: { fingerprint: string; status: TriageStatus; note?: string }) =>
+    put<{ fingerprint: string; status: TriageStatus; note: string | null; updatedAt: string }>(
+      `/projects/${projectId}/triage`,
+      body,
+    ),
 
   // --- Internal admin console (platform staff only) ---
   admin: {

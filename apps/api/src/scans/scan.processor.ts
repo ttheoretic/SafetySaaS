@@ -1,6 +1,6 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
-import { exampleGraph, hasFeature, planLimits, Plan, SystemGraph, Finding } from '@riscly/shared';
+import { exampleGraph, hasFeature, planLimits, Plan, SystemGraph, Finding, findingFingerprint, isSuppressed } from '@riscly/shared';
 import { Store } from '../store/store.module';
 import { AnalyzeService } from '../analyze/analyze.service';
 import { ScannerService } from '../scanner/scanner.service';
@@ -44,7 +44,21 @@ export class ScanProcessor implements OnModuleInit {
 
   /** Email the org's members when a scan introduces new critical/verified risks. */
   private async alert(projectId: string, current: Finding[], prior: Finding[]) {
-    const fresh = newAlertableFindings(current, prior);
+    let fresh = newAlertableFindings(current, prior);
+    if (fresh.length === 0) return;
+
+    // Never alert on findings the customer has triaged away (false positive /
+    // accepted risk / resolved) — suppressions persist by fingerprint.
+    const suppressed = new Set(
+      (await this.store.listSuppressions(projectId))
+        .filter((s) => isSuppressed(s.status))
+        .map((s) => s.fingerprint),
+    );
+    if (suppressed.size) {
+      fresh = fresh.filter(
+        (f) => !suppressed.has(findingFingerprint({ rule: f.rule, file: f.file, nodeId: f.nodeId, title: f.title })),
+      );
+    }
     if (fresh.length === 0) return;
 
     const project = await this.store.getProject(projectId);

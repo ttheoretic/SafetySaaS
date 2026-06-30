@@ -47,6 +47,10 @@ export type Risk = {
   riskReductionPct?: number
   /** Cited best-practice references grounding the fix. */
   references?: { title: string; source: string; url: string }[]
+  /** Stable identity for triage/suppression (persists across re-scans). */
+  fingerprint?: string
+  /** Current triage decision, when the finding has been triaged. */
+  triage?: 'open' | 'false_positive' | 'accepted_risk' | 'resolved'
 }
 
 export const risks: Risk[] = [

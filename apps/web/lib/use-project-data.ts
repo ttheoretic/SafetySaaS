@@ -1,11 +1,13 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   buildRecommendations,
+  findingFingerprint,
   type CodeIssue,
   type SystemGraph,
+  type TriageStatus,
 } from '@riscly/shared'
 import { api } from './api'
 import { useAuth } from './auth-store'
@@ -470,6 +472,34 @@ export function recommendationFor(f: ApiFinding) {
  *  impact analysis, recommended fix and cited references. */
 /** Map a single finding to a Risk (with the given id), so a code-located
  *  finding carries the file/rule/repo needed for the one-click "View fix". */
+/**
+ * Triage decisions for the active project's findings, keyed by fingerprint, so
+ * false positives / accepted risks / resolved findings stay suppressed across
+ * re-scans. Exposes a lookup + a mutation to set a finding's status.
+ */
+export function useTriage(projectId: string | null) {
+  const token = useAuth((s) => s.token)
+  const qc = useQueryClient()
+  const q = useQuery({
+    queryKey: ['triage', projectId],
+    queryFn: () => api.listTriage(projectId!),
+    enabled: Boolean(token && projectId),
+  })
+  const map = new Map<string, TriageStatus>((q.data ?? []).map((t) => [t.fingerprint, t.status]))
+  const set = useMutation({
+    mutationFn: (body: { fingerprint: string; status: TriageStatus; note?: string }) =>
+      api.setTriage(projectId!, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['triage', projectId] })
+    },
+  })
+  return {
+    statusFor: (fp?: string): TriageStatus => (fp ? map.get(fp) ?? 'open' : 'open'),
+    setTriage: set,
+    loading: q.isLoading,
+  }
+}
+
 export function findingToRisk(f: ApiFinding, id: string): Risk {
   const rec = recommendationFor(f)
   return {
@@ -489,6 +519,8 @@ export function findingToRisk(f: ApiFinding, id: string): Risk {
     riskReductionPct: rec?.riskReductionPct,
     references: rec?.references,
     status: 'open' as const,
+    // Stable identity so a triage decision survives re-scans.
+    fingerprint: findingFingerprint({ rule: f.rule, file: f.file, nodeId: f.nodeId, title: f.title }),
   }
 }
 

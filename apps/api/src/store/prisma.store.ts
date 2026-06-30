@@ -4,7 +4,7 @@ import {
   Store, ProjectRecord, ScanRecord, ConnectionRecord, UserRecord,
   OrganizationRecord, SubscriptionRecord, MembershipRecord, AuditLogRecord,
   ScenarioRecord, InvitationRecord, FeedbackRecord, AiUsageRecord,
-  AdminLogRecord, PlatformSettingRecord,
+  AdminLogRecord, PlatformSettingRecord, SuppressionRecord,
 } from './store.module';
 
 /**
@@ -544,5 +544,29 @@ export class PrismaStore extends Store {
     return rows.map((r): PlatformSettingRecord => ({
       key: r.key, value: (r.value ?? {}) as Record<string, unknown>, updatedAt: r.updatedAt.toISOString(),
     }));
+  }
+
+  // --- Finding triage ---
+  async listSuppressions(projectId: string) {
+    const rows = await this.prisma.findingSuppression.findMany({ where: { projectId } });
+    return rows.map((r) => this.toSuppression(r));
+  }
+  async setSuppression(input: Omit<SuppressionRecord, 'id' | 'createdAt' | 'updatedAt'>) {
+    const row = await this.prisma.findingSuppression.upsert({
+      where: { projectId_fingerprint: { projectId: input.projectId, fingerprint: input.fingerprint } },
+      create: {
+        orgId: input.orgId, projectId: input.projectId, fingerprint: input.fingerprint,
+        status: input.status as any, note: input.note, actorUserId: input.actorUserId,
+      },
+      update: { status: input.status as any, note: input.note, actorUserId: input.actorUserId },
+    });
+    return this.toSuppression(row);
+  }
+  private toSuppression(r: any): SuppressionRecord {
+    return {
+      id: r.id, orgId: r.orgId, projectId: r.projectId, fingerprint: r.fingerprint,
+      status: r.status, note: r.note ?? undefined, actorUserId: r.actorUserId ?? undefined,
+      createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString(),
+    };
   }
 }

@@ -35,8 +35,10 @@ import {
   useScanMeta,
   recommendationFor,
   findingToRisk,
+  useTriage,
   type ApiFinding,
 } from '@/lib/use-project-data'
+import { isSuppressed, findingFingerprint } from '@riscly/shared'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { Loader2, X } from 'lucide-react'
 import type { Severity, Risk } from '@/lib/riscly-data'
@@ -101,7 +103,16 @@ function useSecurityData(): {
   const { projectId } = useActiveProject()
   const scan = useLatestScan(projectId)
   const { graph } = useSystemGraph()
-  const findings: ApiFinding[] = scan.data?.findings ?? []
+  const { statusFor } = useTriage(projectId)
+  const allFindings: ApiFinding[] = scan.data?.findings ?? []
+  // Hide findings the customer has triaged away (false positive / accepted / resolved).
+  const findings = useMemo(
+    () =>
+      allFindings.filter(
+        (f) => !isSuppressed(statusFor(findingFingerprint({ rule: f.rule, file: f.file, nodeId: f.nodeId, title: f.title }))),
+      ),
+    [allFindings, statusFor],
+  )
 
   const result = useMemo(() => {
     if (!projectId || findings.length === 0) {

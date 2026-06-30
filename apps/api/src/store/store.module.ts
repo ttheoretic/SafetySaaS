@@ -109,6 +109,20 @@ export interface PlatformSettingRecord {
   updatedAt: string;
 }
 
+export type TriageStatusValue = 'open' | 'false_positive' | 'accepted_risk' | 'resolved';
+
+export interface SuppressionRecord {
+  id: string;
+  orgId: string;
+  projectId: string;
+  fingerprint: string;
+  status: TriageStatusValue;
+  note?: string;
+  actorUserId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OrganizationRecord {
   id: string;
   name: string;
@@ -254,6 +268,13 @@ export abstract class Store {
   abstract getSetting(key: string): Promise<PlatformSettingRecord | undefined>;
   abstract setSetting(key: string, value: Record<string, unknown>): Promise<PlatformSettingRecord>;
   abstract listSettings(): Promise<PlatformSettingRecord[]>;
+
+  // --- Finding triage / suppression ----------------------------------------
+  abstract listSuppressions(projectId: string): Promise<SuppressionRecord[]>;
+  /** Upsert a finding's triage status (by projectId + fingerprint). */
+  abstract setSuppression(
+    input: Omit<SuppressionRecord, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<SuppressionRecord>;
 }
 
 @Injectable()
@@ -272,6 +293,7 @@ export class InMemoryStore extends Store {
   private aiUsage = new Map<string, AiUsageRecord>();
   private adminLogs = new Map<string, AdminLogRecord>();
   private settings = new Map<string, PlatformSettingRecord>();
+  private suppressions = new Map<string, SuppressionRecord>();
 
   private stamp<T>(input: T): T & { id: string; createdAt: string } {
     return { id: randomUUID(), createdAt: new Date().toISOString(), ...input };
@@ -544,6 +566,25 @@ export class InMemoryStore extends Store {
   }
   async listSettings() {
     return [...this.settings.values()];
+  }
+
+  async listSuppressions(projectId: string) {
+    return [...this.suppressions.values()].filter((s) => s.projectId === projectId);
+  }
+  async setSuppression(input: Omit<SuppressionRecord, 'id' | 'createdAt' | 'updatedAt'>) {
+    const key = `${input.projectId}:${input.fingerprint}`;
+    const now = new Date().toISOString();
+    const existing = [...this.suppressions.values()].find(
+      (s) => s.projectId === input.projectId && s.fingerprint === input.fingerprint,
+    );
+    const record: SuppressionRecord = {
+      id: existing?.id ?? randomUUID(),
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      ...input,
+    };
+    this.suppressions.set(key, record);
+    return record;
   }
 }
 

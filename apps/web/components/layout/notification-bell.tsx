@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, TriangleAlert, ShieldAlert, Clock, CheckCircle2 } from 'lucide-react'
-import { useRisks, useScanMeta, useActiveProject } from '@/lib/use-project-data'
+import { useRisks, useScanMeta, useActiveProject, useTriage } from '@/lib/use-project-data'
+import { isSuppressed } from '@riscly/shared'
 import { SeverityDot } from '@/components/ui/severity'
 import type { Severity } from '@/lib/riscly-data'
 import { cn } from '@/lib/utils'
@@ -25,10 +26,12 @@ export function NotificationBell() {
   const { risks } = useRisks()
   const { lastScanAt } = useScanMeta()
   const { projectId } = useActiveProject()
+  const { statusFor } = useTriage(projectId)
 
   const notes = useMemo<Note[]>(() => {
     const out: Note[] = []
     const ranked = [...risks]
+      .filter((r) => !isSuppressed(statusFor(r.fingerprint)))
       .filter((r) => r.severity === 'critical' || r.severity === 'high')
       .sort((a, b) => (a.severity === 'critical' ? -1 : 1) - (b.severity === 'critical' ? -1 : 1))
       .slice(0, 8)
@@ -57,9 +60,9 @@ export function NotificationBell() {
       }
     }
     return out
-  }, [risks, lastScanAt])
+  }, [risks, lastScanAt, statusFor])
 
-  const critical = risks.filter((r) => r.severity === 'critical').length
+  const critical = notes.filter((n) => n.kind === 'risk' && n.severity === 'critical').length
   const badge = notes.filter((n) => n.kind === 'risk').length
 
   return (

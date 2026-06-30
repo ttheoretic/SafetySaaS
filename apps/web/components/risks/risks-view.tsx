@@ -12,7 +12,8 @@ import { ScreenHeader } from '@/components/layout/screen-header'
 import { SeverityBadge, ConfidenceBadge } from '@/components/ui/severity'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { severityOrder, type Severity, type Risk } from '@/lib/riscly-data'
-import { useRisks } from '@/lib/use-project-data'
+import { useRisks, useTriage, useActiveProject } from '@/lib/use-project-data'
+import { isSuppressed, TRIAGE_LABEL, type TriageStatus } from '@riscly/shared'
 import { cn } from '@/lib/utils'
 
 const filters: { key: Severity | 'all'; label: string }[] = [
@@ -24,19 +25,31 @@ const filters: { key: Severity | 'all'; label: string }[] = [
 ]
 
 export function RisksView() {
-  const { risks } = useRisks()
+  const { risks: rawRisks } = useRisks()
+  const { projectId } = useActiveProject()
+  const { statusFor } = useTriage(projectId)
   const [filter, setFilter] = useState<Severity | 'all'>('all')
   const [query, setQuery] = useState('')
+  const [showTriaged, setShowTriaged] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  // Attach each finding's persisted triage status.
+  const risks = useMemo(
+    () => rawRisks.map((r) => ({ ...r, triage: statusFor(r.fingerprint) as TriageStatus })),
+    [rawRisks, statusFor],
+  )
+  const active = useMemo(() => risks.filter((r) => !isSuppressed(r.triage)), [risks])
+  const triagedCount = risks.length - active.length
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 }
-    risks.forEach((r) => (c[r.severity] += 1))
+    active.forEach((r) => (c[r.severity] += 1))
     return c
-  }, [risks])
+  }, [active])
 
   const filtered = useMemo(() => {
     return risks
+      .filter((r) => showTriaged || !isSuppressed(r.triage))
       .filter((r) => (filter === 'all' ? true : r.severity === filter))
       .filter((r) =>
         query
@@ -46,7 +59,7 @@ export function RisksView() {
           : true,
       )
       .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
-  }, [risks, filter, query])
+  }, [risks, filter, query, showTriaged])
 
   const selected =
     risks.find((r) => r.id === selectedId) ?? filtered[0] ?? risks[0]
@@ -55,7 +68,7 @@ export function RisksView() {
     <div className="flex h-full flex-col">
       <ScreenHeader
         title="Risks"
-        subtitle={`${risks.length} open · ${counts.critical} critical · ${counts.high} high`}
+        subtitle={`${active.length} open · ${counts.critical} critical · ${counts.high} high`}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -72,6 +85,19 @@ export function RisksView() {
                 className="h-7 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs outline-none placeholder:text-muted-foreground/70 focus:border-primary/50"
               />
             </div>
+            {triagedCount > 0 && (
+              <button
+                onClick={() => setShowTriaged((v) => !v)}
+                className={cn(
+                  'rounded-sm px-2 py-1 text-[11px] transition-colors',
+                  showTriaged ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground',
+                )}
+                title="Show findings you've marked false positive / accepted / resolved"
+              >
+                Triaged
+                <span className="ml-1 font-mono text-muted-foreground">{triagedCount}</span>
+              </button>
+            )}
             <ListFilter className="size-4 text-muted-foreground" />
             <div className="flex items-center gap-1">
               {filters.map((f) => (
@@ -196,11 +222,17 @@ function RiskRow({
           <span className="text-muted-foreground/50">—</span>
         )}
       </div>
-      <div className="flex w-20 shrink-0 items-center justify-between">
-        <span className={cn('text-[11px] capitalize', statusTone[risk.status])}>
-          {risk.status.replace('-', ' ')}
-        </span>
-        <ChevronRight className="size-3.5 text-muted-foreground/50" />
+      <div className="flex w-24 shrink-0 items-center justify-between">
+        {risk.triage && isSuppressed(risk.triage) ? (
+          <span className="truncate rounded-sm bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {TRIAGE_LABEL[risk.triage]}
+          </span>
+        ) : (
+          <span className={cn('text-[11px] capitalize', statusTone[risk.status])}>
+            {risk.status.replace('-', ' ')}
+          </span>
+        )}
+        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground/50" />
       </div>
     </button>
   )
