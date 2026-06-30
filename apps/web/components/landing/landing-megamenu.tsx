@@ -14,21 +14,21 @@ type MenuId = 'platform' | 'solutions' | 'resources'
 type Menu = { id: MenuId; label: string; items: Item[]; preview: React.ReactNode; cta: { label: string; href: string } }
 
 const PLATFORM: Item[] = [
-  { icon: Network, title: 'Architecture Map', desc: 'An auto-mapped view of every service, datastore and dependency.', href: '/docs/guides/scanning' },
-  { icon: ShieldCheck, title: 'Security Posture', desc: 'SAST, dependency (SCA), secret and IaC scanning with confidence levels.', href: '/docs/security' },
-  { icon: Activity, title: 'Code Quality', desc: 'Maintainability hotspots — catch code that will cause problems later.', href: '/docs' },
-  { icon: WandSparkles, title: 'One-click Fixes', desc: 'AI-generated fixes, committed straight to your repository.', href: '/docs/guides/fixes' },
-  { icon: Crosshair, title: 'Attack Paths', desc: 'Reachable paths from internet-facing entry points to sensitive data.', href: '/docs' },
-  { icon: FlaskConical, title: 'Failure Simulation', desc: 'Simulate outages and quantify the business impact before they happen.', href: '/docs/guides/reliability' },
-  { icon: Bot, title: 'AI Assistant', desc: 'Ask anything about your architecture, risks and how to fix them.', href: '/docs' },
+  { icon: Network, title: 'Architecture Map', desc: 'An auto-mapped view of every service, datastore and dependency.', href: '/features/architecture-map' },
+  { icon: ShieldCheck, title: 'Security Posture', desc: 'SAST, dependency (SCA), secret and IaC scanning with confidence levels.', href: '/features/security-posture' },
+  { icon: Activity, title: 'Code Quality', desc: 'Maintainability hotspots — catch code that will cause problems later.', href: '/features/code-quality' },
+  { icon: WandSparkles, title: 'One-click Fixes', desc: 'AI-generated fixes, committed straight to your repository.', href: '/features/one-click-fixes' },
+  { icon: Crosshair, title: 'Attack Paths', desc: 'Reachable paths from internet-facing entry points to sensitive data.', href: '/features/attack-paths' },
+  { icon: FlaskConical, title: 'Failure Simulation', desc: 'Simulate outages and quantify the business impact before they happen.', href: '/features/failure-simulation' },
+  { icon: Bot, title: 'AI Assistant', desc: 'Ask anything about your architecture, risks and how to fix them.', href: '/features/ai-assistant' },
 ]
 
 const SOLUTIONS: Item[] = [
-  { icon: Code2, title: 'For Engineering teams', desc: 'Ship faster without flying blind — see your whole system at a glance.', href: '/docs' },
-  { icon: Lock, title: 'For Security teams', desc: 'Find, prioritize and remediate real, reachable risk — not noise.', href: '/docs/security' },
-  { icon: Building2, title: 'For Founders & CTOs', desc: 'Reliability and revenue-at-risk in plain business terms.', href: '/docs/guides/reliability' },
-  { icon: ClipboardCheck, title: 'Compliance & Audit', desc: 'A full activity trail and exportable posture for reviews.', href: '/docs' },
-  { icon: AlertTriangle, title: 'Incident prevention', desc: 'Surface fragile, complex code before it turns into an outage.', href: '/docs' },
+  { icon: Code2, title: 'For Engineering teams', desc: 'Ship faster without flying blind — see your whole system at a glance.', href: '/solutions/engineering' },
+  { icon: Lock, title: 'For Security teams', desc: 'Find, prioritize and remediate real, reachable risk — not noise.', href: '/solutions/security-teams' },
+  { icon: Building2, title: 'For Founders & CTOs', desc: 'Reliability and revenue-at-risk in plain business terms.', href: '/solutions/founders' },
+  { icon: ClipboardCheck, title: 'Compliance & Audit', desc: 'A full activity trail and exportable posture for reviews.', href: '/solutions/compliance' },
+  { icon: AlertTriangle, title: 'Incident prevention', desc: 'Surface fragile, complex code before it turns into an outage.', href: '/solutions/incident-prevention' },
 ]
 
 const RESOURCES: Item[] = [
@@ -41,8 +41,8 @@ const RESOURCES: Item[] = [
 ]
 
 const MENUS: Menu[] = [
-  { id: 'platform', label: 'Platform', items: PLATFORM, preview: <ArchitecturePreview />, cta: { label: 'Explore the platform', href: '/docs' } },
-  { id: 'solutions', label: 'Solutions', items: SOLUTIONS, preview: <RiskPreview />, cta: { label: 'See your plan', href: '/pricing' } },
+  { id: 'platform', label: 'Platform', items: PLATFORM, preview: <ArchitecturePreview />, cta: { label: 'Explore the platform', href: '/features' } },
+  { id: 'solutions', label: 'Solutions', items: SOLUTIONS, preview: <RiskPreview />, cta: { label: 'Browse solutions', href: '/solutions' } },
   { id: 'resources', label: 'Resources', items: RESOURCES, preview: <DocsPreview />, cta: { label: 'Read the docs', href: '/docs' } },
 ]
 

@@ -16,6 +16,8 @@ const MARKETING_ROUTES = [
   '/pricing',
   '/legal',
   '/docs',
+  '/features',
+  '/solutions',
   '/about',
   '/contact',
   '/careers',
