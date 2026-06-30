@@ -33,6 +33,37 @@ interface StripeInvoiceLike {
   hosted_invoice_url?: string | null;
 }
 
+interface CouponLike {
+  percent_off?: number | null;
+  amount_off?: number | null;
+  duration?: string | null;
+}
+
+/** The currently-applied, recurring coupon on a subscription (forever /
+ *  repeating). One-time ('once') coupons don't reduce MRR, so they're ignored. */
+function activeCoupon(sub: unknown): CouponLike | null {
+  const s = sub as {
+    discount?: { coupon?: CouponLike } | null;
+    discounts?: Array<{ coupon?: CouponLike } | string> | null;
+  };
+  const discounts = Array.isArray(s.discounts)
+    ? s.discounts.filter((d): d is { coupon?: CouponLike } => typeof d === 'object' && d !== null)
+    : [];
+  const disc = s.discount ?? discounts[0] ?? null;
+  const coupon = disc?.coupon ?? null;
+  if (!coupon) return null;
+  if (coupon.duration === 'once') return null;
+  return coupon;
+}
+
+/** Reduce a monthly amount (cents) by an active coupon. */
+function applyDiscount(monthlyCents: number, coupon: CouponLike | null): number {
+  if (!coupon) return monthlyCents;
+  if (coupon.percent_off) return monthlyCents * (1 - coupon.percent_off / 100);
+  if (coupon.amount_off) return Math.max(0, monthlyCents - coupon.amount_off);
+  return monthlyCents;
+}
+
 function toMonthly(amountCents: number, interval?: string, count = 1): number {
   switch (interval) {
     case 'year': return amountCents / (12 * count);
@@ -69,7 +100,8 @@ export class AdminStripeService {
     const since = Math.floor((Date.now() - 30 * 86400_000) / 1000);
     try {
       const [subs, refunds, charges, invoices] = await Promise.all([
-        stripe.subscriptions.list({ status: 'all', limit: 100 }),
+        // Expand discounts so coupons (e.g. 100%-off) are applied to MRR.
+        stripe.subscriptions.list({ status: 'all', limit: 100, expand: ['data.discounts'] }),
         stripe.refunds.list({ limit: 100, created: { gte: since } }),
         stripe.charges.list({ limit: 100, created: { gte: since } }),
         stripe.invoices.list({ limit: 10 }),
@@ -85,12 +117,20 @@ export class AdminStripeService {
         if (s.status === 'trialing') trials++;
         if (s.status === 'canceled' && (s.canceled_at ?? 0) >= since) canceled++;
         if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') {
+          let subMonthlyCents = 0;
           for (const item of s.items.data) {
             const p = item.price;
             if (!p?.unit_amount || !p.recurring) continue;
             currency = p.currency ?? currency;
-            mrrCents += toMonthly(p.unit_amount * (item.quantity ?? 1), p.recurring.interval, p.recurring.interval_count ?? 1);
+            subMonthlyCents += toMonthly(
+              p.unit_amount * (item.quantity ?? 1),
+              p.recurring.interval,
+              p.recurring.interval_count ?? 1,
+            );
           }
+          // Apply an active, recurring coupon (percent_off / amount_off). A
+          // 100%-off forever coupon therefore contributes 0 to MRR.
+          mrrCents += applyDiscount(subMonthlyCents, activeCoupon(s));
         }
       }
 

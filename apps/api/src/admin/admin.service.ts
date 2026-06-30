@@ -86,7 +86,11 @@ export class AdminService {
     const paying = orgs.filter((o) => PAYING_STATUSES.has(subByOrg.get(o.id)?.status ?? 'none'));
     const trialing = subs.filter((s) => s.status === 'trialing').length;
 
-    const mrr = paying.reduce((sum, o) => sum + monthlyPrice(subByOrg.get(o.id)?.plan ?? o.plan), 0);
+    // Prefer Stripe's real MRR (it accounts for coupons/discounts — a 100%-off
+    // customer is 0). Fall back to plan list prices when Stripe isn't connected.
+    const stripe = await this.stripe.summary();
+    const planMrr = paying.reduce((sum, o) => sum + monthlyPrice(subByOrg.get(o.id)?.plan ?? o.plan), 0);
+    const mrr = stripe?.connected ? stripe.mrr : planMrr;
 
     const latest = this.latestScoredByProject(scans);
     const scores = [...latest.values()].map((s) => s.reliabilityScore ?? 0).filter((n) => n > 0);
