@@ -24,12 +24,17 @@ import {
   useActiveProject,
   useCodeIssues,
   useDeepScan,
+  useCodeFix,
   type AffectedFile,
 } from '@/lib/use-project-data'
+import { cn } from '@/lib/utils'
 
-/** On-demand deep AI code analysis trigger, reused in the header + empty state. */
-function DeepScanButton({ variant }: { variant?: 'primary' }) {
-  const { run, busy, result, error, canRun } = useDeepScan()
+type DeepScan = ReturnType<typeof useDeepScan>
+
+/** On-demand deep AI code analysis trigger, reused in the header + empty state.
+ *  Accepts a shared hook instance so the page can react when the scan finishes. */
+function DeepScanButton({ deep, variant }: { deep: DeepScan; variant?: 'primary' }) {
+  const { run, busy, result, error, canRun } = deep
   return (
     <div className="flex flex-col items-start gap-1">
       <ActionButton
@@ -55,7 +60,6 @@ function DeepScanButton({ variant }: { variant?: 'primary' }) {
     </div>
   )
 }
-import { cn } from '@/lib/utils'
 
 /** Best-effort language label from a file extension, for the header. */
 function langOf(path: string): string {
@@ -107,8 +111,10 @@ function useRepoFiles() {
   return { projectId, ...query }
 }
 
-/** Raw source of one repo file, loaded on selection. */
-function useRepoFileContent(
+/** Raw source of one repo file, loaded on selection. Exported so other code
+ *  surfaces (e.g. the Code Quality hotspot panel) share the same query cache
+ *  key, so a fix commit's invalidation refetches everywhere. */
+export function useRepoFileContent(
   projectId: string | null,
   repo: string | null,
   path: string | null,
@@ -122,50 +128,82 @@ function useRepoFileContent(
 }
 
 /**
- * Top-level switch: render the real connected-repo experience when the active
- * project has files, otherwise fall back to the curated demo file tree.
+ * Top-level switch. The page does NOT surface findings on load: a deep AI scan
+ * must be run first (the fast scan finds far less), so we always start on a
+ * "Deep scan" call-to-action and only reveal the issue-driven view once the
+ * user has run the deep analysis this session.
  */
 export function CodeView() {
   const { projectId } = useActiveProject()
   const { files: affected } = useCodeIssues()
+  const deep = useDeepScan()
+  const [revealed, setRevealed] = useState(false)
 
-  // Issue-driven: only the files (and regions) that actually have problems.
-  if (affected.length > 0) {
-    return <IssueCodeView projectId={projectId!} files={affected} />
-  }
-  // Real project but a clean last scan → explicit "all clear" state.
-  if (projectId) {
+  // Reveal the findings only after a deep scan completes in this session.
+  useEffect(() => {
+    if (deep.result) setRevealed(true)
+  }, [deep.result])
+
+  // No connected project yet.
+  if (!projectId) {
     return (
       <div className="flex h-full flex-col">
         <ScreenHeader
           title="Code Analysis"
           subtitle="Security & quality issues located in your code"
         />
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          <ShieldCheck className="size-8 text-ok" />
-          <p className="text-sm font-medium">No code issues from the last scan</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+          <FolderOpen className="size-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium">No repository connected</p>
           <p className="max-w-sm text-xs text-muted-foreground">
-            The fast scan found no committed secrets or insecure config. Run a
-            deep AI analysis to review your source for security & quality issues.
+            Connect a repository and run a scan to analyse your code.
           </p>
-          <DeepScanButton variant="primary" />
         </div>
       </div>
     )
   }
-  // No connected project yet.
+
+  // Before a deep scan (or while it runs) → the start screen with the button.
+  if (!revealed) {
+    return (
+      <div className="flex h-full flex-col">
+        <ScreenHeader
+          title="Code Analysis"
+          subtitle="Security & quality issues located in your code"
+        />
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <Sparkles className="size-8 text-primary" />
+          <p className="text-sm font-medium">Run a deep AI scan to find code issues</p>
+          <p className="max-w-md text-xs text-muted-foreground">
+            The fast scan only catches committed secrets and obvious misconfig.
+            A deep AI analysis reads your source for real security &amp; quality
+            issues and locates them in the files. Start it here — nothing is
+            analysed until you do.
+          </p>
+          <DeepScanButton deep={deep} variant="primary" />
+        </div>
+      </div>
+    )
+  }
+
+  // After a deep scan: issue-driven view, or an explicit "all clear" state.
+  if (affected.length > 0) {
+    return <IssueCodeView projectId={projectId} files={affected} deep={deep} />
+  }
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader
         title="Code Analysis"
         subtitle="Security & quality issues located in your code"
       />
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-        <FolderOpen className="size-8 text-muted-foreground/40" />
-        <p className="text-sm font-medium">No repository connected</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <ShieldCheck className="size-8 text-ok" />
+        <p className="text-sm font-medium">No code issues found</p>
         <p className="max-w-sm text-xs text-muted-foreground">
-          Connect a repository and run a scan to analyse your code.
+          The deep AI analysis reviewed your source and found no security or
+          quality issues to fix. Re-run it any time after you push changes.
         </p>
+        <DeepScanButton deep={deep} variant="primary" />
       </div>
     </div>
   )
@@ -178,7 +216,7 @@ export function CodeView() {
 type DiffRow = { type: 'same' | 'add' | 'del'; text: string }
 
 /** Minimal LCS line diff so we can render removed (red) / added (green) lines. */
-function lineDiff(a: string[], b: string[]): DiffRow[] {
+export function lineDiff(a: string[], b: string[]): DiffRow[] {
   const n = a.length
   const m = b.length
   const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
@@ -205,46 +243,48 @@ function lineDiff(a: string[], b: string[]): DiffRow[] {
   return out
 }
 
-interface FixState {
-  original: string
-  fixed: string | null
-  explanation: string | null
-  aiEnabled: boolean
-}
-
 function IssueCodeView({
   projectId,
   files,
+  deep,
 }: {
   projectId: string
   files: AffectedFile[]
+  deep: DeepScan
 }) {
   const [activeKey, setActiveKey] = useState(`${files[0].repo}::${files[0].file}`)
   const active =
     files.find((f) => `${f.repo}::${f.file}` === activeKey) ?? files[0]
-  const issue = active.issues[0]
+
+  // Which issue (contiguous region) is selected for fixing — each is fixed and
+  // pushed individually.
+  const [activeIssueId, setActiveIssueId] = useState(active.issues[0].id)
+  const issue =
+    active.issues.find((i) => i.id === activeIssueId) ?? active.issues[0]
+
   const fileQuery = useRepoFileContent(projectId, active.repo, active.file)
   const content = fileQuery.data?.content ?? null
 
-  const [fix, setFix] = useState<FixState | null>(null)
-  const [generating, setGenerating] = useState(false)
-  const [prBusy, setPrBusy] = useState(false)
-  const [prUrl, setPrUrl] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const { fix, generate, generating, commit, committing, commitUrl, error, reset } =
+    useCodeFix(projectId, active.repo, active.file)
 
-  // Reset the fix state whenever the selected file changes.
+  // Reset selection + fix state whenever the selected file changes.
   useEffect(() => {
-    setFix(null)
-    setPrUrl(null)
-    setError(null)
-  }, [activeKey])
+    setActiveIssueId(active.issues[0].id)
+    reset()
+  }, [activeKey, active.issues, reset])
 
+  // Reset the generated fix whenever the selected region changes.
+  useEffect(() => {
+    reset()
+  }, [activeIssueId, reset])
+
+  // Highlight only the selected region's lines in red.
   const issueLines = useMemo(() => {
     const s = new Set<number>()
-    for (const i of active.issues)
-      for (let l = i.line; l <= (i.endLine ?? i.line); l++) s.add(l)
+    for (let l = issue.line; l <= (issue.endLine ?? issue.line); l++) s.add(l)
     return s
-  }, [active])
+  }, [issue])
 
   const fixPayload = {
     repo: active.repo,
@@ -255,41 +295,6 @@ function IssueCodeView({
     description: issue.description,
   }
 
-  async function generate() {
-    setGenerating(true)
-    setError(null)
-    setFix(null)
-    try {
-      const res = await api.codeFix(projectId, fixPayload)
-      setFix(res)
-      if (!res.fixed) {
-        setError(
-          res.aiEnabled
-            ? 'The AI could not produce a fix for this file.'
-            : 'AI fixes are not enabled on this server (no API key).',
-        )
-      }
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  async function applyPr() {
-    setPrBusy(true)
-    setError(null)
-    try {
-      const res = await api.codeFixPr(projectId, fixPayload)
-      setPrUrl(res.url)
-      if (res.url) window.open(res.url, '_blank', 'noopener,noreferrer')
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setPrBusy(false)
-    }
-  }
-
   const { dir, name } = splitPath(active.file)
 
   return (
@@ -297,35 +302,7 @@ function IssueCodeView({
       <ScreenHeader
         title="Code Analysis"
         subtitle={`${dir}${name} · ${active.issues.length} issue${active.issues.length === 1 ? '' : 's'}`}
-        actions={
-          <>
-            <DeepScanButton />
-            <ActionButton
-              onClick={generate}
-              disabled={generating || prBusy}
-            >
-              {generating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Sparkles className="size-3.5" />
-              )}
-              {generating ? 'Generating…' : 'Generate fix'}
-            </ActionButton>
-            <ActionButton
-              variant="primary"
-              onClick={applyPr}
-              disabled={prBusy || generating}
-              title="Open a pull request with the AI-generated fix"
-            >
-              {prBusy ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <GitPullRequestArrow className="size-3.5" />
-              )}
-              Apply fix → PR
-            </ActionButton>
-          </>
-        }
+        actions={<DeepScanButton deep={deep} />}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -377,58 +354,121 @@ function IssueCodeView({
           )}
         </div>
 
-        {/* issue inspector */}
+        {/* issue inspector — each issue is generated & pushed on its own */}
         <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
           <div className="border-b border-border px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Issues in this file
           </div>
           <div className="divide-y divide-border">
-            {active.issues.map((i) => (
-              <div key={i.id} className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <SeverityBadge severity={i.severity} />
-                  <span className="font-mono text-[10px] text-muted-foreground">
-                    {i.file.split('/').pop()}:{i.line}
-                  </span>
-                </div>
-                <p className="mt-1.5 text-sm font-medium leading-snug">{i.title}</p>
-                <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                  rule: {i.rule}
-                </p>
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  {i.description}
-                </p>
-                {i.snippet && (
-                  <pre className="mt-2 overflow-x-auto rounded-sm border border-critical/20 bg-critical/5 px-2 py-1 font-mono text-[11px] text-critical">
-                    {i.snippet}
-                  </pre>
-                )}
-              </div>
-            ))}
-          </div>
+            {active.issues.map((i) => {
+              const selected = i.id === activeIssueId
+              return (
+                <div
+                  key={i.id}
+                  className={cn('px-4 py-3', selected && 'bg-accent/40')}
+                >
+                  <button
+                    onClick={() => setActiveIssueId(i.id)}
+                    className="block w-full text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <SeverityBadge severity={i.severity} />
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {i.file.split('/').pop()}:{i.line}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-sm font-medium leading-snug">{i.title}</p>
+                    <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                      rule: {i.rule}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                      {i.description}
+                    </p>
+                    {i.snippet && (
+                      <pre className="mt-2 overflow-x-auto rounded-sm border border-critical/20 bg-critical/5 px-2 py-1 font-mono text-[11px] text-critical">
+                        {i.snippet}
+                      </pre>
+                    )}
+                  </button>
 
-          {fix?.explanation && (
-            <div className="border-t border-border px-4 py-3">
-              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
-                <WandSparkles className="size-3" />
-                Suggested fix
-              </div>
-              <p className="text-xs leading-relaxed text-foreground/90">
-                {fix.explanation}
-              </p>
-            </div>
-          )}
-          {prUrl && (
-            <a
-              href={prUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mx-4 my-3 inline-flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-1.5 text-xs font-medium text-ok hover:bg-ok/20"
-            >
-              <ExternalLink className="size-3.5" /> View pull request
-            </a>
-          )}
-          {error && <p className="px-4 py-2 text-xs text-destructive">{error}</p>}
+                  {/* per-region fix flow (only on the selected issue) */}
+                  {selected && (
+                    <div className="mt-3 space-y-2">
+                      {fix?.explanation && (
+                        <div className="rounded-md border border-ok/20 bg-ok/5 px-2.5 py-2">
+                          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
+                            <WandSparkles className="size-3" />
+                            Suggested fix — shown in green in the code
+                          </div>
+                          <p className="text-xs leading-relaxed text-foreground/90">
+                            {fix.explanation}
+                          </p>
+                        </div>
+                      )}
+
+                      {commitUrl ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
+                            <Check className="size-3.5" /> Pushed to your repo
+                          </div>
+                          <a
+                            href={commitUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                          >
+                            <ExternalLink className="size-3.5" /> View commit
+                          </a>
+                        </div>
+                      ) : !fix?.fixed ? (
+                        <ActionButton
+                          className="w-full justify-center"
+                          onClick={() => generate(fixPayload)}
+                          disabled={generating || committing}
+                        >
+                          {generating ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="size-3.5" />
+                          )}
+                          {generating ? 'Generating…' : 'Generate fix'}
+                        </ActionButton>
+                      ) : (
+                        <div className="space-y-2">
+                          <ActionButton
+                            variant="primary"
+                            className="w-full justify-center"
+                            onClick={() => commit(fixPayload)}
+                            disabled={committing}
+                            title="Commit this region's fix directly to your repo"
+                          >
+                            {committing ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <WandSparkles className="size-3.5" />
+                            )}
+                            {committing ? 'Pushing…' : 'Apply fix — push to repo'}
+                          </ActionButton>
+                          <ActionButton
+                            className="w-full justify-center"
+                            onClick={() => generate(fixPayload)}
+                            disabled={generating || committing}
+                          >
+                            <Sparkles className="size-3.5" />
+                            Regenerate
+                          </ActionButton>
+                        </div>
+                      )}
+
+                      {error && (
+                        <p className="text-[11px] text-destructive">{error}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -475,7 +515,7 @@ function CodeLine({
  * the corrected lines are spliced in green directly beneath the red ones
  * (inline diff), so the fix sits right under the problem.
  */
-function SourceView({
+export function SourceView({
   content,
   issueLines,
   fixed,

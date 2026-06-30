@@ -179,6 +179,99 @@ export function useDeepScan() {
   return { run, busy, result, error, canRun: Boolean(projectId) }
 }
 
+/** The shape of an AI code-fix preview (original + AI-rewritten file). */
+export interface CodeFixState {
+  original: string
+  fixed: string | null
+  explanation: string | null
+  aiEnabled: boolean
+}
+
+/** Body the fix endpoints expect for one located region. */
+export interface CodeFixBody {
+  repo?: string
+  file: string
+  line?: number
+  rule: string
+  title: string
+  description?: string
+}
+
+/**
+ * Manage the fix lifecycle for ONE code region: generate a preview (red→green
+ * inline diff) and, once the user has verified it, commit it straight to the
+ * repo. After a commit we refetch the file so a subsequent region's fix builds
+ * on the just-committed content rather than clobbering it. Used by both the
+ * Code (SAST) view and the Code Quality hotspot panel, so each line/region is
+ * fixed and pushed individually.
+ */
+export function useCodeFix(
+  projectId: string | null,
+  repo: string | null,
+  file: string | null,
+) {
+  const qc = useQueryClient()
+  const [fix, setFix] = useState<CodeFixState | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [committing, setCommitting] = useState(false)
+  const [commitUrl, setCommitUrl] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const reset = useCallback(() => {
+    setFix(null)
+    setCommitUrl(null)
+    setError(null)
+  }, [])
+
+  const generate = useCallback(
+    async (body: CodeFixBody) => {
+      if (!projectId) return
+      setGenerating(true)
+      setError(null)
+      setFix(null)
+      setCommitUrl(null)
+      try {
+        const res = await api.codeFix(projectId, body)
+        setFix(res)
+        if (!res.fixed) {
+          setError(
+            res.aiEnabled
+              ? 'The AI could not produce a fix for this region.'
+              : 'AI fixes are not enabled on this server (no API key).',
+          )
+        }
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setGenerating(false)
+      }
+    },
+    [projectId],
+  )
+
+  const commit = useCallback(
+    async (body: CodeFixBody) => {
+      if (!projectId) return
+      setCommitting(true)
+      setError(null)
+      try {
+        const res = await api.codeFixCommit(projectId, body)
+        setCommitUrl(res.url)
+        // Refetch the file + scan so the next region starts from committed code.
+        await qc.invalidateQueries({ queryKey: ['code-file-content', projectId, repo, file] })
+        await qc.invalidateQueries({ queryKey: ['scans', projectId] })
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setCommitting(false)
+      }
+    },
+    [projectId, qc, repo, file],
+  )
+
+  return { fix, generate, generating, commit, committing, commitUrl, error, reset }
+}
+
 /**
  * Start adding a repository from inside the app (not the onboarding wizard):
  * create a fresh project and send the user straight to GitHub authorization,

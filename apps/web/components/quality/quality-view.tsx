@@ -1,14 +1,28 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Activity, FileWarning, Boxes, ListTodo, FileCode, ChevronRight } from 'lucide-react'
-import { ScreenHeader } from '@/components/layout/screen-header'
+import {
+  Activity,
+  FileWarning,
+  Boxes,
+  ListTodo,
+  FileCode,
+  ChevronRight,
+  X,
+  Sparkles,
+  WandSparkles,
+  Loader2,
+  Check,
+  ExternalLink,
+} from 'lucide-react'
+import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
-import { useSystemGraph } from '@/lib/use-project-data'
-import { RiskInspector } from '@/components/shared/risk-inspector'
-import { findingFingerprint, type QualityHotspot } from '@riscly/shared'
-import type { Risk, Severity } from '@/lib/riscly-data'
+import { useSystemGraph, useActiveProject, useCodeFix } from '@/lib/use-project-data'
+import { useRepoFileContent, SourceView } from '@/components/code/code-view'
+import type { QualityHotspot } from '@riscly/shared'
 import { cn } from '@/lib/utils'
+
+const NO_LINES: Set<number> = new Set()
 
 type Band = 'critical' | 'high' | 'medium' | 'low'
 function band(score: number): Band {
@@ -35,39 +49,14 @@ const TAG_LABEL: Record<string, string> = {
 
 const QUALITY_RULE = 'quality/maintainability'
 
-/** Turn a maintainability hotspot into a Risk so the shared inspector can open
- *  the file, generate an AI refactor and — after the user reviews it — push it
- *  to the repo (file + rule are set, so `canFix` is true). */
-function hotspotToRisk(h: QualityHotspot): Risk {
-  const b = band(h.score)
-  const fileName = h.file.split('/').pop() || h.file
+function hotspotDescription(h: QualityHotspot): string {
   const tagText = h.tags.map((t) => TAG_LABEL[t] ?? t).join(', ')
-  const description =
+  return (
     `This file scores ${h.score}/100 for maintainability risk: ` +
     `${h.loc} lines, branching complexity ${h.complexity}, max nesting ${h.maxNesting}` +
     (h.todos > 0 ? `, ${h.todos} unfinished marker${h.todos === 1 ? '' : 's'} (TODO/FIXME)` : '') +
     (tagText ? `. Flagged for: ${tagText}.` : '.')
-  return {
-    id: `QLT-${h.score}`,
-    title: `Maintainability risk: ${fileName}`,
-    category: 'Code',
-    severity: b as Severity,
-    description,
-    impact:
-      'Large, complex or deeply nested files are harder to change safely and are a common source of ' +
-      'future defects and incidents. Refactoring and adding test coverage here lowers the risk of regressions.',
-    components: [],
-    file: h.file,
-    line: 1,
-    repo: h.repo,
-    rule: QUALITY_RULE,
-    confidence: 'heuristic',
-    fix:
-      'Break this file into smaller, focused units, reduce nesting by extracting helpers and early returns, ' +
-      'simplify branching, and resolve the outstanding TODO/FIXME markers. Add tests around the extracted pieces.',
-    status: 'open',
-    fingerprint: findingFingerprint({ rule: QUALITY_RULE, file: h.file, title: h.file }),
-  }
+  )
 }
 
 /**
@@ -77,15 +66,15 @@ function hotspotToRisk(h: QualityHotspot): Risk {
  */
 export function QualityView() {
   const { graph } = useSystemGraph()
+  const { projectId } = useActiveProject()
   const hotspots = useMemo(() => graph?.qualityHotspots ?? [], [graph])
   const summary = graph?.qualitySummary
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
-  const selectedRisk = useMemo(() => {
-    if (!selectedKey) return null
-    const h = hotspots.find((x) => `${x.repo ?? ''}:${x.file}` === selectedKey)
-    return h ? hotspotToRisk(h) : null
-  }, [selectedKey, hotspots])
+  const selected = useMemo(
+    () => hotspots.find((x) => `${x.repo ?? ''}:${x.file}` === selectedKey) ?? null,
+    [selectedKey, hotspots],
+  )
 
   return (
     <div className="relative flex h-full flex-col">
@@ -169,13 +158,161 @@ export function QualityView() {
         </div>
       )}
 
-      {/* hotspot inspector — slides in over the right edge. Lets the user open
-          the file, generate an AI refactor and push it once they're happy. */}
-      {selectedRisk && (
-        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-md border-l border-border bg-panel shadow-2xl">
-          <RiskInspector risk={selectedRisk} onClose={() => setSelectedKey(null)} />
+      {/* hotspot code panel — opens an inline code area (like Code/SAST) where
+          the user sees the file, generates an AI refactor shown in green under
+          the code, and pushes it once verified. */}
+      {selected && projectId && (
+        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-3xl border-l border-border bg-panel shadow-2xl">
+          <HotspotCodePanel
+            key={`${selected.repo ?? ''}:${selected.file}`}
+            projectId={projectId}
+            hotspot={selected}
+            onClose={() => setSelectedKey(null)}
+          />
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Inline code + fix panel for a maintainability hotspot. Loads the file, lets
+ * the user generate an AI refactor (rendered in green directly under the
+ * original lines) and push it straight to the repo after they've verified it —
+ * the same flow as Code (SAST), scoped to this one file.
+ */
+function HotspotCodePanel({
+  projectId,
+  hotspot,
+  onClose,
+}: {
+  projectId: string
+  hotspot: QualityHotspot
+  onClose: () => void
+}) {
+  const repo = hotspot.repo ?? null
+  const fileQuery = useRepoFileContent(projectId, repo, hotspot.file)
+  const content = fileQuery.data?.content ?? null
+  const { fix, generate, generating, commit, committing, commitUrl, error } =
+    useCodeFix(projectId, repo, hotspot.file)
+
+  const fileName = hotspot.file.split('/').pop() || hotspot.file
+  const b = band(hotspot.score)
+  const payload = {
+    ...(repo ? { repo } : {}),
+    file: hotspot.file,
+    line: 1,
+    rule: QUALITY_RULE,
+    title: `Refactor ${fileName} for maintainability`,
+    description: hotspotDescription(hotspot),
+  }
+
+  return (
+    <div className="flex h-full w-full flex-col">
+      {/* header */}
+      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn('font-mono text-sm font-semibold tabular-nums', bandColor[b])}>
+              {hotspot.score}
+            </span>
+            <span className="truncate font-mono text-[12px]">{hotspot.file}</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
+            <span>{hotspot.loc} LOC</span>
+            <span>complexity {hotspot.complexity}</span>
+            <span>nesting {hotspot.maxNesting}</span>
+            {hotspot.todos > 0 && <span>{hotspot.todos} TODO</span>}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Close"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+
+      {/* code / diff */}
+      <div className="min-h-0 flex-1 overflow-auto bg-background font-mono text-xs">
+        {fileQuery.isLoading ? (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" />
+          </div>
+        ) : content ? (
+          <SourceView content={content} issueLines={NO_LINES} fixed={fix?.fixed ?? null} />
+        ) : (
+          <div className="flex h-full items-center justify-center px-6 text-center text-xs text-muted-foreground">
+            {repo
+              ? 'Couldn’t load this file from the repo.'
+              : 'No repository is linked to this hotspot, so the source can’t be shown.'}
+          </div>
+        )}
+      </div>
+
+      {/* actions */}
+      <div className="shrink-0 space-y-2 border-t border-border p-3">
+        {fix?.explanation && (
+          <div className="rounded-md border border-ok/20 bg-ok/5 px-2.5 py-2">
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
+              <WandSparkles className="size-3" />
+              Suggested refactor — shown in green in the code
+            </div>
+            <p className="text-xs leading-relaxed text-foreground/90">{fix.explanation}</p>
+          </div>
+        )}
+
+        {commitUrl ? (
+          <>
+            <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
+              <Check className="size-3.5" /> Pushed to your repo
+            </div>
+            <a
+              href={commitUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ExternalLink className="size-3.5" /> View commit
+            </a>
+          </>
+        ) : !fix?.fixed ? (
+          <ActionButton
+            variant="primary"
+            className="w-full justify-center"
+            onClick={() => generate(payload)}
+            disabled={generating || committing || !content}
+            title="Have the AI propose a maintainability refactor for this file"
+          >
+            {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {generating ? 'Generating…' : 'Generate refactor'}
+          </ActionButton>
+        ) : (
+          <>
+            <ActionButton
+              variant="primary"
+              className="w-full justify-center"
+              onClick={() => commit(payload)}
+              disabled={committing}
+              title="Commit this refactor directly to your repo"
+            >
+              {committing ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+              {committing ? 'Pushing…' : 'Apply fix — push to repo'}
+            </ActionButton>
+            <ActionButton
+              className="w-full justify-center"
+              onClick={() => generate(payload)}
+              disabled={generating || committing}
+            >
+              <Sparkles className="size-3.5" />
+              Regenerate
+            </ActionButton>
+          </>
+        )}
+
+        {error && <p className="text-[11px] text-destructive">{error}</p>}
+      </div>
     </div>
   )
 }
