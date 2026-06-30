@@ -12,7 +12,8 @@ import {
   Globe,
   Bug,
   ShieldCheck,
-  Clock,
+  WandSparkles,
+  BadgeCheck,
   ArrowRight,
 } from 'lucide-react'
 import { Panel, PanelHeader } from '@/components/ui/panel'
@@ -21,12 +22,6 @@ import { SeverityBadge } from '@/components/ui/severity'
 import { cn } from '@/lib/utils'
 import {
   domains as mockDomains,
-  funnel as mockFunnel,
-  byService as mockByService,
-  byLibrary,
-  byTeam,
-  securityIssues as mockSecurityIssues,
-  exposureStats as mockExposureStats,
   type SecurityDomain,
   type SecurityIssue,
   type FunnelStage,
@@ -98,9 +93,10 @@ function useSecurityData(): {
   domains: DomainMeta[]
   issues: SecurityIssue[]
   riskById: Map<string, Risk>
-  exposureStats: typeof mockExposureStats
+  exposureStats: { exploitable: number; exposed: number; fixAvailable: number; verified: number }
   funnel: FunnelStage[]
   byService: GroupRow[]
+  byLibrary: GroupRow[]
 } {
   const { projectId } = useActiveProject()
   const scan = useLatestScan(projectId)
@@ -122,10 +118,11 @@ function useSecurityData(): {
           exploitable: 0,
           exposed: 0,
           fixAvailable: 0,
-          meanTimeToRemediate: '—',
+          verified: 0,
         },
         funnel: [] as FunnelStage[],
         byService: [] as GroupRow[],
+        byLibrary: [] as GroupRow[],
       }
     }
 
@@ -174,8 +171,10 @@ function useSecurityData(): {
     const exposureStats = {
       exploitable: issues.filter((i) => i.exploitAvailable).length,
       exposed: issues.filter((i) => i.exposed).length,
-      fixAvailable: issues.length,
-      meanTimeToRemediate: mockExposureStats.meanTimeToRemediate,
+      // Only code-located findings (file + rule) get the one-click AI fix.
+      fixAvailable: findings.filter((f) => f.file && f.rule).length,
+      // How many findings are confirmed (verified) vs inferred (heuristic).
+      verified: findings.filter((f) => f.confidence === 'verified').length,
     }
 
     // Attack-surface funnel, derived and kept monotonically non-increasing.
@@ -208,6 +207,28 @@ function useSecurityData(): {
       (a, b) => b.critical - a.critical || b.high - a.high,
     )
 
+    // Group dependency (SCA) vulnerabilities by package — a real "by library"
+    // view derived from the scan's SBOM/advisory data.
+    const byLibMap = new Map<string, GroupRow>()
+    for (const v of graph?.vulnerabilities ?? []) {
+      const row =
+        byLibMap.get(v.package) ?? {
+          name: v.package,
+          meta: v.fixedVersion ? `${v.ecosystem} · fix available` : v.ecosystem,
+          critical: 0,
+          high: 0,
+          medium: 0,
+        }
+      const sev = coerceSeverity(v.severity)
+      if (sev === 'critical') row.critical++
+      else if (sev === 'high') row.high++
+      else row.medium++
+      byLibMap.set(v.package, row)
+    }
+    const byLibrary = [...byLibMap.values()].sort(
+      (a, b) => b.critical - a.critical || b.high - a.high,
+    )
+
     return {
       domains,
       issues,
@@ -215,6 +236,7 @@ function useSecurityData(): {
       exposureStats,
       funnel,
       byService,
+      byLibrary,
     }
   }, [projectId, findings, graph])
 
@@ -239,7 +261,7 @@ const funnelIcon: Record<string, React.ReactNode> = {
   exposed: <Globe className="size-3.5" />,
 }
 
-type GroupTab = 'service' | 'library' | 'team'
+type GroupTab = 'service' | 'library'
 
 export function SecurityView() {
   const [domain, setDomain] = useState<SecurityDomain>('sast')
@@ -255,6 +277,7 @@ export function SecurityView() {
     exposureStats,
     funnel,
     byService,
+    byLibrary,
   } = useSecurityData()
   const { lastScanLabel } = useScanMeta()
   const { run, isScanning, canScan } = useRunScan()
@@ -266,8 +289,7 @@ export function SecurityView() {
     [allIssues, domain],
   )
 
-  // Library / team groupings have no data source yet — service is real.
-  const groupRows: GroupRow[] = group === 'service' ? byService : []
+  const groupRows: GroupRow[] = group === 'service' ? byService : byLibrary
 
   const header = (
     <ScreenHeader
@@ -325,16 +347,16 @@ export function SecurityView() {
           hint="on an attacker-reachable path"
         />
         <StatCard
-          icon={<ShieldCheck className="size-4 text-ok" />}
-          label="Fix available"
+          icon={<WandSparkles className="size-4 text-ok" />}
+          label="Auto-fixable"
           value={exposureStats.fixAvailable}
-          hint="auto-remediation ready"
+          hint="one-click AI fix ready"
         />
         <StatCard
-          icon={<Clock className="size-4 text-medium" />}
-          label="Mean time to remediate"
-          value={exposureStats.meanTimeToRemediate}
-          hint="trailing 30 days"
+          icon={<BadgeCheck className="size-4 text-primary" />}
+          label="Verified"
+          value={exposureStats.verified}
+          hint="confirmed, not inferred"
         />
       </div>
 
@@ -466,7 +488,7 @@ export function SecurityView() {
             icon={<Boxes className="size-3.5 text-primary" />}
           />
           <div className="flex gap-1 border-b border-border px-2 py-2">
-            {(['service', 'library', 'team'] as GroupTab[]).map((g) => (
+            {(['service', 'library'] as GroupTab[]).map((g) => (
               <button
                 key={g}
                 onClick={() => setGroup(g)}
@@ -481,34 +503,34 @@ export function SecurityView() {
               </button>
             ))}
           </div>
-          {group === 'service' ? (
-            <div className="divide-y divide-border">
-              {groupRows.length === 0 ? (
-                <p className="px-3 py-8 text-center text-xs text-muted-foreground">
-                  No mapped services yet.
-                </p>
-              ) : (
-                groupRows.map((row) => (
-                  <GroupRowItem
-                    key={row.name}
-                    row={row}
-                    onSelect={() => {
-                      const first = allIssues.find((i) => i.service === row.name)
-                      if (first) {
-                        setDomain(first.domain)
-                        setSelectedId(first.id)
-                      }
-                    }}
-                  />
-                ))
-              )}
-            </div>
-          ) : (
-            <p className="px-3 py-8 text-center text-xs text-muted-foreground">
-              Grouping by {group} isn’t available yet — group by service to drill
-              into findings.
-            </p>
-          )}
+          <div className="divide-y divide-border">
+            {groupRows.length === 0 ? (
+              <p className="px-3 py-8 text-center text-xs text-muted-foreground">
+                {group === 'service'
+                  ? 'No mapped services yet.'
+                  : 'No vulnerable dependencies found.'}
+              </p>
+            ) : (
+              groupRows.map((row) => (
+                <GroupRowItem
+                  key={row.name}
+                  row={row}
+                  onSelect={() => {
+                    const first =
+                      group === 'service'
+                        ? allIssues.find((i) => i.service === row.name)
+                        : allIssues.find(
+                            (i) => i.domain === 'sca' && i.title.includes(row.name),
+                          )
+                    if (first) {
+                      setDomain(first.domain)
+                      setSelectedId(first.id)
+                    }
+                  }}
+                />
+              ))
+            )}
+          </div>
         </Panel>
       </div>
       </div>
