@@ -28,6 +28,9 @@ const AUTH_ROUTES = ['/login', '/get-started', '/billing', '/auth']
 // Launchpad — the repo picker you land on before entering a workspace. Full-bleed
 // (no sidebar/top nav) but still behind the auth gate.
 const LAUNCH_ROUTES = ['/portfolio']
+// Internal admin console — renders its own chrome (sidebar + guard) under
+// /admin/layout.tsx, so AppShell hands it through bare.
+const ADMIN_ROUTES = ['/admin']
 
 function matches(routes: string[], pathname: string) {
   return routes.some((r) => pathname === r || pathname.startsWith(`${r}/`))
@@ -37,7 +40,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   // Bare routes render without the dashboard sidebar / top nav.
-  if (matches(MARKETING_ROUTES, pathname) || matches(AUTH_ROUTES, pathname)) {
+  if (
+    matches(MARKETING_ROUTES, pathname) ||
+    matches(AUTH_ROUTES, pathname) ||
+    matches(ADMIN_ROUTES, pathname)
+  ) {
     return (
       <div className="min-h-dvh bg-background text-foreground">{children}</div>
     )

@@ -43,6 +43,7 @@ class OrgsController {
       user: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
       activeOrg: { id: auth.org.id, name: auth.org.name, plan: auth.org.plan },
       role: auth.role,
+      platformAdmin: auth.platformAdmin,
       organizations,
       subscription: {
         active: hasAppAccess(sub?.status),

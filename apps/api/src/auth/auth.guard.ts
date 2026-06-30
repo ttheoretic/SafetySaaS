@@ -45,7 +45,12 @@ export class AuthGuard implements CanActivate {
       throw new ForbiddenException('No access to the requested organization');
     }
 
-    req.auth = { user, org: resolved.org, role: resolved.role };
+    req.auth = {
+      user,
+      org: resolved.org,
+      role: resolved.role,
+      platformAdmin: Boolean(user.platformAdmin),
+    };
     return true;
   }
 }

@@ -138,12 +138,15 @@ enum ReportFormat {
 // ----------------------------------------------------------------------------
 
 model User {
-  id          String       @id @default(uuid())
-  supabaseId  String       @unique
-  email       String       @unique
-  name        String?
-  avatarUrl   String?
-  createdAt   DateTime     @default(now())
+  id            String       @id @default(uuid())
+  supabaseId    String       @unique
+  email         String       @unique
+  name          String?
+  avatarUrl     String?
+  /// Platform (Riscly staff) admin — grants access to the internal /admin console.
+  platformAdmin Boolean      @default(false)
+  lastSeenAt    DateTime?
+  createdAt     DateTime     @default(now())
 
   memberships Membership[]
   auditLogs   AuditLog[]
@@ -401,4 +404,80 @@ model AuditLog {
   actor        User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// Internal admin console (platform-staff only)
+// ----------------------------------------------------------------------------
+
+enum FeedbackCategory {
+  bug
+  feature
+  improvement
+  question
+}
+
+enum FeedbackStatus {
+  open
+  planned
+  in_progress
+  completed
+  archived
+}
+
+/// Customer-submitted feedback, triaged in the admin console.
+model Feedback {
+  id          String           @id @default(uuid())
+  orgId       String?
+  userId      String?
+  title       String
+  body        String
+  category    FeedbackCategory @default(feature)
+  priority    Priority         @default(medium)
+  status      FeedbackStatus   @default(open)
+  votes       Int              @default(0)
+  assignee    String?
+  adminReply  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+/// One row per AI (LLM) request, for cost/usage analytics.
+model AiUsage {
+  id               String   @id @default(uuid())
+  orgId            String
+  userId           String?
+  feature          String   // 'chat' | 'predict' | 'fix' | 'deep-scan'
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  costUsd          Float    @default(0)
+  latencyMs        Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([createdAt])
+}
+
+/// Audit trail of privileged admin-console actions.
+model AdminLog {
+  id          String   @id @default(uuid())
+  actorUserId String
+  action      String
+  targetType  String?
+  targetId    String?
+  metadata    Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Key/value store for platform settings (feature flags, maintenance, announcements).
+model PlatformSetting {
+  key       String   @id
+  value     Json     @default("{}")
+  updatedAt DateTime @updatedAt
 }

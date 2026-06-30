@@ -17,6 +17,7 @@ import { OAuthModule } from './oauth/oauth.module';
 import { ScenariosModule } from './scenarios/scenarios.module';
 import { ReportsModule } from './reports/reports.module';
 import { BillingModule } from './billing/billing.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { BillingModule } from './billing/billing.module';
     OAuthModule,
     ScenariosModule,
     ReportsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

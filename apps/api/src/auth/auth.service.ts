@@ -4,6 +4,15 @@ import { EMAIL_PROVIDER, EmailProvider, senderFor } from '../email/email.module'
 import { buildWelcomeEmail } from '../email/templates';
 import { AuthClaims } from './jwt';
 
+/** Emails (comma-separated in ADMIN_EMAILS) that get platform-admin access. */
+function isAllowlistedAdmin(email: string): boolean {
+  const list = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return list.includes(email.toLowerCase());
+}
+
 /**
  * Resolves an authenticated identity into a local user + tenant context,
  * provisioning on first sight (just-in-time onboarding): a new user gets a
@@ -66,6 +75,12 @@ export class AuthService {
         // Another request is provisioning concurrently (unique slug clash).
         if ((err as { code?: string }).code !== 'P2002') throw err;
       }
+    }
+
+    // Platform-admin allowlist: emails in ADMIN_EMAILS get console access. The
+    // flag is persisted, so it can also be granted directly in the DB later.
+    if (!user.platformAdmin && isAllowlistedAdmin(user.email)) {
+      user = (await this.store.updateUser(user.id, { platformAdmin: true })) ?? user;
     }
     return user;
   }

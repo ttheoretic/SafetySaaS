@@ -3,7 +3,8 @@ import { PrismaClient } from '@prisma/client';
 import {
   Store, ProjectRecord, ScanRecord, ConnectionRecord, UserRecord,
   OrganizationRecord, SubscriptionRecord, MembershipRecord, AuditLogRecord,
-  ScenarioRecord, InvitationRecord,
+  ScenarioRecord, InvitationRecord, FeedbackRecord, AiUsageRecord,
+  AdminLogRecord, PlatformSettingRecord,
 } from './store.module';
 
 /**
@@ -195,17 +196,33 @@ export class PrismaStore extends Store {
     const row = await this.prisma.user.findUnique({ where: { id } });
     return row ? this.toUser(row) : undefined;
   }
-  async updateUser(id: string, patch: { supabaseId?: string; email?: string; name?: string }) {
+  async updateUser(
+    id: string,
+    patch: { supabaseId?: string; email?: string; name?: string; platformAdmin?: boolean; lastSeenAt?: string },
+  ) {
     const row = await this.prisma.user.update({
       where: { id },
-      data: { supabaseId: patch.supabaseId, email: patch.email, name: patch.name },
+      data: {
+        supabaseId: patch.supabaseId,
+        email: patch.email,
+        name: patch.name,
+        platformAdmin: patch.platformAdmin,
+        lastSeenAt: patch.lastSeenAt ? new Date(patch.lastSeenAt) : undefined,
+      },
     });
     return this.toUser(row);
+  }
+  async listAllUsers() {
+    const rows = await this.prisma.user.findMany();
+    return rows.map((r) => this.toUser(r));
   }
   private toUser(r: any): UserRecord {
     return {
       id: r.id, supabaseId: r.supabaseId, email: r.email,
-      name: r.name ?? undefined, createdAt: r.createdAt.toISOString(),
+      name: r.name ?? undefined,
+      platformAdmin: r.platformAdmin ?? false,
+      lastSeenAt: this.iso(r.lastSeenAt),
+      createdAt: r.createdAt.toISOString(),
     };
   }
 
@@ -258,7 +275,9 @@ export class PrismaStore extends Store {
   }
   async getSubscription(orgId: string) {
     const row = await this.prisma.subscription.findUnique({ where: { orgId } });
-    if (!row) return undefined;
+    return row ? this.toSubscription(row) : undefined;
+  }
+  private toSubscription(row: any): SubscriptionRecord {
     return {
       orgId: row.orgId, plan: row.plan as OrganizationRecord['plan'],
       status: row.status,
@@ -399,5 +418,131 @@ export class PrismaStore extends Store {
       acceptedAt: this.iso(r.acceptedAt),
       createdAt: r.createdAt.toISOString(),
     };
+  }
+
+  // --- Admin console ---
+  async listOrganizations() {
+    const rows = await this.prisma.organization.findMany();
+    return rows.map((r) => this.toOrg(r));
+  }
+  async listAllSubscriptions() {
+    const rows = await this.prisma.subscription.findMany();
+    return rows.map((r) => this.toSubscription(r));
+  }
+  async listAllScans() {
+    const rows = await this.prisma.scan.findMany();
+    return rows.map((r) => this.toScan(r));
+  }
+  async listAllConnections() {
+    const rows = await this.prisma.connection.findMany();
+    return rows.map((r) => this.toConnection(r));
+  }
+
+  async createFeedback(input: Omit<FeedbackRecord, 'id' | 'createdAt' | 'updatedAt'>) {
+    const row = await this.prisma.feedback.create({
+      data: {
+        orgId: input.orgId, userId: input.userId, title: input.title, body: input.body,
+        category: input.category as any, priority: input.priority as any,
+        status: input.status as any, votes: input.votes,
+        assignee: input.assignee, adminReply: input.adminReply,
+      },
+    });
+    return this.toFeedback(row);
+  }
+  async listFeedback() {
+    const rows = await this.prisma.feedback.findMany({ orderBy: { createdAt: 'desc' } });
+    return rows.map((r) => this.toFeedback(r));
+  }
+  async getFeedback(id: string) {
+    const row = await this.prisma.feedback.findUnique({ where: { id } });
+    return row ? this.toFeedback(row) : undefined;
+  }
+  async updateFeedback(id: string, patch: Partial<FeedbackRecord>) {
+    try {
+      const row = await this.prisma.feedback.update({
+        where: { id },
+        data: {
+          category: patch.category as any, priority: patch.priority as any,
+          status: patch.status as any, votes: patch.votes,
+          assignee: patch.assignee, adminReply: patch.adminReply,
+        },
+      });
+      return this.toFeedback(row);
+    } catch {
+      return undefined;
+    }
+  }
+  private toFeedback(r: any): FeedbackRecord {
+    return {
+      id: r.id, orgId: r.orgId ?? undefined, userId: r.userId ?? undefined,
+      title: r.title, body: r.body, category: r.category, priority: r.priority,
+      status: r.status, votes: r.votes, assignee: r.assignee ?? undefined,
+      adminReply: r.adminReply ?? undefined,
+      createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString(),
+    };
+  }
+
+  async addAiUsage(input: Omit<AiUsageRecord, 'id' | 'createdAt'>) {
+    const row = await this.prisma.aiUsage.create({
+      data: {
+        orgId: input.orgId, userId: input.userId, feature: input.feature, model: input.model,
+        promptTokens: input.promptTokens, completionTokens: input.completionTokens,
+        costUsd: input.costUsd, latencyMs: input.latencyMs,
+      },
+    });
+    return this.toAiUsage(row);
+  }
+  async listAiUsageSince(sinceIso: string) {
+    const rows = await this.prisma.aiUsage.findMany({ where: { createdAt: { gte: new Date(sinceIso) } } });
+    return rows.map((r) => this.toAiUsage(r));
+  }
+  private toAiUsage(r: any): AiUsageRecord {
+    return {
+      id: r.id, orgId: r.orgId, userId: r.userId ?? undefined, feature: r.feature, model: r.model,
+      promptTokens: r.promptTokens, completionTokens: r.completionTokens,
+      costUsd: r.costUsd, latencyMs: r.latencyMs, createdAt: r.createdAt.toISOString(),
+    };
+  }
+
+  async addAdminLog(input: Omit<AdminLogRecord, 'id' | 'createdAt'>) {
+    const row = await this.prisma.adminLog.create({
+      data: {
+        actorUserId: input.actorUserId, action: input.action,
+        targetType: input.targetType, targetId: input.targetId,
+        metadata: input.metadata as any,
+      },
+    });
+    return this.toAdminLog(row);
+  }
+  async listAdminLogs() {
+    const rows = await this.prisma.adminLog.findMany({ orderBy: { createdAt: 'desc' }, take: 500 });
+    return rows.map((r) => this.toAdminLog(r));
+  }
+  private toAdminLog(r: any): AdminLogRecord {
+    return {
+      id: r.id, actorUserId: r.actorUserId, action: r.action,
+      targetType: r.targetType ?? undefined, targetId: r.targetId ?? undefined,
+      metadata: (r.metadata ?? {}) as Record<string, unknown>,
+      createdAt: r.createdAt.toISOString(),
+    };
+  }
+
+  async getSetting(key: string) {
+    const row = await this.prisma.platformSetting.findUnique({ where: { key } });
+    return row ? { key: row.key, value: (row.value ?? {}) as Record<string, unknown>, updatedAt: row.updatedAt.toISOString() } : undefined;
+  }
+  async setSetting(key: string, value: Record<string, unknown>) {
+    const row = await this.prisma.platformSetting.upsert({
+      where: { key },
+      create: { key, value: value as any },
+      update: { value: value as any },
+    });
+    return { key: row.key, value: (row.value ?? {}) as Record<string, unknown>, updatedAt: row.updatedAt.toISOString() };
+  }
+  async listSettings() {
+    const rows = await this.prisma.platformSetting.findMany();
+    return rows.map((r): PlatformSettingRecord => ({
+      key: r.key, value: (r.value ?? {}) as Record<string, unknown>, updatedAt: r.updatedAt.toISOString(),
+    }));
   }
 }

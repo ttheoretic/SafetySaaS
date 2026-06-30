@@ -83,6 +83,8 @@ export interface MeResponse {
   user: { id: string; email: string; name?: string };
   activeOrg: { id: string; name: string; plan: string };
   role: string;
+  /** Platform staff — may access the internal /admin console. */
+  platformAdmin?: boolean;
   organizations: { id: string; name?: string; role: string }[];
   subscription: { active: boolean; status: string; plan: string };
 }
@@ -407,4 +409,111 @@ export const api = {
     post<{ id: string; email: string; role: string; token: string }>('/orgs/invitations', { email, role }),
   downloadReport: (projectId: string, type: string, format: string) =>
     getBlob(`/projects/${projectId}/reports/${type}?format=${format}`),
+
+  /** Submit product feedback (any authenticated user). */
+  submitFeedback: (body: { title: string; body: string; category: string }) =>
+    post<{ id: string; status: string }>('/feedback', body),
+
+  // --- Internal admin console (platform staff only) ---
+  admin: {
+    overview: () => get<AdminOverview>('/admin/overview'),
+    activity: () => get<AdminActivity[]>('/admin/activity'),
+    customers: () => get<AdminCustomer[]>('/admin/customers'),
+    customer: (orgId: string) => get<AdminCustomerDetail>(`/admin/customers/${orgId}`),
+    suspend: (orgId: string) => post(`/admin/customers/${orgId}/suspend`, {}),
+    reactivate: (orgId: string) => post(`/admin/customers/${orgId}/reactivate`, {}),
+    resetSubscription: (orgId: string) => post(`/admin/customers/${orgId}/reset-subscription`, {}),
+    billing: () => get<AdminBilling>('/admin/billing'),
+    aiUsage: () => get<AdminAiUsage>('/admin/ai-usage'),
+    feedback: () => get<AdminFeedback[]>('/admin/feedback'),
+    updateFeedback: (id: string, body: Record<string, unknown>) =>
+      patch(`/admin/feedback/${id}`, body),
+    infrastructure: () => get<AdminInfra>('/admin/infrastructure'),
+    settings: () => get<AdminSettings>('/admin/settings'),
+    updateSetting: (key: string, value: Record<string, unknown>) =>
+      patch(`/admin/settings/${key}`, { value }),
+    logs: () => get<AdminLog[]>('/admin/logs'),
+  },
 };
+
+export type Series = { date: string; value: number }[]
+
+export interface AdminOverview {
+  kpis: {
+    mrr: number; arr: number; activeCustomers: number; trialUsers: number;
+    activeWorkspaces: number; totalGithubAccounts: number; connectedCloudProviders: number;
+    avgReliabilityScore: number; avgRisksPerWorkspace: number; avgRevenueAtRisk: number;
+    totalCustomers: number; totalUsers: number;
+  };
+  charts: {
+    signups: Series; scans: Series; newWorkspaces: Series;
+    planDistribution: { plan: string; count: number }[];
+  };
+}
+
+export interface AdminActivity { type: string; label: string; workspace?: string; at: string }
+
+export interface AdminCustomer {
+  orgId: string; company: string; workspace: string; plan: string; owner: string;
+  users: number; projects: number; joined: string; lastActive: string | null;
+  riskScore: number | null; status: string; githubConnected: boolean;
+}
+
+export interface AdminCustomerDetail {
+  org: { id: string; name: string; slug: string; plan: string; createdAt: string };
+  subscription: Record<string, unknown> | null;
+  members: { userId: string; email?: string; name?: string; role: string; lastSeenAt?: string }[];
+  projects: Array<{
+    id: string; name: string; reliabilityScore: number | null;
+    integrations: { provider: string; status: string; createdAt: string }[];
+    scans: { id: string; status: string; score?: number; createdAt: string }[];
+    scenarios: { id: string; name: string; createdAt: string }[];
+    businessContext: Record<string, unknown> | null;
+  }>;
+  aiUsage: { requests: number; tokens: number; cost: number };
+  recentActivity: Array<{ id: string; action: string; createdAt: string }>;
+}
+
+export interface AdminBilling {
+  summary: {
+    mrr: number; arr: number; activeSubscriptions: number; trials: number;
+    pastDue: number; canceled: number; newThisMonth: number;
+  };
+  customers: Array<{
+    orgId: string; customer: string; plan: string; status: string;
+    renewalDate: string | null; mrr: number; ltv: number; stripeCustomerId: string | null;
+  }>;
+}
+
+export interface AdminAiUsage {
+  cards: {
+    totalRequests: number; totalTokens: number; inputTokens: number; outputTokens: number;
+    monthlyCost: number; avgCostPerUser: number;
+  };
+  charts: { dailyCost: Series; byModel: { model: string; requests: number; cost: number }[] };
+  customers: Array<{ orgId: string; company: string; requests: number; tokens: number; cost: number; model: string; last: string }>;
+}
+
+export interface AdminFeedback {
+  id: string; orgId?: string; workspace?: string | null; title: string; body: string;
+  category: string; priority: string; status: string; votes: number;
+  assignee?: string; adminReply?: string; createdAt: string; updatedAt: string;
+}
+
+export interface AdminInfra {
+  services: { name: string; status: string; latencyMs: number | null; note: string | null }[];
+  env: { nodeVersion: string; uptimeSec: number; memoryMb: number };
+}
+
+export interface AdminSettings {
+  featureFlags: Record<string, unknown>;
+  maintenance: { enabled: boolean; message: string };
+  announcement: { enabled: boolean; message: string };
+  system: { version: string; commit: string | null; node: string };
+  integrations: Record<string, boolean>;
+}
+
+export interface AdminLog {
+  id: string; actorUserId: string; action: string; targetType?: string; targetId?: string;
+  metadata: Record<string, unknown>; createdAt: string; actor: { email?: string; name?: string } | null;
+}

@@ -7,6 +7,8 @@ export interface AuthContext {
   user: UserRecord;
   org: OrganizationRecord;
   role: Role;
+  /** Platform staff — has access to the internal /admin console. */
+  platformAdmin: boolean;
 }
 
 export const PUBLIC_KEY = 'isPublic';

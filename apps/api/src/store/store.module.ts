@@ -57,7 +57,56 @@ export interface UserRecord {
   supabaseId: string;
   email: string;
   name?: string;
+  /** Platform staff — grants access to the internal /admin console. */
+  platformAdmin?: boolean;
+  lastSeenAt?: string;
   createdAt: string;
+}
+
+export interface FeedbackRecord {
+  id: string;
+  orgId?: string;
+  userId?: string;
+  title: string;
+  body: string;
+  category: 'bug' | 'feature' | 'improvement' | 'question';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'open' | 'planned' | 'in_progress' | 'completed' | 'archived';
+  votes: number;
+  assignee?: string;
+  adminReply?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiUsageRecord {
+  id: string;
+  orgId: string;
+  userId?: string;
+  /** 'chat' | 'predict' | 'fix' | 'deep-scan' */
+  feature: string;
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number;
+  latencyMs: number;
+  createdAt: string;
+}
+
+export interface AdminLogRecord {
+  id: string;
+  actorUserId: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface PlatformSettingRecord {
+  key: string;
+  value: Record<string, unknown>;
+  updatedAt: string;
 }
 
 export interface OrganizationRecord {
@@ -150,8 +199,10 @@ export abstract class Store {
   abstract getUser(id: string): Promise<UserRecord | undefined>;
   abstract updateUser(
     id: string,
-    patch: Partial<Pick<UserRecord, 'supabaseId' | 'email' | 'name'>>,
+    patch: Partial<Pick<UserRecord, 'supabaseId' | 'email' | 'name' | 'platformAdmin' | 'lastSeenAt'>>,
   ): Promise<UserRecord | undefined>;
+  /** Every user (admin console). */
+  abstract listAllUsers(): Promise<UserRecord[]>;
 
   abstract createOrganization(input: Omit<OrganizationRecord, 'id' | 'createdAt'>): Promise<OrganizationRecord>;
   abstract getOrganization(id: string): Promise<OrganizationRecord | undefined>;
@@ -177,6 +228,32 @@ export abstract class Store {
   abstract getInvitationByToken(token: string): Promise<InvitationRecord | undefined>;
   abstract listInvitations(orgId: string): Promise<InvitationRecord[]>;
   abstract markInvitationAccepted(id: string): Promise<InvitationRecord | undefined>;
+
+  // --- Admin console -------------------------------------------------------
+  /** Every organization (admin console). */
+  abstract listOrganizations(): Promise<OrganizationRecord[]>;
+  /** Every subscription (admin billing). */
+  abstract listAllSubscriptions(): Promise<SubscriptionRecord[]>;
+  /** Every scan across all orgs (admin metrics). */
+  abstract listAllScans(): Promise<ScanRecord[]>;
+  /** Every connection across all orgs (admin metrics). */
+  abstract listAllConnections(): Promise<ConnectionRecord[]>;
+
+  abstract createFeedback(input: Omit<FeedbackRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<FeedbackRecord>;
+  abstract listFeedback(): Promise<FeedbackRecord[]>;
+  abstract getFeedback(id: string): Promise<FeedbackRecord | undefined>;
+  abstract updateFeedback(id: string, patch: Partial<FeedbackRecord>): Promise<FeedbackRecord | undefined>;
+
+  abstract addAiUsage(input: Omit<AiUsageRecord, 'id' | 'createdAt'>): Promise<AiUsageRecord>;
+  /** AI usage rows created at/after the given ISO timestamp (admin analytics). */
+  abstract listAiUsageSince(sinceIso: string): Promise<AiUsageRecord[]>;
+
+  abstract addAdminLog(input: Omit<AdminLogRecord, 'id' | 'createdAt'>): Promise<AdminLogRecord>;
+  abstract listAdminLogs(): Promise<AdminLogRecord[]>;
+
+  abstract getSetting(key: string): Promise<PlatformSettingRecord | undefined>;
+  abstract setSetting(key: string, value: Record<string, unknown>): Promise<PlatformSettingRecord>;
+  abstract listSettings(): Promise<PlatformSettingRecord[]>;
 }
 
 @Injectable()
@@ -191,6 +268,10 @@ export class InMemoryStore extends Store {
   private scenarios = new Map<string, ScenarioRecord>();
   private subscriptions = new Map<string, SubscriptionRecord>();
   private invitations = new Map<string, InvitationRecord>();
+  private feedback = new Map<string, FeedbackRecord>();
+  private aiUsage = new Map<string, AiUsageRecord>();
+  private adminLogs = new Map<string, AdminLogRecord>();
+  private settings = new Map<string, PlatformSettingRecord>();
 
   private stamp<T>(input: T): T & { id: string; createdAt: string } {
     return { id: randomUUID(), createdAt: new Date().toISOString(), ...input };
@@ -293,12 +374,18 @@ export class InMemoryStore extends Store {
   async getUser(id: string) {
     return this.users.get(id);
   }
-  async updateUser(id: string, patch: Partial<Pick<UserRecord, 'supabaseId' | 'email' | 'name'>>) {
+  async updateUser(
+    id: string,
+    patch: Partial<Pick<UserRecord, 'supabaseId' | 'email' | 'name' | 'platformAdmin' | 'lastSeenAt'>>,
+  ) {
     const existing = this.users.get(id);
     if (!existing) return undefined;
     const updated = { ...existing, ...patch };
     this.users.set(id, updated);
     return updated;
+  }
+  async listAllUsers() {
+    return [...this.users.values()];
   }
 
   async createOrganization(input: Omit<OrganizationRecord, 'id' | 'createdAt'>) {
@@ -393,6 +480,70 @@ export class InMemoryStore extends Store {
     const updated = { ...existing, acceptedAt: new Date().toISOString() };
     this.invitations.set(id, updated);
     return updated;
+  }
+
+  // --- Admin console ---------------------------------------------------------
+  async listOrganizations() {
+    return [...this.organizations.values()];
+  }
+  async listAllSubscriptions() {
+    return [...this.subscriptions.values()];
+  }
+  async listAllScans() {
+    return [...this.scans.values()];
+  }
+  async listAllConnections() {
+    return [...this.connections.values()];
+  }
+
+  async createFeedback(input: Omit<FeedbackRecord, 'id' | 'createdAt' | 'updatedAt'>) {
+    const now = new Date().toISOString();
+    const record: FeedbackRecord = { id: randomUUID(), createdAt: now, updatedAt: now, ...input };
+    this.feedback.set(record.id, record);
+    return record;
+  }
+  async listFeedback() {
+    return [...this.feedback.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async getFeedback(id: string) {
+    return this.feedback.get(id);
+  }
+  async updateFeedback(id: string, patch: Partial<FeedbackRecord>) {
+    const existing = this.feedback.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+    this.feedback.set(id, updated);
+    return updated;
+  }
+
+  async addAiUsage(input: Omit<AiUsageRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
+    this.aiUsage.set(record.id, record);
+    return record;
+  }
+  async listAiUsageSince(sinceIso: string) {
+    return [...this.aiUsage.values()].filter((u) => u.createdAt >= sinceIso);
+  }
+
+  async addAdminLog(input: Omit<AdminLogRecord, 'id' | 'createdAt'>) {
+    const record = this.stamp(input);
+    this.adminLogs.set(record.id, record);
+    return record;
+  }
+  async listAdminLogs() {
+    return [...this.adminLogs.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getSetting(key: string) {
+    return this.settings.get(key);
+  }
+  async setSetting(key: string, value: Record<string, unknown>) {
+    const record: PlatformSettingRecord = { key, value, updatedAt: new Date().toISOString() };
+    this.settings.set(key, record);
+    return record;
+  }
+  async listSettings() {
+    return [...this.settings.values()];
   }
 }
 
