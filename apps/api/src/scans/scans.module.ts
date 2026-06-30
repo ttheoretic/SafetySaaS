@@ -174,6 +174,7 @@ class ScansController {
     return this.prediction.predict(graph, {
       currentUsers: exampleBusiness.activeUsers,
       plan: auth.org.plan,
+      ctx: { orgId: auth.org.id, userId: auth.user.id },
     });
   }
 
@@ -193,7 +194,10 @@ class ScansController {
     const scans = await this.store.listScans(projectId);
     const latest = scans.find((s) => s.status === 'succeeded' && s.graph);
     const graph = (latest?.graph as SystemGraph) ?? exampleGraph;
-    return this.prediction.chat(graph, dto.messages, { plan: auth.org.plan });
+    return this.prediction.chat(graph, dto.messages, {
+      plan: auth.org.plan,
+      ctx: { orgId: auth.org.id, userId: auth.user.id },
+    });
   }
 
   @Get(':scanId')

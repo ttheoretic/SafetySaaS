@@ -3,6 +3,7 @@ import { AI_PROVIDER, AiProvider } from './ai-provider';
 import { AnthropicProvider } from './anthropic.provider';
 import { NullAiProvider } from './null.provider';
 import { PredictionService } from './prediction.service';
+import { AiUsageService } from './ai-usage.service';
 
 /**
  * Wires the AI provider. Uses Anthropic Claude when ANTHROPIC_API_KEY is set,
@@ -25,6 +26,7 @@ import { PredictionService } from './prediction.service';
         return new NullAiProvider();
       },
     },
+    AiUsageService,
     PredictionService,
   ],
   exports: [PredictionService],

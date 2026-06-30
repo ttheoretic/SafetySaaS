@@ -8,6 +8,7 @@ import {
   CodeAnalysisRequest,
   CodeFixRequest,
   CodeFixResult,
+  OnUsage,
   PredictRequest,
   PREDICTION_SCHEMA,
 } from './ai-provider';
@@ -36,6 +37,26 @@ export class AnthropicProvider implements AiProvider {
     return true;
   }
 
+  /** Forward a call's real token usage to the request's optional sink. */
+  private report(
+    onUsage: OnUsage | undefined,
+    model: string,
+    response: { usage?: { input_tokens?: number; output_tokens?: number } },
+    startedAt: number,
+  ): void {
+    if (!onUsage) return;
+    try {
+      onUsage({
+        model,
+        inputTokens: response.usage?.input_tokens ?? 0,
+        outputTokens: response.usage?.output_tokens ?? 0,
+        latencyMs: Date.now() - startedAt,
+      });
+    } catch {
+      /* never let usage recording break a call */
+    }
+  }
+
   async predict(req: PredictRequest): Promise<Prediction[]> {
     try {
       // Per-plan model: higher tiers get a stronger model, a larger token
@@ -50,6 +71,7 @@ export class AnthropicProvider implements AiProvider {
             ? 'Return up to 8 predictions with concrete, step-by-step fixes.'
             : 'Return a thorough set of predictions with detailed, ' +
               'prioritized remediation plans and quantified horizons.';
+      const t0 = Date.now();
       const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
@@ -76,6 +98,7 @@ export class AnthropicProvider implements AiProvider {
         },
       });
 
+      this.report(req.onUsage, model, response, t0);
       if (response.stop_reason === 'refusal') {
         this.logger.warn('AI prediction refused by safety classifier.');
         return [];
@@ -117,6 +140,7 @@ export class AnthropicProvider implements AiProvider {
         null,
         2,
       );
+      const t0 = Date.now();
       const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
@@ -131,6 +155,7 @@ export class AnthropicProvider implements AiProvider {
         messages: req.messages.map((m) => ({ role: m.role, content: m.content })),
       });
 
+      this.report(req.onUsage, model, response, t0);
       if (response.stop_reason === 'refusal') {
         return 'I can’t help with that request.';
       }
@@ -153,6 +178,7 @@ export class AnthropicProvider implements AiProvider {
       const model = req.model ?? this.model;
       const tier = req.tier ?? 'opus';
       const maxTokens = tier === 'basic' ? 2048 : tier === 'sonnet' ? 4096 : 8192;
+      const t0 = Date.now();
       const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
@@ -172,6 +198,7 @@ export class AnthropicProvider implements AiProvider {
           },
         ],
       });
+      this.report(req.onUsage, model, response, t0);
       if (response.stop_reason === 'refusal') return null;
       const text = response.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')
@@ -200,6 +227,7 @@ export class AnthropicProvider implements AiProvider {
         .split('\n')
         .map((l, i) => `${i + 1}: ${l}`)
         .join('\n');
+      const t0 = Date.now();
       const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
@@ -220,6 +248,7 @@ export class AnthropicProvider implements AiProvider {
           },
         ],
       });
+      this.report(req.onUsage, model, response, t0);
       if (response.stop_reason === 'refusal') return [];
       const text = response.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')

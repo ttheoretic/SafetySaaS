@@ -97,7 +97,7 @@ class GithubController {
         title: dto.title,
         description: dto.description ?? '',
       },
-      { plan: auth.org.plan },
+      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
     );
     return { original: content, ...result };
   }
@@ -125,7 +125,7 @@ class GithubController {
         title: dto.title,
         description: dto.description ?? '',
       },
-      { plan: auth.org.plan },
+      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
     );
     if (!result.fixed) {
       throw new BadRequestException(
@@ -165,7 +165,7 @@ class GithubController {
         title: dto.title,
         description: dto.description ?? '',
       },
-      { plan: auth.org.plan },
+      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
     );
     if (!result.fixed) {
       throw new BadRequestException('Could not generate a fix to apply. The AI may be unavailable.');
@@ -252,6 +252,7 @@ class GithubController {
         if (!content) return;
         const issues = await this.ai.analyzeFile(path, content, {
           plan: auth.org.plan,
+          ctx: { orgId: auth.org.id, userId: auth.user.id },
         });
         const lines = content.split('\n');
         for (const i of issues) {

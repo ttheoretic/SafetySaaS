@@ -8,7 +8,14 @@ import {
   Prediction,
   SystemGraph,
 } from '@riscly/shared';
-import { AI_PROVIDER, AiProvider, AnalyzedIssue, ChatMessage } from './ai-provider';
+import { AI_PROVIDER, AiProvider, AnalyzedIssue, ChatMessage, OnUsage } from './ai-provider';
+import { AiUsageService } from './ai-usage.service';
+
+/** Tenant context so a call's token usage is attributed in the admin console. */
+export interface UsageCtx {
+  orgId: string;
+  userId?: string;
+}
 
 export interface PredictionReport {
   aiEnabled: boolean;
@@ -26,11 +33,21 @@ export interface PredictionReport {
  */
 @Injectable()
 export class PredictionService {
-  constructor(@Inject(AI_PROVIDER) private readonly ai: AiProvider) {}
+  constructor(
+    @Inject(AI_PROVIDER) private readonly ai: AiProvider,
+    // Default no-op keeps manual construction (tests) working; Nest injects the
+    // real recorder in the app.
+    private readonly usage: AiUsageService = { sink: () => () => undefined } as unknown as AiUsageService,
+  ) {}
+
+  /** An onUsage sink for the given tenant + feature, or undefined when untracked. */
+  private track(feature: string, ctx?: UsageCtx): OnUsage | undefined {
+    return ctx ? this.usage.sink({ ...ctx, feature }) : undefined;
+  }
 
   async predict(
     graph: SystemGraph,
-    opts: { currentUsers?: number; plan?: Plan } = {},
+    opts: { currentUsers?: number; plan?: Plan; ctx?: UsageCtx } = {},
   ): Promise<PredictionReport> {
     // The plan selects the Claude model & analysis depth. Without a plan
     // (the public demo endpoint) we fall back to the basic tier.
@@ -44,6 +61,7 @@ export class PredictionService {
       currentUsers: opts.currentUsers,
       model,
       tier,
+      onUsage: this.track('predict', opts.ctx),
     });
 
     const merged = dedupe([...heuristics, ...aiPredictions]).sort(
@@ -66,12 +84,14 @@ export class PredictionService {
   async chat(
     graph: SystemGraph,
     messages: ChatMessage[],
-    opts: { plan?: Plan } = {},
+    opts: { plan?: Plan; ctx?: UsageCtx } = {},
   ): Promise<{ aiEnabled: boolean; provider: string; reply: string }> {
     const tier = opts.plan ? aiTierForPlan(opts.plan) : 'basic';
     const model = opts.plan ? aiModelForPlan(opts.plan) : undefined;
     const heuristics = predictFailures(graph, {});
-    const reply = await this.ai.chat({ graph, heuristics, messages, model, tier });
+    const reply = await this.ai.chat({
+      graph, heuristics, messages, model, tier, onUsage: this.track('chat', opts.ctx),
+    });
     return { aiEnabled: this.ai.enabled, provider: this.ai.name, reply };
   }
 
@@ -89,11 +109,11 @@ export class PredictionService {
       title: string
       description: string
     },
-    opts: { plan?: Plan } = {},
+    opts: { plan?: Plan; ctx?: UsageCtx } = {},
   ): Promise<{ aiEnabled: boolean; fixed: string | null; explanation: string | null }> {
     const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
     const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
-    const result = await this.ai.generateCodeFix({ ...input, model, tier })
+    const result = await this.ai.generateCodeFix({ ...input, model, tier, onUsage: this.track('fix', opts.ctx) })
     return {
       aiEnabled: this.ai.enabled,
       fixed: result?.fixed ?? null,
@@ -109,11 +129,11 @@ export class PredictionService {
   async analyzeFile(
     file: string,
     content: string,
-    opts: { plan?: Plan } = {},
+    opts: { plan?: Plan; ctx?: UsageCtx } = {},
   ): Promise<AnalyzedIssue[]> {
     const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
     const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
-    return this.ai.analyzeCode({ file, content, model, tier })
+    return this.ai.analyzeCode({ file, content, model, tier, onUsage: this.track('deep-scan', opts.ctx) })
   }
 }
 

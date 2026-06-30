@@ -3,6 +3,16 @@ import type { AiTier, Prediction, SystemGraph } from '@riscly/shared';
 /** DI token for the active AI provider. */
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
 
+/** Token usage reported by a provider after a single LLM call. */
+export interface AiUsageReport {
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+}
+/** Optional sink a request can carry so the call's token usage is recorded. */
+export type OnUsage = (u: AiUsageReport) => void;
+
 export interface PredictRequest {
   graph: SystemGraph;
   /** Deterministic heuristic predictions, given to the model as grounding. */
@@ -12,6 +22,7 @@ export interface PredictRequest {
   model?: string;
   /** Tier hint — higher tiers get a larger token budget & deeper analysis. */
   tier?: AiTier;
+  onUsage?: OnUsage;
 }
 
 export interface ChatMessage {
@@ -28,6 +39,7 @@ export interface ChatRequest {
   heuristics: Prediction[];
   model?: string;
   tier?: AiTier;
+  onUsage?: OnUsage;
 }
 
 /**
@@ -47,6 +59,7 @@ export interface CodeFixRequest {
   line: number;
   model?: string;
   tier?: AiTier;
+  onUsage?: OnUsage;
 }
 
 export interface CodeFixResult {
@@ -61,6 +74,7 @@ export interface CodeAnalysisRequest {
   content: string;
   model?: string;
   tier?: AiTier;
+  onUsage?: OnUsage;
 }
 
 /** A single issue the model located in a file. */
