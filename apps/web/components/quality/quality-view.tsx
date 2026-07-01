@@ -1,14 +1,16 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   FileWarning,
   Boxes,
   ListTodo,
   FileCode,
+  File,
+  FolderOpen,
   ChevronRight,
-  X,
+  ArrowLeft,
   Sparkles,
   WandSparkles,
   Loader2,
@@ -40,6 +42,12 @@ const bandBar: Record<Band, string> = {
   medium: 'bg-medium',
   low: 'bg-ok',
 }
+const bandDot: Record<Band, string> = {
+  critical: 'bg-critical',
+  high: 'bg-high',
+  medium: 'bg-medium',
+  low: 'bg-ok',
+}
 const TAG_LABEL: Record<string, string> = {
   'large-file': 'Large file',
   'high-complexity': 'High complexity',
@@ -48,6 +56,10 @@ const TAG_LABEL: Record<string, string> = {
 }
 
 const QUALITY_RULE = 'quality/maintainability'
+
+function hotspotKey(h: QualityHotspot): string {
+  return `${h.repo ?? ''}:${h.file}`
+}
 
 function hotspotDescription(h: QualityHotspot): string {
   const tagText = h.tags.map((t) => TAG_LABEL[t] ?? t).join(', ')
@@ -63,6 +75,11 @@ function hotspotDescription(h: QualityHotspot): string {
  * Code Quality / maintainability — "future-problem" signals. Surfaces files
  * that are large, complex, deeply nested or TODO-heavy: code that isn't a
  * security bug today but is likely to cause defects or incidents later.
+ *
+ * The landing is a ranked hotspot listing. Clicking one drills into the same
+ * three-pane coding layout as Code (SAST) — files left, code (with the AI
+ * refactor shown in green) in the middle, metrics + explanation + push on the
+ * right — with a back link to the listing.
  */
 export function QualityView() {
   const { graph } = useSystemGraph()
@@ -71,13 +88,23 @@ export function QualityView() {
   const summary = graph?.qualitySummary
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
-  const selected = useMemo(
-    () => hotspots.find((x) => `${x.repo ?? ''}:${x.file}` === selectedKey) ?? null,
-    [selectedKey, hotspots],
+  const hasSelection = Boolean(
+    selectedKey && projectId && hotspots.some((h) => hotspotKey(h) === selectedKey),
   )
 
+  if (hasSelection && projectId) {
+    return (
+      <QualityDetailView
+        projectId={projectId}
+        hotspots={hotspots}
+        initialKey={selectedKey!}
+        onBack={() => setSelectedKey(null)}
+      />
+    )
+  }
+
   return (
-    <div className="relative flex h-full flex-col">
+    <div className="flex h-full flex-col">
       <ScreenHeader
         title="Code Quality"
         subtitle="Maintainability hotspots — code likely to cause future problems"
@@ -107,15 +134,12 @@ export function QualityView() {
             <div className="divide-y divide-border">
               {hotspots.map((h) => {
                 const b = band(h.score)
-                const key = `${h.repo ?? ''}:${h.file}`
+                const key = hotspotKey(h)
                 return (
                   <button
                     key={key}
                     onClick={() => setSelectedKey(key)}
-                    className={cn(
-                      'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/40',
-                      selectedKey === key && 'bg-accent/60',
-                    )}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent/40"
                   >
                     {/* score */}
                     <div className="flex w-12 shrink-0 flex-col items-center">
@@ -157,162 +181,216 @@ export function QualityView() {
           </p>
         </div>
       )}
-
-      {/* hotspot code panel — opens an inline code area (like Code/SAST) where
-          the user sees the file, generates an AI refactor shown in green under
-          the code, and pushes it once verified. */}
-      {selected && projectId && (
-        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-3xl border-l border-border bg-panel shadow-2xl">
-          <HotspotCodePanel
-            key={`${selected.repo ?? ''}:${selected.file}`}
-            projectId={projectId}
-            hotspot={selected}
-            onClose={() => setSelectedKey(null)}
-          />
-        </div>
-      )}
     </div>
   )
 }
 
 /**
- * Inline code + fix panel for a maintainability hotspot. Loads the file, lets
- * the user generate an AI refactor (rendered in green directly under the
- * original lines) and push it straight to the repo after they've verified it —
- * the same flow as Code (SAST), scoped to this one file.
+ * Three-pane drill-in for a hotspot: files left, source (with the AI refactor
+ * rendered in green under the original lines) in the middle, and the metrics +
+ * explanation + push on the right. Mirrors the Code (SAST) layout.
  */
-function HotspotCodePanel({
+function QualityDetailView({
   projectId,
-  hotspot,
-  onClose,
+  hotspots,
+  initialKey,
+  onBack,
 }: {
   projectId: string
-  hotspot: QualityHotspot
-  onClose: () => void
+  hotspots: QualityHotspot[]
+  initialKey: string
+  onBack: () => void
 }) {
-  const repo = hotspot.repo ?? null
-  const fileQuery = useRepoFileContent(projectId, repo, hotspot.file)
-  const content = fileQuery.data?.content ?? null
-  const { fix, generate, generating, commit, committing, commitUrl, error } =
-    useCodeFix(projectId, repo, hotspot.file)
+  const [activeKey, setActiveKey] = useState(initialKey)
+  const active =
+    hotspots.find((h) => hotspotKey(h) === activeKey) ?? hotspots[0]
 
-  const fileName = hotspot.file.split('/').pop() || hotspot.file
-  const b = band(hotspot.score)
+  const repo = active.repo ?? null
+  const fileQuery = useRepoFileContent(projectId, repo, active.file)
+  const content = fileQuery.data?.content ?? null
+  const { fix, generate, generating, commit, committing, commitUrl, error, reset } =
+    useCodeFix(projectId, repo, active.file)
+
+  // Reset the generated fix whenever the selected file changes.
+  useEffect(() => {
+    reset()
+  }, [activeKey, reset])
+
+  const b = band(active.score)
+  const fileName = active.file.split('/').pop() || active.file
   const payload = {
     ...(repo ? { repo } : {}),
-    file: hotspot.file,
+    file: active.file,
     line: 1,
     rule: QUALITY_RULE,
     title: `Refactor ${fileName} for maintainability`,
-    description: hotspotDescription(hotspot),
+    description: hotspotDescription(active),
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      {/* header */}
-      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={cn('font-mono text-sm font-semibold tabular-nums', bandColor[b])}>
-              {hotspot.score}
-            </span>
-            <span className="truncate font-mono text-[12px]">{hotspot.file}</span>
+    <div className="flex h-full flex-col">
+      <ScreenHeader
+        title="Code Quality"
+        subtitle={`${active.file} · maintainability`}
+        actions={
+          <ActionButton onClick={onBack}>
+            <ArrowLeft className="size-3.5" />
+            Back to hotspots
+          </ActionButton>
+        }
+      />
+
+      <div className="flex min-h-0 flex-1">
+        {/* hotspot files */}
+        <div className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar">
+          <div className="flex items-center gap-1.5 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <FolderOpen className="size-3.5" />
+            Hotspot files ({hotspots.length})
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
-            <span>{hotspot.loc} LOC</span>
-            <span>complexity {hotspot.complexity}</span>
-            <span>nesting {hotspot.maxNesting}</span>
-            {hotspot.todos > 0 && <span>{hotspot.todos} TODO</span>}
+          {hotspots.map((h) => {
+            const key = hotspotKey(h)
+            const hb = band(h.score)
+            const fname = h.file.split('/').pop() || h.file
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveKey(key)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-accent/50',
+                  key === activeKey && 'bg-accent/60',
+                )}
+              >
+                <span className={cn('size-1.5 shrink-0 rounded-full', bandDot[hb])} />
+                <File className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{fname}</span>
+                <span className={cn('ml-auto font-mono text-[10px]', bandColor[hb])}>{h.score}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* code / diff */}
+        <div className="min-w-0 flex-1 overflow-auto bg-background font-mono text-xs">
+          {fileQuery.isLoading ? (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          ) : content ? (
+            <SourceView content={content} issueLines={NO_LINES} fixed={fix?.fixed ?? null} />
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center text-muted-foreground">
+              {repo
+                ? 'Couldn’t load this file from the repo.'
+                : 'No repository is linked to this hotspot, so the source can’t be shown.'}
+            </div>
+          )}
+        </div>
+
+        {/* metrics + fix */}
+        <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
+          <div className="border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className={cn('font-mono text-2xl font-semibold tabular-nums', bandColor[b])}>
+                {active.score}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{fileName}</p>
+                <p className="font-mono text-[10px] text-muted-foreground">maintainability risk</p>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Metric label="Lines" value={active.loc} />
+              <Metric label="Complexity" value={active.complexity} />
+              <Metric label="Max nesting" value={active.maxNesting} />
+              <Metric label="TODO/FIXME" value={active.todos} />
+            </div>
+            {active.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1">
+                {active.tags.map((t) => (
+                  <span key={t} className="rounded-sm border border-border bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    {TAG_LABEL[t] ?? t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+              {hotspotDescription(active)}
+            </p>
+          </div>
+
+          {/* fix flow */}
+          <div className="mt-auto space-y-2 p-3">
+            {fix?.explanation && (
+              <div className="rounded-md border border-ok/20 bg-ok/5 px-2.5 py-2">
+                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
+                  <WandSparkles className="size-3" />
+                  Suggested refactor — shown in green in the code
+                </div>
+                <p className="text-xs leading-relaxed text-foreground/90">{fix.explanation}</p>
+              </div>
+            )}
+
+            {commitUrl ? (
+              <>
+                <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
+                  <Check className="size-3.5" /> Pushed to your repo
+                </div>
+                <a
+                  href={commitUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <ExternalLink className="size-3.5" /> View commit
+                </a>
+              </>
+            ) : !fix?.fixed ? (
+              <ActionButton
+                variant="primary"
+                className="w-full justify-center"
+                onClick={() => generate(payload)}
+                disabled={generating || committing || !content}
+                title="Have the AI propose a maintainability refactor for this file"
+              >
+                {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+                {generating ? 'Generating…' : 'Generate refactor'}
+              </ActionButton>
+            ) : (
+              <>
+                <ActionButton
+                  variant="primary"
+                  className="w-full justify-center"
+                  onClick={() => commit(payload)}
+                  disabled={committing}
+                  title="Commit this refactor directly to your repo"
+                >
+                  {committing ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+                  {committing ? 'Pushing…' : 'Apply fix — push to repo'}
+                </ActionButton>
+                <ActionButton
+                  className="w-full justify-center"
+                  onClick={() => generate(payload)}
+                  disabled={generating || committing}
+                >
+                  <Sparkles className="size-3.5" />
+                  Regenerate
+                </ActionButton>
+              </>
+            )}
+
+            {error && <p className="text-[11px] text-destructive">{error}</p>}
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-          aria-label="Close"
-        >
-          <X className="size-4" />
-        </button>
       </div>
+    </div>
+  )
+}
 
-      {/* code / diff */}
-      <div className="min-h-0 flex-1 overflow-auto bg-background font-mono text-xs">
-        {fileQuery.isLoading ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground">
-            <Loader2 className="size-5 animate-spin" />
-          </div>
-        ) : content ? (
-          <SourceView content={content} issueLines={NO_LINES} fixed={fix?.fixed ?? null} />
-        ) : (
-          <div className="flex h-full items-center justify-center px-6 text-center text-xs text-muted-foreground">
-            {repo
-              ? 'Couldn’t load this file from the repo.'
-              : 'No repository is linked to this hotspot, so the source can’t be shown.'}
-          </div>
-        )}
-      </div>
-
-      {/* actions */}
-      <div className="shrink-0 space-y-2 border-t border-border p-3">
-        {fix?.explanation && (
-          <div className="rounded-md border border-ok/20 bg-ok/5 px-2.5 py-2">
-            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
-              <WandSparkles className="size-3" />
-              Suggested refactor — shown in green in the code
-            </div>
-            <p className="text-xs leading-relaxed text-foreground/90">{fix.explanation}</p>
-          </div>
-        )}
-
-        {commitUrl ? (
-          <>
-            <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
-              <Check className="size-3.5" /> Pushed to your repo
-            </div>
-            <a
-              href={commitUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ExternalLink className="size-3.5" /> View commit
-            </a>
-          </>
-        ) : !fix?.fixed ? (
-          <ActionButton
-            variant="primary"
-            className="w-full justify-center"
-            onClick={() => generate(payload)}
-            disabled={generating || committing || !content}
-            title="Have the AI propose a maintainability refactor for this file"
-          >
-            {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-            {generating ? 'Generating…' : 'Generate refactor'}
-          </ActionButton>
-        ) : (
-          <>
-            <ActionButton
-              variant="primary"
-              className="w-full justify-center"
-              onClick={() => commit(payload)}
-              disabled={committing}
-              title="Commit this refactor directly to your repo"
-            >
-              {committing ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
-              {committing ? 'Pushing…' : 'Apply fix — push to repo'}
-            </ActionButton>
-            <ActionButton
-              className="w-full justify-center"
-              onClick={() => generate(payload)}
-              disabled={generating || committing}
-            >
-              <Sparkles className="size-3.5" />
-              Regenerate
-            </ActionButton>
-          </>
-        )}
-
-        {error && <p className="text-[11px] text-destructive">{error}</p>}
-      </div>
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-md border border-border bg-background px-2 py-1.5">
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="font-mono text-sm font-semibold tabular-nums">{value}</div>
     </div>
   )
 }
