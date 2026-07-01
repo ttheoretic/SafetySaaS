@@ -245,7 +245,7 @@ export default function GetStartedPage() {
       window.location.href = url
     } catch {
       setError(
-        'GitHub OAuth isn’t configured here — continue with the demo stack.',
+        'GitHub connection isn’t available right now. Please try again in a moment.',
       )
       setBusy(false)
     }
@@ -461,7 +461,7 @@ export default function GetStartedPage() {
                 subtitle={
                   connected
                     ? `Your ${connected} account is connected — run the first scan to map your real services.`
-                    : 'Connect GitHub so we can map your services — or continue with a demo stack.'
+                    : 'Connect GitHub so we can map your real services and find risks in your code.'
                 }
               >
                 <div className="space-y-3">
@@ -519,22 +519,13 @@ export default function GetStartedPage() {
                       </button>
                     </>
                   ) : (
-                    <>
-                      <button
-                        onClick={connectGithub}
-                        disabled={busy}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/70 disabled:opacity-50"
-                      >
-                        <GitBranch className="size-4" /> Connect GitHub
-                      </button>
-                      <button
-                        onClick={runScan}
-                        disabled={busy}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                      >
-                        <ScanSearch className="size-4" /> Continue with demo stack
-                      </button>
-                    </>
+                    <button
+                      onClick={connectGithub}
+                      disabled={busy}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                    >
+                      <GitBranch className="size-4" /> Connect GitHub
+                    </button>
                   )}
                 </div>
               </Card>
@@ -571,7 +562,7 @@ export default function GetStartedPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      No modules detected yet — we&rsquo;ll score the demo stack.
+                      No modules detected yet — continue to score what we found.
                     </p>
                   )}
                 </div>
