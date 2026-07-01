@@ -53,6 +53,7 @@ class CodeFixDto {
   @IsOptional() @IsString() repo?: string;
   @IsString() file!: string;
   @IsOptional() @IsInt() @Min(1) line?: number;
+  @IsOptional() @IsInt() @Min(1) endLine?: number;
   @IsString() rule!: string;
   @IsString() title!: string;
   @IsOptional() @IsString() description?: string;
@@ -105,6 +106,7 @@ class GithubController {
         file: dto.file,
         content: original,
         line: dto.line ?? 1,
+        endLine: dto.endLine,
         rule: dto.rule,
         title: dto.title,
         description: dto.description ?? '',
@@ -136,6 +138,7 @@ class GithubController {
         file: dto.file,
         content,
         line: dto.line ?? 1,
+        endLine: dto.endLine,
         rule: dto.rule,
         title: dto.title,
         description: dto.description ?? '',
@@ -146,33 +149,28 @@ class GithubController {
   }
 
   /**
-   * A targeted maintainability refactoring PLAN for a file (Code Quality). Large
-   * hotspots can't be rewritten whole-file, so instead of a diff this returns a
-   * concrete, prioritized set of steps (extract functions, flatten nesting,
-   * resolve TODOs) the developer can apply.
+   * Locate maintainability problems in one file at specific line ranges (Code
+   * Quality). Returns issues the UI highlights red — each is then fixed and
+   * pushed individually via the windowed code-fix flow, exactly like SAST.
    */
-  @Post('code/refactor')
+  @Post('code/quality/issues')
   @RequirePermission('project:read')
-  async codeRefactor(
+  async codeQualityIssues(
     @Auth() auth: AuthContext,
     @Param('projectId') projectId: string,
     @Body() dto: CodeFixDto,
   ) {
-    this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI refactor plan');
+    this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI maintainability analysis');
     const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
     const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
     if (content == null) {
       throw new BadRequestException('Could not read the file from the repo.');
     }
-    const result = await this.ai.refactorPlan(
-      {
-        file: dto.file,
-        content,
-        metrics: dto.description ?? dto.title,
-      },
-      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
-    );
-    return result;
+    const issues = await this.ai.maintainabilityIssues(dto.file, content, {
+      plan: auth.org.plan,
+      ctx: { orgId: auth.org.id, userId: auth.user.id },
+    });
+    return { aiEnabled: this.ai.aiEnabled, issues };
   }
 
   /** Apply an AI fix by opening a pull request with the corrected file. */

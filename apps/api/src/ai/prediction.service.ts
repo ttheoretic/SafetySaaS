@@ -105,6 +105,7 @@ export class PredictionService {
       file: string
       content: string
       line: number
+      endLine?: number
       rule: string
       title: string
       description: string
@@ -151,6 +152,23 @@ export class PredictionService {
     const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
     const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
     return this.ai.analyzeCode({ file, content, model, tier, onUsage: this.track('deep-scan', opts.ctx) })
+  }
+
+  /** Locate maintainability problems in one file at specific line ranges. */
+  async maintainabilityIssues(
+    file: string,
+    content: string,
+    opts: { plan?: Plan; ctx?: UsageCtx } = {},
+  ): Promise<AnalyzedIssue[]> {
+    const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
+    const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
+    return this.ai.analyzeMaintainability({
+      file,
+      content,
+      model,
+      tier,
+      onUsage: this.track('quality-scan', opts.ctx),
+    })
   }
 }
 

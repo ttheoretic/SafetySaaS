@@ -175,28 +175,56 @@ export class AnthropicProvider implements AiProvider {
 
   async generateCodeFix(req: CodeFixRequest): Promise<CodeFixResult | null> {
     try {
-      // Bound the file we send so a fix is feasible and cheap.
-      if (req.content.length > 24_000) return null;
       const model = req.model ?? this.model;
       const tier = req.tier ?? 'opus';
       const maxTokens = tier === 'basic' ? 2048 : tier === 'sonnet' ? 4096 : 8192;
+
+      // Only rewrite a WINDOW around the affected region. For small files that's
+      // the whole file (unchanged behaviour); for large files (e.g. a big
+      // maintainability hotspot) it's a bounded slice around the issue, so the
+      // fix stays feasible and the diff is localized. The window is spliced back
+      // into the full file before returning.
+      const lines = req.content.split('\n');
+      const large = req.content.length > 20_000;
+      let start = 0;
+      let end = lines.length; // exclusive
+      if (large) {
+        const line0 = Math.max(0, (req.line || 1) - 1);
+        const endL = Math.max(line0, (req.endLine || req.line || 1) - 1);
+        const CTX = 40;
+        const MAX_WIN = 400;
+        start = Math.max(0, line0 - CTX);
+        end = Math.min(lines.length, endL + 1 + CTX);
+        if (end - start > MAX_WIN) end = start + MAX_WIN;
+      }
+      const windowText = lines.slice(start, end).join('\n');
+      // Even a bounded window can be pathologically long; bail rather than fail.
+      if (windowText.length > 24_000) return null;
+      const isExcerpt = large && (start > 0 || end < lines.length);
+
       const t0 = Date.now();
       const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
         system:
-          'You are a senior security engineer fixing exactly one issue in one ' +
-          'file. Reply with (1) a single short sentence explaining the fix, then ' +
-          '(2) the COMPLETE corrected file inside one fenced code block. Change ' +
-          'only what is needed to resolve the issue — never invent unrelated ' +
-          'edits. For committed secrets, remove the literal value and read it ' +
-          'from an environment variable.',
+          'You are a senior engineer fixing exactly one issue in one file. Reply ' +
+          'with (1) a single short sentence explaining the fix, then (2) the ' +
+          'COMPLETE corrected code for the SHOWN snippet inside one fenced code ' +
+          'block. Preserve the surrounding indentation and return the whole ' +
+          'snippet (not just the changed lines). Change only what is needed to ' +
+          'resolve the issue — never invent unrelated edits. For committed ' +
+          'secrets, remove the literal value and read it from an environment ' +
+          'variable.',
         messages: [
           {
             role: 'user',
             content:
               `Issue: ${req.title} (rule ${req.rule}) at ${req.file}:${req.line}\n` +
-              `${req.description}\n\nFile (${req.file}):\n\`\`\`\n${req.content}\n\`\`\``,
+              `${req.description}\n\n` +
+              (isExcerpt
+                ? `Code to fix (lines ${start + 1}-${end} of ${req.file}):\n`
+                : `File (${req.file}):\n`) +
+              `\`\`\`\n${windowText}\n\`\`\``,
           },
         ],
       });
@@ -208,7 +236,11 @@ export class AnthropicProvider implements AiProvider {
         .join('\n');
       const fenced = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)```/);
       if (!fenced) return null;
-      const fixed = fenced[1].replace(/\n$/, '');
+      const fixedWindow = fenced[1].replace(/\n$/, '');
+      // Splice the corrected window back into the full file.
+      const fixed = isExcerpt
+        ? [...lines.slice(0, start), ...fixedWindow.split('\n'), ...lines.slice(end)].join('\n')
+        : fixedWindow;
       const explanation =
         text.slice(0, text.indexOf('```')).trim() || 'Applied the recommended fix.';
       return { fixed, explanation };
@@ -331,6 +363,67 @@ export class AnthropicProvider implements AiProvider {
         }));
     } catch (err) {
       this.logger.warn(`AI code analysis unavailable: ${(err as Error).message}`);
+      return [];
+    }
+  }
+
+  async analyzeMaintainability(req: CodeAnalysisRequest): Promise<AnalyzedIssue[]> {
+    try {
+      if (!req.content.trim()) return [];
+      const model = req.model ?? this.model;
+      const tier = req.tier ?? 'opus';
+      const maxTokens = tier === 'basic' ? 1500 : tier === 'sonnet' ? 3000 : 4000;
+      // Read up to a bounded slice (issues located within it still map to real
+      // line numbers since we slice from the start). Output is a compact list.
+      const LIMIT = 48_000;
+      const source = req.content.length > LIMIT ? req.content.slice(0, LIMIT) : req.content;
+      const numbered = source
+        .split('\n')
+        .map((l, i) => `${i + 1}: ${l}`)
+        .join('\n');
+      const t0 = Date.now();
+      const response = await this.client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        system:
+          'You are a senior engineer reviewing a file for MAINTAINABILITY ' +
+          'problems — code that is hard to change and likely to cause future ' +
+          'defects: overly long or complex functions, deeply nested blocks, ' +
+          'duplicated logic, dead code, a file that should be split, and ' +
+          'unresolved TODO/FIXME. For each, give the EXACT line range it spans. ' +
+          'Report only concrete, actionable regions — no style nitpicks. Respond ' +
+          'with a single JSON array (no prose) of objects: { "line": number, ' +
+          '"endLine": number, "severity": "low"|"medium"|"high"|"critical", ' +
+          '"rule": string (e.g. "quality/long-function", "quality/deep-nesting", ' +
+          '"quality/duplication", "quality/dead-code", "quality/todo"), "title": ' +
+          'string, "description": string (say concretely what to do) }. Empty ' +
+          'array if the file is clean.',
+        messages: [{ role: 'user', content: `File: ${req.file}\n\n${numbered}` }],
+      });
+      this.report(req.onUsage, model, response, t0);
+      if (response.stop_reason === 'refusal') return [];
+      const text = response.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n');
+      const json = text.slice(text.indexOf('['), text.lastIndexOf(']') + 1);
+      if (!json) return [];
+      const parsed = JSON.parse(json) as AnalyzedIssue[];
+      return parsed
+        .filter((i) => i && typeof i.line === 'number' && i.title)
+        .map((i) => ({
+          line: Math.max(1, Math.floor(i.line)),
+          endLine:
+            typeof i.endLine === 'number' ? Math.max(i.line, Math.floor(i.endLine)) : undefined,
+          severity: ['low', 'medium', 'high', 'critical'].includes(i.severity)
+            ? i.severity
+            : 'medium',
+          rule: i.rule || 'quality/maintainability',
+          title: String(i.title).slice(0, 200),
+          description: String(i.description ?? '').slice(0, 600),
+        }));
+    } catch (err) {
+      this.logger.warn(`AI maintainability analysis unavailable: ${(err as Error).message}`);
       return [];
     }
   }

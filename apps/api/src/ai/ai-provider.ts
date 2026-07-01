@@ -57,6 +57,8 @@ export interface CodeFixRequest {
   content: string;
   /** 1-based line of the issue. */
   line: number;
+  /** 1-based last line of the affected region (for windowed fixes). */
+  endLine?: number;
   model?: string;
   tier?: AiTier;
   onUsage?: OnUsage;
@@ -114,6 +116,9 @@ export interface AiProvider {
   generateCodeFix(req: CodeFixRequest): Promise<CodeFixResult | null>;
   /** Deep-analyse a file for security + quality + correctness issues. */
   analyzeCode(req: CodeAnalysisRequest): Promise<AnalyzedIssue[]>;
+  /** Locate maintainability problems (long/complex functions, deep nesting,
+   *  duplication, dead code, TODOs) at specific line ranges. */
+  analyzeMaintainability(req: CodeAnalysisRequest): Promise<AnalyzedIssue[]>;
   /** Produce a targeted maintainability refactoring plan (not a rewrite), or null. */
   generateRefactorPlan(req: RefactorPlanRequest): Promise<RefactorPlanResult | null>;
 }

@@ -192,6 +192,7 @@ export interface CodeFixBody {
   repo?: string
   file: string
   line?: number
+  endLine?: number
   rule: string
   title: string
   description?: string

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
   FileWarning,
@@ -14,17 +15,29 @@ import {
   Sparkles,
   WandSparkles,
   Loader2,
+  Check,
+  ExternalLink,
 } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
-import { Markdown } from '@/components/ui/markdown'
-import { useSystemGraph, useActiveProject } from '@/lib/use-project-data'
+import { SeverityBadge } from '@/components/ui/severity'
+import { useSystemGraph, useActiveProject, useCodeFix } from '@/lib/use-project-data'
 import { useRepoFileContent, SourceView } from '@/components/code/code-view'
+import { useAuth } from '@/lib/auth-store'
 import { api } from '@/lib/api'
 import type { QualityHotspot } from '@riscly/shared'
 import { cn } from '@/lib/utils'
 
 const NO_LINES: Set<number> = new Set()
+
+type QualityIssue = {
+  line: number
+  endLine?: number
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  rule: string
+  title: string
+  description: string
+}
 
 type Band = 'critical' | 'high' | 'medium' | 'low'
 function band(score: number): Band {
@@ -186,13 +199,14 @@ export function QualityView() {
 }
 
 /**
- * Three-pane drill-in for a hotspot: files left, source (for reference) in the
- * middle, and — on the right — a targeted, AI-generated refactoring PLAN.
+ * Three-pane drill-in for a hotspot — the same layout and fix flow as Code
+ * (SAST): hotspot files on the left; the source in the middle with the
+ * maintainability problems highlighted red and the AI fix spliced in green
+ * below; and on the right the located issues, each with its explanation and an
+ * individual "Generate fix" / "Apply fix — push to repo".
  *
- * Maintainability hotspots are large files, so a whole-file AI rewrite isn't
- * feasible (and often fails). Instead we produce a concrete, prioritized set of
- * steps (extract functions, flatten nesting, resolve TODOs) the developer
- * applies incrementally — the honest way to reduce maintainability risk.
+ * The AI locates issues at specific line ranges and each fix rewrites only a
+ * bounded WINDOW around its region, so even large hotspot files work.
  */
 function QualityDetailView({
   projectId,
@@ -205,6 +219,7 @@ function QualityDetailView({
   initialKey: string
   onBack: () => void
 }) {
+  const token = useAuth((s) => s.token)
   const [activeKey, setActiveKey] = useState(initialKey)
   const active =
     hotspots.find((h) => hotspotKey(h) === activeKey) ?? hotspots[0]
@@ -213,45 +228,55 @@ function QualityDetailView({
   const fileQuery = useRepoFileContent(projectId, repo, active.file)
   const content = fileQuery.data?.content ?? null
 
-  const [plan, setPlan] = useState<string | null>(null)
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Reset the plan whenever the selected file changes.
-  useEffect(() => {
-    setPlan(null)
-    setError(null)
-  }, [activeKey])
-
-  const b = band(active.score)
-  const fileName = active.file.split('/').pop() || active.file
-
-  async function generatePlan() {
-    setGenerating(true)
-    setError(null)
-    setPlan(null)
-    try {
-      const res = await api.codeRefactor(projectId, {
+  // Locate the maintainability problems (red regions) for the selected file.
+  const issuesQuery = useQuery({
+    queryKey: ['quality-issues', projectId, repo, active.file],
+    enabled: Boolean(token && projectId),
+    staleTime: 5 * 60_000,
+    queryFn: () =>
+      api.codeQualityIssues(projectId, {
         ...(repo ? { repo } : {}),
         file: active.file,
         rule: QUALITY_RULE,
-        title: `Refactor ${fileName} for maintainability`,
+        title: `Maintainability review of ${active.file}`,
         description: hotspotDescription(active),
-      })
-      if (res.plan) {
-        setPlan(res.plan)
-      } else {
-        setError(
-          res.aiEnabled
-            ? 'The AI could not produce a refactoring plan for this file.'
-            : 'AI is not enabled on this server (set ANTHROPIC_API_KEY).',
-        )
-      }
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setGenerating(false)
-    }
+      }),
+  })
+  const issues: QualityIssue[] = issuesQuery.data?.issues ?? []
+
+  const [activeIssueIdx, setActiveIssueIdx] = useState(0)
+  const issue = issues[activeIssueIdx]
+
+  const { fix, generate, generating, commit, committing, commitUrl, error, reset } =
+    useCodeFix(projectId, repo, active.file)
+
+  // Reset selection + fix when the file changes.
+  useEffect(() => {
+    setActiveIssueIdx(0)
+    reset()
+  }, [activeKey, reset])
+  // Reset the fix when the selected region changes.
+  useEffect(() => {
+    reset()
+  }, [activeIssueIdx, reset])
+
+  const issueLines = useMemo(() => {
+    if (!issue) return NO_LINES
+    const s = new Set<number>()
+    for (let l = issue.line; l <= (issue.endLine ?? issue.line); l++) s.add(l)
+    return s
+  }, [issue])
+
+  const b = band(active.score)
+  const fileName = active.file.split('/').pop() || active.file
+  const payload = issue && {
+    ...(repo ? { repo } : {}),
+    file: active.file,
+    line: issue.line,
+    endLine: issue.endLine,
+    rule: issue.rule,
+    title: issue.title,
+    description: issue.description,
   }
 
   return (
@@ -296,14 +321,14 @@ function QualityDetailView({
           })}
         </div>
 
-        {/* source (reference) */}
+        {/* source with red regions + green fix */}
         <div className="min-w-0 flex-1 overflow-auto bg-background font-mono text-xs">
           {fileQuery.isLoading ? (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : content ? (
-            <SourceView content={content} issueLines={NO_LINES} fixed={null} />
+            <SourceView content={content} issueLines={issueLines} fixed={fix?.fixed ?? null} />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center text-muted-foreground">
               {repo
@@ -313,8 +338,8 @@ function QualityDetailView({
           )}
         </div>
 
-        {/* metrics + refactor plan */}
-        <div className="flex w-96 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
+        {/* metrics + located issues + per-issue fix */}
+        <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <span className={cn('font-mono text-2xl font-semibold tabular-nums', bandColor[b])}>
@@ -331,54 +356,122 @@ function QualityDetailView({
               <Metric label="Max nesting" value={active.maxNesting} />
               <Metric label="TODO/FIXME" value={active.todos} />
             </div>
-            {active.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1">
-                {active.tags.map((t) => (
-                  <span key={t} className="rounded-sm border border-border bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    {TAG_LABEL[t] ?? t}
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              {hotspotDescription(active)}
-            </p>
           </div>
 
-          {/* refactor plan */}
-          <div className="min-h-0 flex-1 px-4 py-3">
-            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-              <WandSparkles className="size-3" />
-              Refactoring plan
+          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Maintainability issues
+            </span>
+            {issuesQuery.isFetching && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+          </div>
+
+          {issuesQuery.isLoading || issuesQuery.isFetching ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+              <Loader2 className="size-5 animate-spin text-muted-foreground/60" />
+              <p className="text-xs text-muted-foreground">Locating maintainability issues…</p>
             </div>
-            {plan ? (
-              <div className="text-xs leading-relaxed text-foreground/90">
-                <Markdown content={plan} />
-              </div>
-            ) : (
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Rather than rewriting the whole file, Riscly proposes a targeted,
-                prioritized set of refactoring steps — which functions to extract,
-                where to flatten nesting, and which TODOs to resolve — that you
-                apply incrementally.
+          ) : issues.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+              <Sparkles className="size-6 text-muted-foreground/40" />
+              <p className="text-xs text-muted-foreground">
+                {issuesQuery.isError
+                  ? (issuesQuery.error as Error).message
+                  : issuesQuery.data?.aiEnabled === false
+                    ? 'AI is not enabled on this server (set ANTHROPIC_API_KEY).'
+                    : 'No specific maintainability issues were located in this file.'}
               </p>
-            )}
-            {error && <p className="mt-2 text-[11px] text-destructive">{error}</p>}
-          </div>
+              <ActionButton onClick={() => issuesQuery.refetch()}>
+                <Sparkles className="size-3.5" /> Re-scan file
+              </ActionButton>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {issues.map((iss, idx) => {
+                const selected = idx === activeIssueIdx
+                return (
+                  <div key={`${iss.rule}:${iss.line}`} className={cn('px-4 py-3', selected && 'bg-accent/40')}>
+                    <button
+                      onClick={() => setActiveIssueIdx(idx)}
+                      className="block w-full text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <SeverityBadge severity={iss.severity} />
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {fileName}:{iss.line}
+                          {iss.endLine && iss.endLine !== iss.line ? `–${iss.endLine}` : ''}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-sm font-medium leading-snug">{iss.title}</p>
+                      <p className="mt-1 font-mono text-[10px] text-muted-foreground">rule: {iss.rule}</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{iss.description}</p>
+                    </button>
 
-          {/* actions */}
-          <div className="shrink-0 space-y-2 border-t border-border p-3">
-            <ActionButton
-              variant="primary"
-              className="w-full justify-center"
-              onClick={generatePlan}
-              disabled={generating || !content}
-              title="Have the AI propose a targeted maintainability refactoring plan"
-            >
-              {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-              {generating ? 'Generating…' : plan ? 'Regenerate plan' : 'Generate refactoring plan'}
-            </ActionButton>
-          </div>
+                    {selected && payload && (
+                      <div className="mt-3 space-y-2">
+                        {fix?.explanation && (
+                          <div className="rounded-md border border-ok/20 bg-ok/5 px-2.5 py-2">
+                            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
+                              <WandSparkles className="size-3" />
+                              Suggested fix — shown in green in the code
+                            </div>
+                            <p className="text-xs leading-relaxed text-foreground/90">{fix.explanation}</p>
+                          </div>
+                        )}
+
+                        {commitUrl ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
+                              <Check className="size-3.5" /> Pushed to your repo
+                            </div>
+                            <a
+                              href={commitUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            >
+                              <ExternalLink className="size-3.5" /> View commit
+                            </a>
+                          </div>
+                        ) : !fix?.fixed ? (
+                          <ActionButton
+                            className="w-full justify-center"
+                            onClick={() => generate(payload)}
+                            disabled={generating || committing}
+                          >
+                            {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+                            {generating ? 'Generating…' : 'Generate fix'}
+                          </ActionButton>
+                        ) : (
+                          <div className="space-y-2">
+                            <ActionButton
+                              variant="primary"
+                              className="w-full justify-center"
+                              onClick={() => commit(payload)}
+                              disabled={committing}
+                              title="Commit this fix directly to your repo"
+                            >
+                              {committing ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
+                              {committing ? 'Pushing…' : 'Apply fix — push to repo'}
+                            </ActionButton>
+                            <ActionButton
+                              className="w-full justify-center"
+                              onClick={() => generate(payload)}
+                              disabled={generating || committing}
+                            >
+                              <Sparkles className="size-3.5" />
+                              Regenerate
+                            </ActionButton>
+                          </div>
+                        )}
+
+                        {error && <p className="text-[11px] text-destructive">{error}</p>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
