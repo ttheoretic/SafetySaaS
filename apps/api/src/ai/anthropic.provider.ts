@@ -15,6 +15,43 @@ import {
   RefactorPlanResult,
 } from './ai-provider';
 
+/** Net bracket balance ( '{' - '}', etc.) of a chunk of code, ignoring the
+ *  contents of strings only loosely — good enough to detect a truncated or
+ *  garbled rewrite that would unbalance the surrounding file. */
+function bracketBalance(s: string): { curly: number; paren: number; square: number } {
+  let curly = 0;
+  let paren = 0;
+  let square = 0;
+  for (const ch of s) {
+    if (ch === '{') curly++;
+    else if (ch === '}') curly--;
+    else if (ch === '(') paren++;
+    else if (ch === ')') paren--;
+    else if (ch === '[') square++;
+    else if (ch === ']') square--;
+  }
+  return { curly, paren, square };
+}
+
+/**
+ * Whether an AI-rewritten window is safe to splice back into the file. Rejects
+ * obviously-broken rewrites — empty, truncated (far shorter than the original),
+ * or one that changes the net bracket balance (which would corrupt the file
+ * structure once spliced). A conservative gate: it can reject a valid fix, but
+ * it must never let a corrupting one through.
+ */
+export function isSafeRewrite(original: string, rewritten: string): boolean {
+  if (!rewritten.trim()) return false;
+  // Truncation guard: a real fix stays roughly the same size. Allow generous
+  // shrink/grow but reject a rewrite that collapsed to a fragment.
+  if (rewritten.length < original.length * 0.3) return false;
+  // Structural guard: net bracket balance must be preserved so the splice
+  // doesn't leave the file unbalanced. (No-op for brace-less languages.)
+  const a = bracketBalance(original);
+  const b = bracketBalance(rewritten);
+  return a.curly === b.curly && a.paren === b.paren && a.square === b.square;
+}
+
 /**
  * AI Failure Prediction via Anthropic Claude.
  *
@@ -230,6 +267,9 @@ export class AnthropicProvider implements AiProvider {
       });
       this.report(req.onUsage, model, response, t0);
       if (response.stop_reason === 'refusal') return null;
+      // A truncated response (hit the output cap) would splice a half-written
+      // window into the file — never offer that as a fix.
+      if (response.stop_reason === 'max_tokens') return null;
       const text = response.content
         .filter((b): b is Anthropic.TextBlock => b.type === 'text')
         .map((b) => b.text)
@@ -237,6 +277,8 @@ export class AnthropicProvider implements AiProvider {
       const fenced = text.match(/```[a-zA-Z0-9]*\n([\s\S]*?)```/);
       if (!fenced) return null;
       const fixedWindow = fenced[1].replace(/\n$/, '');
+      // Guard against a malformed rewrite corrupting the file when spliced.
+      if (!isSafeRewrite(windowText, fixedWindow)) return null;
       // Splice the corrected window back into the full file.
       const fixed = isExcerpt
         ? [...lines.slice(0, start), ...fixedWindow.split('\n'), ...lines.slice(end)].join('\n')
