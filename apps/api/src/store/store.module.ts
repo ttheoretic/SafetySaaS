@@ -261,6 +261,9 @@ export abstract class Store {
   abstract addAiUsage(input: Omit<AiUsageRecord, 'id' | 'createdAt'>): Promise<AiUsageRecord>;
   /** AI usage rows created at/after the given ISO timestamp (admin analytics). */
   abstract listAiUsageSince(sinceIso: string): Promise<AiUsageRecord[]>;
+  /** Count an org's AI calls since a timestamp, optionally for one feature
+   *  (used to enforce per-plan monthly quotas). */
+  abstract countAiUsageSince(orgId: string, sinceIso: string, feature?: string): Promise<number>;
 
   abstract addAdminLog(input: Omit<AdminLogRecord, 'id' | 'createdAt'>): Promise<AdminLogRecord>;
   abstract listAdminLogs(): Promise<AdminLogRecord[]>;
@@ -545,6 +548,11 @@ export class InMemoryStore extends Store {
   }
   async listAiUsageSince(sinceIso: string) {
     return [...this.aiUsage.values()].filter((u) => u.createdAt >= sinceIso);
+  }
+  async countAiUsageSince(orgId: string, sinceIso: string, feature?: string) {
+    return [...this.aiUsage.values()].filter(
+      (u) => u.orgId === orgId && u.createdAt >= sinceIso && (!feature || u.feature === feature),
+    ).length;
   }
 
   async addAdminLog(input: Omit<AdminLogRecord, 'id' | 'createdAt'>) {

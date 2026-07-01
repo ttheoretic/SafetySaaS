@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpException,
+  HttpStatus,
   Module,
   Param,
   Post,
@@ -10,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { CodeIssue, Finding, Severity, SystemGraph } from '@riscly/shared';
+import { planLimits } from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuthModule } from '../auth/auth.module';
@@ -83,6 +86,24 @@ class GithubController {
     return repos[0];
   }
 
+  /** Enforce the plan's monthly AI-fix-generation quota (aiFixesPerMonth).
+   *  Unlimited plans (Infinity) short-circuit. Counts this calendar month's
+   *  'fix' AI calls for the org. */
+  private async assertFixQuota(auth: AuthContext): Promise<void> {
+    const limit = planLimits(auth.org.plan).aiFixesPerMonth;
+    if (!Number.isFinite(limit)) return;
+    const since = new Date();
+    since.setUTCDate(1);
+    since.setUTCHours(0, 0, 0, 0);
+    const used = await this.store.countAiUsageSince(auth.org.id, since.toISOString(), 'fix');
+    if (used >= limit) {
+      throw new HttpException(
+        `You've reached your plan's monthly AI-fix limit (${limit}). Upgrade for more.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
   /**
    * The fixed file content to push. Prefer the verified content the user
    * already previewed (so what's committed is exactly what was reviewed);
@@ -128,6 +149,7 @@ class GithubController {
     @Body() dto: CodeFixDto,
   ) {
     this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI fix generation');
+    await this.assertFixQuota(auth);
     const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
     const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
     if (content == null) {

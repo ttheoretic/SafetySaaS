@@ -11,8 +11,6 @@ import {
   OnUsage,
   PredictRequest,
   PREDICTION_SCHEMA,
-  RefactorPlanRequest,
-  RefactorPlanResult,
 } from './ai-provider';
 
 /** Net bracket balance ( '{' - '}', etc.) of a chunk of code, ignoring the
@@ -288,64 +286,6 @@ export class AnthropicProvider implements AiProvider {
       return { fixed, explanation };
     } catch (err) {
       this.logger.warn(`AI code fix unavailable: ${(err as Error).message}`);
-      return null;
-    }
-  }
-
-  async generateRefactorPlan(req: RefactorPlanRequest): Promise<RefactorPlanResult | null> {
-    try {
-      const model = req.model ?? this.model;
-      const tier = req.tier ?? 'opus';
-      const maxTokens = tier === 'basic' ? 1500 : tier === 'sonnet' ? 2500 : 3500;
-      // We only READ the file, so we can accept large hotspots — bound the input
-      // for cost and note when it was truncated.
-      const LIMIT = 48_000;
-      const truncated = req.content.length > LIMIT;
-      const source = truncated ? req.content.slice(0, LIMIT) : req.content;
-      // Number the lines so the plan can cite exact locations.
-      const numbered = source
-        .split('\n')
-        .map((l, i) => `${i + 1}: ${l}`)
-        .join('\n');
-      const t0 = Date.now();
-      const response = await this.client.messages.create({
-        model,
-        max_tokens: maxTokens,
-        system:
-          'You are a senior engineer improving the MAINTAINABILITY of one file. ' +
-          'Do NOT rewrite the whole file. Instead produce a concrete, prioritized ' +
-          'refactoring plan as GitHub-flavored markdown: a one-line summary, then ' +
-          'an ordered list of specific steps. Each step must cite the exact ' +
-          'function name and line range it applies to, say what to do (extract a ' +
-          'function, flatten nesting with early returns, split the file, resolve a ' +
-          'TODO, remove dead code, add a test), and why. Where a short before/after ' +
-          'snippet (a few lines) makes it concrete, include one in a fenced code ' +
-          'block. Order steps by impact-to-effort. Keep it actionable and specific ' +
-          'to this file — no generic advice.',
-        messages: [
-          {
-            role: 'user',
-            content:
-              `File: ${req.file}\nMaintainability signals: ${req.metrics}\n` +
-              (truncated ? `(Only the first ${LIMIT} characters are shown.)\n` : '') +
-              `\nSource (line-numbered):\n\`\`\`\n${numbered}\n\`\`\``,
-          },
-        ],
-      });
-      this.report(req.onUsage, model, response, t0);
-      if (response.stop_reason === 'refusal') return null;
-      const text = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-        .map((b) => b.text)
-        .join('\n')
-        .trim();
-      if (!text) return null;
-      const plan = truncated
-        ? `${text}\n\n_Note: only the first ${LIMIT.toLocaleString()} characters of the file were analysed._`
-        : text;
-      return { plan };
-    } catch (err) {
-      this.logger.warn(`AI refactor plan unavailable: ${(err as Error).message}`);
       return null;
     }
   }

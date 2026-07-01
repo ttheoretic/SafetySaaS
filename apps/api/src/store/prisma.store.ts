@@ -496,6 +496,11 @@ export class PrismaStore extends Store {
     const rows = await this.prisma.aiUsage.findMany({ where: { createdAt: { gte: new Date(sinceIso) } } });
     return rows.map((r) => this.toAiUsage(r));
   }
+  async countAiUsageSince(orgId: string, sinceIso: string, feature?: string) {
+    return this.prisma.aiUsage.count({
+      where: { orgId, createdAt: { gte: new Date(sinceIso) }, ...(feature ? { feature } : {}) },
+    });
+  }
   private toAiUsage(r: any): AiUsageRecord {
     return {
       id: r.id, orgId: r.orgId, userId: r.userId ?? undefined, feature: r.feature, model: r.model,

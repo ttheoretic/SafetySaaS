@@ -32,8 +32,4 @@ export class NullAiProvider implements AiProvider {
   async analyzeMaintainability(): Promise<never[]> {
     return [];
   }
-
-  async generateRefactorPlan(): Promise<null> {
-    return null;
-  }
 }

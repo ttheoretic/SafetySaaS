@@ -122,23 +122,6 @@ export class PredictionService {
     }
   }
 
-  /** A targeted maintainability refactoring plan for a file (no whole-file
-   *  rewrite — works even for large hotspots). */
-  async refactorPlan(
-    input: { file: string; content: string; metrics: string },
-    opts: { plan?: Plan; ctx?: UsageCtx } = {},
-  ): Promise<{ aiEnabled: boolean; plan: string | null }> {
-    const tier = opts.plan ? aiTierForPlan(opts.plan) : 'opus'
-    const model = opts.plan ? aiModelForPlan(opts.plan) : undefined
-    const result = await this.ai.generateRefactorPlan({
-      ...input,
-      model,
-      tier,
-      onUsage: this.track('refactor', opts.ctx),
-    })
-    return { aiEnabled: this.ai.enabled, plan: result?.plan ?? null }
-  }
-
   get aiEnabled(): boolean {
     return this.ai.enabled
   }
