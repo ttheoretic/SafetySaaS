@@ -209,6 +209,11 @@ export const api = {
   billing: () => get<BillingResponse>('/billing'),
   billingDetails: () => get<BillingDetailsResponse>('/billing/details'),
   checkout: (plan: string) => post<{ url: string }>('/billing/checkout', { plan }),
+  /** Change plan: existing subscribers go to Stripe's plan-switch flow
+   *  (proration on upgrade / scheduling on downgrade); new subscribers to
+   *  checkout. Returns the URL to redirect to and which path was taken. */
+  changePlan: (plan: string) =>
+    post<{ url: string; mode: 'checkout' | 'update' }>('/billing/change-plan', { plan }),
   /** Stripe customer-portal URL to manage the subscription (change/cancel/card). */
   billingPortal: () => post<{ url: string }>('/billing/portal', {}),
   /** Confirm a Stripe Checkout Session on return so access is granted at once. */

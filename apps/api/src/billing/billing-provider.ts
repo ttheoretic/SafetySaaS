@@ -48,6 +48,18 @@ export interface BillingProvider {
    * (change plan, update card, cancel). Optional — only the Stripe provider.
    */
   createPortalSession?(stripeCustomerId: string, returnUrl: string): Promise<{ url: string }>;
+  /**
+   * URL that switches an EXISTING subscriber to a different plan. Delegates the
+   * money side to the provider: it computes proration for upgrades (charged
+   * immediately) and schedules/credits downgrades per the provider's config, so
+   * we never hand-roll billing math. Optional — only the Stripe provider.
+   */
+  changePlanUrl?(
+    stripeCustomerId: string,
+    subscriptionId: string,
+    targetPlan: Plan,
+    returnUrl: string,
+  ): Promise<{ url: string }>;
 }
 
 /** A past invoice for the billing customer. */

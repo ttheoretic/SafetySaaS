@@ -89,6 +89,41 @@ export class StripeBillingProvider implements BillingProvider {
     return { url: session.url };
   }
 
+  /**
+   * Send an existing subscriber straight to Stripe's plan-switch confirm screen
+   * for the target plan. Stripe applies the proration/scheduling configured on
+   * the billing portal (upgrades charge the prorated difference immediately;
+   * downgrades can be set to take effect at period end), so no billing math
+   * lives in our code.
+   */
+  async changePlanUrl(
+    stripeCustomerId: string,
+    subscriptionId: string,
+    targetPlan: Plan,
+    returnUrl: string,
+  ): Promise<{ url: string }> {
+    const price = process.env[`STRIPE_PRICE_${targetPlan.toUpperCase()}`];
+    if (!price) throw new Error(`No Stripe price configured for plan ${targetPlan}`);
+    const sub = await this.stripe.subscriptions.retrieve(subscriptionId);
+    const itemId = sub.items.data[0]?.id;
+    if (!itemId) throw new Error('Subscription has no line item to update');
+    // Keep the org/plan metadata current so later subscription.* webhooks map
+    // back to the right plan.
+    const params = {
+      customer: stripeCustomerId,
+      return_url: returnUrl,
+      flow_data: {
+        type: 'subscription_update_confirm',
+        subscription_update_confirm: {
+          subscription: subscriptionId,
+          items: [{ id: itemId, price, quantity: 1 }],
+        },
+      },
+    } as Parameters<InstanceType<typeof Stripe>['billingPortal']['sessions']['create']>[0];
+    const session = await this.stripe.billingPortal.sessions.create(params);
+    return { url: session.url };
+  }
+
   /** Recent invoices + default card for the Stripe customer. */
   async billingDetails(stripeCustomerId: string): Promise<BillingDetails> {
     const [invoiceList, customer] = await Promise.all([

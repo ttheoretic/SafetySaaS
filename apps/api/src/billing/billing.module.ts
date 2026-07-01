@@ -49,6 +49,23 @@ class BillingController {
 
   // (checkout/webhook below)
 
+  /**
+   * Start a plan change. Existing subscribers go through the provider's
+   * plan-switch flow (proration on upgrade / scheduling on downgrade); new
+   * subscribers go through checkout. Returns the URL to redirect to.
+   */
+  @Post('change-plan')
+  @RequirePermission('billing:manage')
+  async changePlan(@Auth() auth: AuthContext, @Body() dto: CheckoutDto) {
+    const returnUrl = `${process.env.APP_URL ?? 'http://localhost:3000'}/settings?tab=billing`;
+    const result = await this.billing.changePlan(auth.org, dto.plan, auth.user.email, returnUrl);
+    this.audit.record(auth, 'billing.change_plan', { type: 'org', id: auth.org.id }, {
+      plan: dto.plan,
+      mode: result.mode,
+    });
+    return result;
+  }
+
   @Post('checkout')
   @RequirePermission('billing:manage')
   async checkout(@Auth() auth: AuthContext, @Body() dto: CheckoutDto) {

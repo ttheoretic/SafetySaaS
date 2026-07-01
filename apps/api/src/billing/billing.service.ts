@@ -45,6 +45,32 @@ export class BillingService {
   }
 
   /**
+   * Start a plan change. An existing subscriber is sent to the provider's
+   * plan-switch flow (which applies proration for upgrades / scheduling for
+   * downgrades); a new subscriber goes through checkout. Returns the URL to
+   * redirect to and which path was taken.
+   */
+  async changePlan(
+    org: OrganizationRecord,
+    targetPlan: Plan,
+    email: string,
+    returnUrl: string,
+  ): Promise<{ url: string; mode: 'checkout' | 'update' }> {
+    const sub = await this.store.getSubscription(org.id);
+    if (this.provider.changePlanUrl && sub?.stripeCustomerId && sub?.stripeSubscriptionId) {
+      const { url } = await this.provider.changePlanUrl(
+        sub.stripeCustomerId,
+        sub.stripeSubscriptionId,
+        targetPlan,
+        returnUrl,
+      );
+      return { url, mode: 'update' };
+    }
+    const { url } = await this.provider.createCheckout(org.id, targetPlan, email);
+    return { url, mode: 'checkout' };
+  }
+
+  /**
    * Recent invoices and the default payment method for the org's billing
    * customer. Empty when there's no Stripe customer yet or the provider can't
    * surface it (local provider).

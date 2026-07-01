@@ -926,10 +926,19 @@ function BillingPanel() {
   }
 
   async function changePlan(target: Plan) {
+    const isUpgrade = PLAN_ORDER.indexOf(target) > currentRank
+    // Be explicit about downgrade timing so nobody expects an instant refund.
+    if (!isUpgrade && active) {
+      const ok = window.confirm(
+        `Downgrade to ${target}? You keep your current features until the end of your ` +
+          `billing period, then the plan changes — no immediate charge or refund.`,
+      )
+      if (!ok) return
+    }
     setCheckoutBusy(target)
     setCheckoutError(null)
     try {
-      const { url } = await api.checkout(target)
+      const { url } = await api.changePlan(target)
       window.location.href = url
     } catch (e) {
       setCheckoutError((e as Error).message)
@@ -1037,7 +1046,8 @@ function BillingPanel() {
             <p className="text-xs text-destructive">{checkoutError}</p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Upgrades take effect immediately via secure Stripe checkout. Need Enterprise?{' '}
+              Upgrades apply immediately (prorated); downgrades take effect at the end of
+              your billing period. Handled securely by Stripe. Need Enterprise?{' '}
               <a href="mailto:sales@riscly.ai" className="text-primary hover:underline">
                 Talk to sales
               </a>
