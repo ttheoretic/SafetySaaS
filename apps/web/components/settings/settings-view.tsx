@@ -25,13 +25,11 @@ import {
   KeyRound,
   Lock,
   Plus,
-  Sparkles,
 } from 'lucide-react'
-import { PLAN_LIMITS, PLAN_ORDER, type Plan } from '@riscly/shared'
+import { PLAN_LIMITS, type Plan } from '@riscly/shared'
 import { ScreenHeader } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
 import { api } from '@/lib/api'
-import { plans as pricingPlans } from '@/lib/pricing-data'
 import { updatePassword } from '@/lib/sign-in'
 import { useAuth } from '@/lib/auth-store'
 import {
@@ -907,12 +905,6 @@ function BillingPanel() {
   const plan = (me.data?.activeOrg.plan as Plan | undefined) ?? 'starter'
   const repoMax = PLAN_LIMITS[plan]?.maxProjects ?? 1
   const [portalBusy, setPortalBusy] = useState(false)
-  const [checkoutBusy, setCheckoutBusy] = useState<Plan | null>(null)
-  const [checkoutError, setCheckoutError] = useState<string | null>(null)
-
-  const currentRank = PLAN_ORDER.indexOf(plan)
-  // Self-serve, checkout-able plans (Enterprise is sales-led).
-  const changeablePlans = pricingPlans.filter((p) => p.id !== 'enterprise')
 
   async function manageSubscription() {
     setPortalBusy(true)
@@ -922,27 +914,6 @@ function BillingPanel() {
     } catch {
       // No Stripe portal configured — nothing else to do here (stay in settings).
       setPortalBusy(false)
-    }
-  }
-
-  async function changePlan(target: Plan) {
-    const isUpgrade = PLAN_ORDER.indexOf(target) > currentRank
-    // Be explicit about downgrade timing so nobody expects an instant refund.
-    if (!isUpgrade && active) {
-      const ok = window.confirm(
-        `Downgrade to ${target}? You keep your current features until the end of your ` +
-          `billing period, then the plan changes — no immediate charge or refund.`,
-      )
-      if (!ok) return
-    }
-    setCheckoutBusy(target)
-    setCheckoutError(null)
-    try {
-      const { url } = await api.changePlan(target)
-      window.location.href = url
-    } catch (e) {
-      setCheckoutError((e as Error).message)
-      setCheckoutBusy(null)
     }
   }
 
@@ -972,88 +943,19 @@ function BillingPanel() {
             </p>
           </div>
           <button
-            onClick={active ? manageSubscription : () => router.push('/billing')}
-            disabled={portalBusy}
-            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            onClick={() => router.push('/billing')}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
-            {portalBusy ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : null}
-            {active ? 'Manage subscription' : 'Choose plan'} <ArrowUpRight className="size-3.5" />
+            {active ? 'Change plan' : 'Choose plan'} <ArrowUpRight className="size-3.5" />
           </button>
         </div>
         <div className="border-t border-border px-3 py-3">
           <p className="text-xs text-muted-foreground">
             Your <span className="capitalize text-foreground">{planLabel}</span> plan
             includes {Number.isFinite(repoMax) ? repoMax : 'unlimited'} repositor
-            {repoMax === 1 ? 'y' : 'ies'}. Manage your payment method or cancel via the
-            billing portal.
+            {repoMax === 1 ? 'y' : 'ies'}. Upgrades apply immediately; downgrades take
+            effect at period end. Update your card or cancel via the billing portal below.
           </p>
-        </div>
-      </Panel>
-
-      {/* Change plan — self-serve upgrade/downgrade to any checkout-able tier */}
-      <Panel>
-        <PanelHeader title="Change plan" icon={<Sparkles className="size-3.5 text-primary" />} />
-        <div className="divide-y divide-border">
-          {changeablePlans.map((p) => {
-            const rank = PLAN_ORDER.indexOf(p.id as Plan)
-            const isCurrent = p.id === plan
-            const isUpgrade = rank > currentRank
-            const busy = checkoutBusy === (p.id as Plan)
-            return (
-              <div key={p.id} className="flex items-center gap-3 px-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold">{p.name}</p>
-                    {p.highlight && (
-                      <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                        Most popular
-                      </span>
-                    )}
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {p.price}
-                      {p.priceSuffix}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{p.tagline}</p>
-                </div>
-                {isCurrent ? (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary">
-                    <Check className="size-3.5" /> Current plan
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => changePlan(p.id as Plan)}
-                    disabled={Boolean(checkoutBusy)}
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium disabled:opacity-50',
-                      isUpgrade
-                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        : 'border border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                    )}
-                  >
-                    {busy && <Loader2 className="size-3.5 animate-spin" />}
-                    {isUpgrade ? 'Upgrade' : 'Downgrade'}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div className="border-t border-border px-3 py-2.5">
-          {checkoutError ? (
-            <p className="text-xs text-destructive">{checkoutError}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Upgrades apply immediately (prorated); downgrades take effect at the end of
-              your billing period. Handled securely by Stripe. Need Enterprise?{' '}
-              <a href="mailto:sales@riscly.ai" className="text-primary hover:underline">
-                Talk to sales
-              </a>
-              .
-            </p>
-          )}
         </div>
       </Panel>
 

@@ -49,17 +49,17 @@ export interface BillingProvider {
    */
   createPortalSession?(stripeCustomerId: string, returnUrl: string): Promise<{ url: string }>;
   /**
-   * URL that switches an EXISTING subscriber to a different plan. Delegates the
-   * money side to the provider: it computes proration for upgrades (charged
-   * immediately) and schedules/credits downgrades per the provider's config, so
-   * we never hand-roll billing math. Optional — only the Stripe provider.
+   * Switch an EXISTING subscription to a different plan directly. Upgrades apply
+   * immediately (prorated, charged now); downgrades are scheduled for the end of
+   * the current period. The provider owns the billing math. Optional — only the
+   * Stripe provider.
    */
-  changePlanUrl?(
-    stripeCustomerId: string,
+  changePlan?(
     subscriptionId: string,
     targetPlan: Plan,
-    returnUrl: string,
-  ): Promise<{ url: string }>;
+    isUpgrade: boolean,
+    orgId: string,
+  ): Promise<{ mode: 'immediate' | 'scheduled'; effectiveAt?: string }>;
 }
 
 /** A past invoice for the billing customer. */

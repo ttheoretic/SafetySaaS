@@ -90,38 +90,62 @@ export class StripeBillingProvider implements BillingProvider {
   }
 
   /**
-   * Send an existing subscriber straight to Stripe's plan-switch confirm screen
-   * for the target plan. Stripe applies the proration/scheduling configured on
-   * the billing portal (upgrades charge the prorated difference immediately;
-   * downgrades can be set to take effect at period end), so no billing math
-   * lives in our code.
+   * Change an existing subscription's plan directly via the API (no billing
+   * portal config needed). Upgrades apply immediately and invoice the prorated
+   * difference now, so the new features are available at once. Downgrades are
+   * scheduled to take effect at the end of the current period — no immediate
+   * charge or refund, and the customer keeps their current features until then.
    */
-  async changePlanUrl(
-    stripeCustomerId: string,
+  async changePlan(
     subscriptionId: string,
     targetPlan: Plan,
-    returnUrl: string,
-  ): Promise<{ url: string }> {
+    isUpgrade: boolean,
+    orgId: string,
+  ): Promise<{ mode: 'immediate' | 'scheduled'; effectiveAt?: string }> {
     const price = process.env[`STRIPE_PRICE_${targetPlan.toUpperCase()}`];
     if (!price) throw new Error(`No Stripe price configured for plan ${targetPlan}`);
     const sub = await this.stripe.subscriptions.retrieve(subscriptionId);
-    const itemId = sub.items.data[0]?.id;
-    if (!itemId) throw new Error('Subscription has no line item to update');
-    // Keep the org/plan metadata current so later subscription.* webhooks map
-    // back to the right plan.
-    const params = {
-      customer: stripeCustomerId,
-      return_url: returnUrl,
-      flow_data: {
-        type: 'subscription_update_confirm',
-        subscription_update_confirm: {
-          subscription: subscriptionId,
-          items: [{ id: itemId, price, quantity: 1 }],
+    const item = sub.items.data[0];
+    if (!item) throw new Error('Subscription has no line item to update');
+
+    if (isUpgrade) {
+      await this.stripe.subscriptions.update(subscriptionId, {
+        items: [{ id: item.id, price }],
+        proration_behavior: 'always_invoice',
+        metadata: { ...(sub.metadata ?? {}), orgId, plan: targetPlan },
+      });
+      return { mode: 'immediate' };
+    }
+
+    // Downgrade → switch at period end via a subscription schedule so the
+    // customer keeps their current plan (and features) until they've used up
+    // what they already paid for.
+    const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end;
+    const currentPlan = (sub.metadata?.plan as string | undefined) ?? undefined;
+    const existingScheduleId =
+      typeof (sub as unknown as { schedule?: string | null }).schedule === 'string'
+        ? ((sub as unknown as { schedule: string }).schedule)
+        : null;
+    const schedule = existingScheduleId
+      ? await this.stripe.subscriptionSchedules.retrieve(existingScheduleId)
+      : await this.stripe.subscriptionSchedules.create({ from_subscription: subscriptionId });
+    const currentPhase = schedule.phases[schedule.phases.length - 1];
+    await this.stripe.subscriptionSchedules.update(schedule.id, {
+      end_behavior: 'release',
+      phases: [
+        {
+          items: [{ price: item.price.id, quantity: 1 }],
+          start_date: currentPhase.start_date,
+          end_date: periodEnd,
+          metadata: { orgId, ...(currentPlan ? { plan: currentPlan } : {}) },
         },
-      },
-    } as Parameters<InstanceType<typeof Stripe>['billingPortal']['sessions']['create']>[0];
-    const session = await this.stripe.billingPortal.sessions.create(params);
-    return { url: session.url };
+        {
+          items: [{ price, quantity: 1 }],
+          metadata: { orgId, plan: targetPlan },
+        },
+      ],
+    } as unknown as Parameters<InstanceType<typeof Stripe>['subscriptionSchedules']['update']>[1]);
+    return { mode: 'scheduled', effectiveAt: new Date(periodEnd * 1000).toISOString() };
   }
 
   /** Recent invoices + default card for the Stripe customer. */

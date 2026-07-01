@@ -52,7 +52,7 @@ export function PlanRouteGate({ children }: { children: React.ReactNode }) {
       </div>
       <div className="flex items-center gap-2">
         <Link
-          href="/settings?tab=billing"
+          href="/billing"
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Sparkles className="size-3.5" /> Upgrade to {planName(need)}

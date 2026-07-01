@@ -1,7 +1,7 @@
 import {
   ForbiddenException, HttpException, HttpStatus, Inject, Injectable,
 } from '@nestjs/common';
-import { planLimits, Plan, PlanLimits, Feature, hasFeature } from '@riscly/shared';
+import { planLimits, Plan, PlanLimits, Feature, hasFeature, PLAN_ORDER } from '@riscly/shared';
 import { Store, OrganizationRecord } from '../store/store.module';
 import {
   BILLING_PROVIDER,
@@ -9,6 +9,7 @@ import {
   BillingEvent,
   BillingDetails,
 } from './billing-provider';
+import { hasAppAccess } from './subscription';
 
 export interface BillingSummary {
   plan: Plan;
@@ -45,29 +46,44 @@ export class BillingService {
   }
 
   /**
-   * Start a plan change. An existing subscriber is sent to the provider's
-   * plan-switch flow (which applies proration for upgrades / scheduling for
-   * downgrades); a new subscriber goes through checkout. Returns the URL to
-   * redirect to and which path was taken.
+   * Start a plan change. An existing subscriber's plan is switched in place
+   * (upgrade → immediate + prorated; downgrade → at period end); a new
+   * subscriber goes through checkout. Returns either a checkout URL to redirect
+   * to, or the result of an in-place change.
    */
   async changePlan(
     org: OrganizationRecord,
     targetPlan: Plan,
     email: string,
-    returnUrl: string,
-  ): Promise<{ url: string; mode: 'checkout' | 'update' }> {
+  ): Promise<
+    | { mode: 'checkout'; url: string }
+    | { mode: 'immediate' | 'scheduled'; effectiveAt?: string }
+  > {
     const sub = await this.store.getSubscription(org.id);
-    if (this.provider.changePlanUrl && sub?.stripeCustomerId && sub?.stripeSubscriptionId) {
-      const { url } = await this.provider.changePlanUrl(
-        sub.stripeCustomerId,
+    const subscribed = sub?.stripeSubscriptionId && hasAppAccess(sub.status);
+    if (this.provider.changePlan && subscribed && sub?.stripeSubscriptionId) {
+      const current = (sub.plan ?? org.plan) as Plan;
+      const isUpgrade = PLAN_ORDER.indexOf(targetPlan) > PLAN_ORDER.indexOf(current);
+      const res = await this.provider.changePlan(
         sub.stripeSubscriptionId,
         targetPlan,
-        returnUrl,
+        isUpgrade,
+        org.id,
       );
-      return { url, mode: 'update' };
+      // An immediate upgrade should unlock features now, without waiting for the
+      // webhook. (The webhook re-applies it idempotently.)
+      if (res.mode === 'immediate') {
+        await this.applyEvent({
+          type: 'plan_changed',
+          orgId: org.id,
+          plan: targetPlan,
+          eventId: `changeplan_${org.id}_${targetPlan}_${sub.stripeSubscriptionId}`,
+        });
+      }
+      return res;
     }
     const { url } = await this.provider.createCheckout(org.id, targetPlan, email);
-    return { url, mode: 'checkout' };
+    return { mode: 'checkout', url };
   }
 
   /**
