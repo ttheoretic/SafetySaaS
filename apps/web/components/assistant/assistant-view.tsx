@@ -71,8 +71,9 @@ export function AssistantView() {
     setInput('')
     scrollToEnd()
 
-    // Grounded chat against the project's latest scan when a project exists;
-    // fall back to the local demo responder otherwise (no backend / demo mode).
+    // Grounded chat against the project's latest scan when a project exists.
+    // On failure show an honest error — never a canned demo answer that could
+    // be mistaken for a grounded response about the user's real system.
     if (projectId) {
       setBusy(true)
       try {
@@ -81,8 +82,14 @@ export function AssistantView() {
           history.map((m) => ({ role: m.role, content: m.content })),
         )
         setMessages((m) => [...m, { role: 'assistant', content: res.reply }])
-      } catch {
-        setMessages((m) => [...m, reply()])
+      } catch (e) {
+        setMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            content: `I couldn't reach the assistant just now (${(e as Error).message}). Please try again in a moment.`,
+          },
+        ])
       } finally {
         setBusy(false)
         scrollToEnd()
