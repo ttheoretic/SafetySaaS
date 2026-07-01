@@ -1,26 +1,11 @@
-import { LandingNav } from '@/components/landing/landing-nav'
-import { LandingHero } from '@/components/landing/landing-hero'
-import { LandingProof } from '@/components/landing/landing-proof'
-import { LandingFeatures } from '@/components/landing/landing-features'
-import { LandingHow } from '@/components/landing/landing-how'
-import { LandingPricing } from '@/components/landing/landing-pricing'
-import { LandingFaq } from '@/components/landing/landing-faq'
-import { LandingCta, LandingFooter } from '@/components/landing/landing-footer'
+import { Hero3DStage } from '@/components/landing-v2/hero-3d-stage'
 
+// New landing (landing-v2): dark, product-console-first. The previous landing
+// components remain under components/landing/ while the design settles.
 export default function LandingPage() {
   return (
-    <div className="min-h-dvh">
-      <LandingNav />
-      <main>
-        <LandingHero />
-        <LandingProof />
-        <LandingFeatures />
-        <LandingHow />
-        <LandingPricing />
-        <LandingFaq />
-        <LandingCta />
-      </main>
-      <LandingFooter />
-    </div>
+    <main>
+      <Hero3DStage />
+    </main>
   )
 }

@@ -131,3 +131,12 @@
     background-clip: content-box;
   }
 }
+
+/* Hide scrollbars inside marketing mockups (landing-v2). */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

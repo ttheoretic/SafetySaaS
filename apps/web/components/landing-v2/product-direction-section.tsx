@@ -41,147 +41,103 @@ export function ProductDirectionSection() {
           traces every dependency and plots remediation across your stack.
         </p>
 
-        {/* 3D Timeline Visualization */}
-        <div
-          className="relative w-full mb-16"
-          style={{
-            perspective: "1200px",
-          }}
-        >
+        {/* Architecture map — a flat, live map of services, data and infra */}
+        <div className="relative w-full mb-16 rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden">
+          {/* dot grid backdrop */}
           <div
-            className="relative"
+            className="absolute inset-0 pointer-events-none"
             style={{
-              transform: "rotateX(50deg) rotateZ(-35deg)",
-              transformStyle: "preserve-3d",
-              transformOrigin: "center center",
+              backgroundImage: "radial-gradient(rgba(113, 113, 122, 0.18) 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
             }}
-          >
-            {/* Timeline ruler with tick marks */}
-            <div className="relative h-[400px]">
-              {/* Diagonal dashed line */}
-              <div
-                className="absolute w-[1px] bg-zinc-600/50"
-                style={{
-                  height: "600px",
-                  left: "55%",
-                  top: "-100px",
-                  transform: "rotate(0deg)",
-                  backgroundImage:
-                    "repeating-linear-gradient(to bottom, transparent, transparent 4px, rgba(113, 113, 122, 0.5) 4px, rgba(113, 113, 122, 0.5) 8px)",
-                }}
-              />
+          />
+          <svg viewBox="0 0 960 380" className="relative w-full" role="img" aria-label="Architecture map">
+            <defs>
+              <marker id="pd-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L7,3.5 L0,7 Z" fill="#3f3f46" />
+              </marker>
+            </defs>
 
-              {/* Timeline header with dates and tick marks */}
-              <div className="absolute top-0 left-0 right-0 flex items-end">
-                {/* Tick marks row */}
-                <div className="flex items-end gap-[3px] absolute bottom-0 left-[5%] right-0">
-                  {Array.from({ length: 60 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="bg-zinc-600/60"
-                      style={{
-                        width: "1px",
-                        height: i % 7 === 0 ? "16px" : "8px",
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
+            {/* edges */}
+            <g stroke="#3f3f46" strokeWidth="1.25" fill="none" markerEnd="url(#pd-arrow)">
+              <path d="M150,190 L248,190" />
+              <path d="M392,168 C430,130 460,116 506,104" />
+              <path d="M392,196 L506,196" />
+              <path d="M392,224 C430,262 460,276 506,288" />
+              <path d="M646,104 C700,116 726,140 758,166" />
+              <path d="M650,196 L758,196" />
+              <path d="M646,288 C700,276 726,252 758,226" />
+              <path d="M578,124 L578,172" strokeDasharray="4 4" markerEnd="none" />
+              <path d="M578,220 L578,264" strokeDasharray="4 4" markerEnd="none" />
+            </g>
 
-              {/* Date labels */}
-              <div className="absolute text-zinc-500 text-sm" style={{ left: "8%", top: "80px" }}>
-                30
-              </div>
-              <div className="absolute text-zinc-500 text-sm" style={{ left: "18%", top: "55px" }}>
-                AUG 3
-              </div>
-              <div className="absolute text-zinc-500 text-sm" style={{ left: "32%", top: "35px" }}>
-                10
-              </div>
-              <div className="absolute text-zinc-500 text-sm" style={{ left: "48%", top: "15px" }}>
-                17
-              </div>
-              <div
-                className="absolute px-3 py-1 rounded-md bg-zinc-700/80 text-zinc-300 text-sm font-medium"
-                style={{ left: "58%", top: "-10px" }}
-              >
-                AUG 22
-              </div>
-              <div className="absolute text-zinc-500 text-sm" style={{ left: "70%", top: "-5px" }}>
-                24
-              </div>
-              <div className="absolute text-zinc-500/50 text-sm" style={{ left: "88%", top: "-25px" }}>
-                SEP
-              </div>
+            {/* internet entry */}
+            <g>
+              <rect x="44" y="166" width="106" height="48" rx="10" fill="#18181b" stroke="#3f3f46" />
+              <circle cx="66" cy="190" r="4" fill="#22d3ee" />
+              <text x="80" y="194" fill="#d4d4d8" fontSize="13">Internet</text>
+            </g>
 
-              {/* Project bars */}
-              {/* Realtime inference bar */}
-              <div
-                className="absolute rounded-lg bg-zinc-800/90 border border-zinc-700/50 px-4 py-3 flex items-center gap-3"
-                style={{
-                  left: "5%",
-                  top: "100px",
-                  width: "45%",
-                  height: "48px",
-                }}
-              >
-                <div className="w-4 h-4 rotate-45 bg-zinc-500/60" />
-                <span className="text-zinc-300 text-sm font-medium">Critical patches</span>
-                <div
-                  className="absolute w-5 h-5 rotate-45 border-2 border-emerald-500 bg-transparent"
-                  style={{ right: "15%", top: "50%", transform: "translateY(-50%) rotate(45deg)" }}
-                />
-              </div>
+            {/* api gateway */}
+            <g>
+              <rect x="248" y="160" width="144" height="60" rx="10" fill="#18181b" stroke="#52525b" />
+              <text x="268" y="186" fill="#fafafa" fontSize="13" fontWeight="500">api-gateway</text>
+              <text x="268" y="204" fill="#71717a" fontSize="11">edge · TLS</text>
+              {/* critical badge */}
+              <circle cx="384" cy="166" r="7" fill="#ef4444" />
+              <text x="384" y="169.5" fill="#fff" fontSize="9" textAnchor="middle" fontWeight="600">2</text>
+            </g>
 
-              {/* Prototype bar */}
-              <div
-                className="absolute rounded-lg bg-zinc-800/70 border border-zinc-700/40 px-4 py-3 flex items-center gap-3"
-                style={{
-                  left: "15%",
-                  top: "155px",
-                  width: "25%",
-                  height: "44px",
-                }}
-              >
-                <div className="w-3 h-3 rotate-45 bg-zinc-600/60" />
-                <span className="text-zinc-500 text-sm">Dependency upgrades</span>
-              </div>
+            {/* services column */}
+            <g>
+              <rect x="506" y="76" width="140" height="52" rx="10" fill="#18181b" stroke="#3f3f46" />
+              <text x="524" y="98" fill="#e4e4e7" fontSize="12.5" fontWeight="500">payments-api</text>
+              <text x="524" y="114" fill="#71717a" fontSize="11">service</text>
+              <circle cx="638" cy="82" r="6.5" fill="#ef4444" />
+              <text x="638" y="85.5" fill="#fff" fontSize="9" textAnchor="middle" fontWeight="600">1</text>
 
-              {/* Beta bar */}
-              <div
-                className="absolute rounded-lg bg-zinc-800/90 border border-zinc-700/50 px-4 py-3 flex items-center justify-between"
-                style={{
-                  left: "45%",
-                  top: "155px",
-                  width: "45%",
-                  height: "48px",
-                }}
-              >
-                <span className="text-zinc-400 text-sm">IaC hardening</span>
-                <div className="flex gap-0.5">
-                  <div className="w-2.5 h-2.5 rotate-45 bg-zinc-500/60" />
-                  <div className="w-2.5 h-2.5 rotate-45 bg-zinc-500/60" />
-                  <div className="w-2.5 h-2.5 rotate-45 bg-zinc-500/60" />
-                </div>
-              </div>
+              <rect x="506" y="170" width="140" height="52" rx="10" fill="#18181b" stroke="#3f3f46" />
+              <text x="524" y="192" fill="#e4e4e7" fontSize="12.5" fontWeight="500">auth-service</text>
+              <text x="524" y="208" fill="#71717a" fontSize="11">service</text>
+              <circle cx="638" cy="176" r="6.5" fill="#f59e0b" />
+              <text x="638" y="179.5" fill="#fff" fontSize="9" textAnchor="middle" fontWeight="600">3</text>
 
-              {/* RLHF fine tuning bar */}
-              <div
-                className="absolute rounded-lg bg-zinc-800/70 border border-zinc-700/40 px-4 py-3 flex items-center justify-between"
-                style={{
-                  left: "35%",
-                  top: "240px",
-                  width: "28%",
-                  height: "48px",
-                }}
-              >
-                <span className="text-zinc-400 text-sm">Access review</span>
-                <div className="flex gap-0.5">
-                  <div className="w-2.5 h-2.5 rotate-45 bg-zinc-500/60" />
-                  <div className="w-2.5 h-2.5 rotate-45 bg-zinc-500/60" />
-                </div>
-              </div>
-            </div>
+              <rect x="506" y="264" width="140" height="52" rx="10" fill="#18181b" stroke="#3f3f46" />
+              <text x="524" y="286" fill="#e4e4e7" fontSize="12.5" fontWeight="500">orders-api</text>
+              <text x="524" y="302" fill="#71717a" fontSize="11">service</text>
+              <circle cx="638" cy="270" r="6.5" fill="#10b981" />
+            </g>
+
+            {/* data + infra column */}
+            <g>
+              <rect x="758" y="142" width="150" height="52" rx="10" fill="#18181b" stroke="#3f3f46" />
+              <text x="776" y="164" fill="#e4e4e7" fontSize="12.5" fontWeight="500">postgres-prod</text>
+              <text x="776" y="180" fill="#71717a" fontSize="11">database · PII</text>
+              <circle cx="900" cy="148" r="6.5" fill="#f59e0b" />
+              <text x="900" y="151.5" fill="#fff" fontSize="9" textAnchor="middle" fontWeight="600">1</text>
+
+              <rect x="758" y="236" width="150" height="52" rx="10" fill="#18181b" stroke="#3f3f46" />
+              <text x="776" y="258" fill="#e4e4e7" fontSize="12.5" fontWeight="500">s3 · assets-prod</text>
+              <text x="776" y="274" fill="#71717a" fontSize="11">object storage</text>
+              <circle cx="900" cy="242" r="6.5" fill="#ef4444" />
+              <text x="900" y="245.5" fill="#fff" fontSize="9" textAnchor="middle" fontWeight="600">1</text>
+            </g>
+
+            {/* floating finding card pinned to the s3 node */}
+            <g>
+              <rect x="642" y="330" width="266" height="34" rx="8" fill="#18181b" stroke="#7f1d1d" />
+              <circle cx="662" cy="347" r="4" fill="#ef4444" />
+              <text x="674" y="351" fill="#d4d4d8" fontSize="11.5">CLD-208 · S3 bucket publicly readable</text>
+              <path d="M833,330 L833,296" stroke="#7f1d1d" strokeWidth="1" strokeDasharray="3 3" fill="none" />
+            </g>
+          </svg>
+
+          {/* legend */}
+          <div className="relative flex items-center gap-5 px-5 py-3 border-t border-zinc-800/70 text-[11px] text-zinc-500">
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" /> Critical</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500" /> Medium</span>
+            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Healthy</span>
+            <span className="ml-auto hidden sm:block">Derived from your repos, cloud &amp; IaC — updated on every scan</span>
           </div>
         </div>
 

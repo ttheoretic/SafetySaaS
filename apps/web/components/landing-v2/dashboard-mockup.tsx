@@ -33,19 +33,18 @@ export function DashboardMockup() {
     },
   }
 
+  // Subtle rise-in per panel (the console is shown flat, so no diagonal slide).
   const panelVariants = {
     hidden: {
       opacity: 0,
-      x: 100,
-      y: -80,
+      y: 16,
     },
     visible: {
       opacity: 1,
-      x: 0,
       y: 0,
       transition: {
-        duration: 1.2,
-        ease: [0.22, 1, 0.36, 1],
+        duration: 0.9,
+        ease: [0.22, 1, 0.36, 1] as const,
       },
     },
   }
