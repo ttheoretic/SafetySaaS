@@ -145,6 +145,36 @@ class GithubController {
     return { original: content, ...result };
   }
 
+  /**
+   * A targeted maintainability refactoring PLAN for a file (Code Quality). Large
+   * hotspots can't be rewritten whole-file, so instead of a diff this returns a
+   * concrete, prioritized set of steps (extract functions, flatten nesting,
+   * resolve TODOs) the developer can apply.
+   */
+  @Post('code/refactor')
+  @RequirePermission('project:read')
+  async codeRefactor(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Body() dto: CodeFixDto,
+  ) {
+    this.billing.assertHasFeature(auth.org, 'aiPredictions', 'AI refactor plan');
+    const repo = await this.resolveRepo(projectId, auth.org.id, dto.repo);
+    const content = await this.github.readFile(projectId, auth.org.id, repo, dto.file);
+    if (content == null) {
+      throw new BadRequestException('Could not read the file from the repo.');
+    }
+    const result = await this.ai.refactorPlan(
+      {
+        file: dto.file,
+        content,
+        metrics: dto.description ?? dto.title,
+      },
+      { plan: auth.org.plan, ctx: { orgId: auth.org.id, userId: auth.user.id } },
+    );
+    return result;
+  }
+
   /** Apply an AI fix by opening a pull request with the corrected file. */
   @Post('code/fix/pr')
   @RequirePermission('connection:write')

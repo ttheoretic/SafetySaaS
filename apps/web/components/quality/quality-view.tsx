@@ -14,13 +14,13 @@ import {
   Sparkles,
   WandSparkles,
   Loader2,
-  Check,
-  ExternalLink,
 } from 'lucide-react'
 import { ScreenHeader, ActionButton } from '@/components/layout/screen-header'
 import { Panel, PanelHeader } from '@/components/ui/panel'
-import { useSystemGraph, useActiveProject, useCodeFix } from '@/lib/use-project-data'
+import { Markdown } from '@/components/ui/markdown'
+import { useSystemGraph, useActiveProject } from '@/lib/use-project-data'
 import { useRepoFileContent, SourceView } from '@/components/code/code-view'
+import { api } from '@/lib/api'
 import type { QualityHotspot } from '@riscly/shared'
 import { cn } from '@/lib/utils'
 
@@ -186,9 +186,13 @@ export function QualityView() {
 }
 
 /**
- * Three-pane drill-in for a hotspot: files left, source (with the AI refactor
- * rendered in green under the original lines) in the middle, and the metrics +
- * explanation + push on the right. Mirrors the Code (SAST) layout.
+ * Three-pane drill-in for a hotspot: files left, source (for reference) in the
+ * middle, and — on the right — a targeted, AI-generated refactoring PLAN.
+ *
+ * Maintainability hotspots are large files, so a whole-file AI rewrite isn't
+ * feasible (and often fails). Instead we produce a concrete, prioritized set of
+ * steps (extract functions, flatten nesting, resolve TODOs) the developer
+ * applies incrementally — the honest way to reduce maintainability risk.
  */
 function QualityDetailView({
   projectId,
@@ -208,23 +212,46 @@ function QualityDetailView({
   const repo = active.repo ?? null
   const fileQuery = useRepoFileContent(projectId, repo, active.file)
   const content = fileQuery.data?.content ?? null
-  const { fix, generate, generating, commit, committing, commitUrl, error, reset } =
-    useCodeFix(projectId, repo, active.file)
 
-  // Reset the generated fix whenever the selected file changes.
+  const [plan, setPlan] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Reset the plan whenever the selected file changes.
   useEffect(() => {
-    reset()
-  }, [activeKey, reset])
+    setPlan(null)
+    setError(null)
+  }, [activeKey])
 
   const b = band(active.score)
   const fileName = active.file.split('/').pop() || active.file
-  const payload = {
-    ...(repo ? { repo } : {}),
-    file: active.file,
-    line: 1,
-    rule: QUALITY_RULE,
-    title: `Refactor ${fileName} for maintainability`,
-    description: hotspotDescription(active),
+
+  async function generatePlan() {
+    setGenerating(true)
+    setError(null)
+    setPlan(null)
+    try {
+      const res = await api.codeRefactor(projectId, {
+        ...(repo ? { repo } : {}),
+        file: active.file,
+        rule: QUALITY_RULE,
+        title: `Refactor ${fileName} for maintainability`,
+        description: hotspotDescription(active),
+      })
+      if (res.plan) {
+        setPlan(res.plan)
+      } else {
+        setError(
+          res.aiEnabled
+            ? 'The AI could not produce a refactoring plan for this file.'
+            : 'AI is not enabled on this server (set ANTHROPIC_API_KEY).',
+        )
+      }
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
@@ -269,14 +296,14 @@ function QualityDetailView({
           })}
         </div>
 
-        {/* code / diff */}
+        {/* source (reference) */}
         <div className="min-w-0 flex-1 overflow-auto bg-background font-mono text-xs">
           {fileQuery.isLoading ? (
             <div className="flex h-full items-center justify-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
           ) : content ? (
-            <SourceView content={content} issueLines={NO_LINES} fixed={fix?.fixed ?? null} />
+            <SourceView content={content} issueLines={NO_LINES} fixed={null} />
           ) : (
             <div className="flex h-full items-center justify-center px-6 text-center text-muted-foreground">
               {repo
@@ -286,8 +313,8 @@ function QualityDetailView({
           )}
         </div>
 
-        {/* metrics + fix */}
-        <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
+        {/* metrics + refactor plan */}
+        <div className="flex w-96 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <span className={cn('font-mono text-2xl font-semibold tabular-nums', bandColor[b])}>
@@ -318,67 +345,39 @@ function QualityDetailView({
             </p>
           </div>
 
-          {/* fix flow */}
-          <div className="mt-auto space-y-2 p-3">
-            {fix?.explanation && (
-              <div className="rounded-md border border-ok/20 bg-ok/5 px-2.5 py-2">
-                <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-ok">
-                  <WandSparkles className="size-3" />
-                  Suggested refactor — shown in green in the code
-                </div>
-                <p className="text-xs leading-relaxed text-foreground/90">{fix.explanation}</p>
+          {/* refactor plan */}
+          <div className="min-h-0 flex-1 px-4 py-3">
+            <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <WandSparkles className="size-3" />
+              Refactoring plan
+            </div>
+            {plan ? (
+              <div className="text-xs leading-relaxed text-foreground/90">
+                <Markdown content={plan} />
               </div>
-            )}
-
-            {commitUrl ? (
-              <>
-                <div className="flex items-center justify-center gap-1.5 rounded-md border border-ok/30 bg-ok/10 px-2.5 py-2 text-xs font-medium text-ok">
-                  <Check className="size-3.5" /> Pushed to your repo
-                </div>
-                <a
-                  href={commitUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                >
-                  <ExternalLink className="size-3.5" /> View commit
-                </a>
-              </>
-            ) : !fix?.fixed ? (
-              <ActionButton
-                variant="primary"
-                className="w-full justify-center"
-                onClick={() => generate(payload)}
-                disabled={generating || committing || !content}
-                title="Have the AI propose a maintainability refactor for this file"
-              >
-                {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-                {generating ? 'Generating…' : 'Generate refactor'}
-              </ActionButton>
             ) : (
-              <>
-                <ActionButton
-                  variant="primary"
-                  className="w-full justify-center"
-                  onClick={() => commit(payload)}
-                  disabled={committing}
-                  title="Commit this refactor directly to your repo"
-                >
-                  {committing ? <Loader2 className="size-3.5 animate-spin" /> : <WandSparkles className="size-3.5" />}
-                  {committing ? 'Pushing…' : 'Apply fix — push to repo'}
-                </ActionButton>
-                <ActionButton
-                  className="w-full justify-center"
-                  onClick={() => generate(payload)}
-                  disabled={generating || committing}
-                >
-                  <Sparkles className="size-3.5" />
-                  Regenerate
-                </ActionButton>
-              </>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Rather than rewriting the whole file, Riscly proposes a targeted,
+                prioritized set of refactoring steps — which functions to extract,
+                where to flatten nesting, and which TODOs to resolve — that you
+                apply incrementally.
+              </p>
             )}
+            {error && <p className="mt-2 text-[11px] text-destructive">{error}</p>}
+          </div>
 
-            {error && <p className="text-[11px] text-destructive">{error}</p>}
+          {/* actions */}
+          <div className="shrink-0 space-y-2 border-t border-border p-3">
+            <ActionButton
+              variant="primary"
+              className="w-full justify-center"
+              onClick={generatePlan}
+              disabled={generating || !content}
+              title="Have the AI propose a targeted maintainability refactoring plan"
+            >
+              {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              {generating ? 'Generating…' : plan ? 'Regenerate plan' : 'Generate refactoring plan'}
+            </ActionButton>
           </div>
         </div>
       </div>

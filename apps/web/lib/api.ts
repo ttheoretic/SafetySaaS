@@ -298,6 +298,22 @@ export const api = {
       `/projects/${projectId}/code/fix/commit`,
       body,
     ),
+  /** Targeted maintainability refactoring plan for a file (Code Quality) —
+   *  concrete steps instead of a whole-file rewrite. */
+  codeRefactor: (
+    projectId: string,
+    body: {
+      repo?: string
+      file: string
+      rule: string
+      title: string
+      description?: string
+    },
+  ) =>
+    post<{ aiEnabled: boolean; plan: string | null }>(
+      `/projects/${projectId}/code/refactor`,
+      body,
+    ),
   /** Deep AI code analysis over the repo's source files (merged into the scan). */
   deepScan: (projectId: string) =>
     post<{

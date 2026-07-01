@@ -77,6 +77,22 @@ export interface CodeAnalysisRequest {
   onUsage?: OnUsage;
 }
 
+export interface RefactorPlanRequest {
+  file: string;
+  /** The current file content (may be large — it is only read, not rewritten). */
+  content: string;
+  /** Human summary of the maintainability metrics (LOC, complexity, nesting…). */
+  metrics: string;
+  model?: string;
+  tier?: AiTier;
+  onUsage?: OnUsage;
+}
+
+export interface RefactorPlanResult {
+  /** A concrete, prioritized refactoring plan in markdown. */
+  plan: string;
+}
+
 /** A single issue the model located in a file. */
 export interface AnalyzedIssue {
   line: number;
@@ -98,6 +114,8 @@ export interface AiProvider {
   generateCodeFix(req: CodeFixRequest): Promise<CodeFixResult | null>;
   /** Deep-analyse a file for security + quality + correctness issues. */
   analyzeCode(req: CodeAnalysisRequest): Promise<AnalyzedIssue[]>;
+  /** Produce a targeted maintainability refactoring plan (not a rewrite), or null. */
+  generateRefactorPlan(req: RefactorPlanRequest): Promise<RefactorPlanResult | null>;
 }
 
 /** JSON schema the model's structured output must satisfy. */
