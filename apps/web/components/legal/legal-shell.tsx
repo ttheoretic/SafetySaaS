@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ShieldCheck } from 'lucide-react'
+import { Navbar } from '@/components/landing-v2/navbar'
+import { Footer } from '@/components/landing-v2/footer'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -31,33 +32,28 @@ export function LegalShell({
 }) {
   const pathname = usePathname()
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <header className="border-b border-border">
-        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
-              <ShieldCheck className="size-3.5 text-primary" />
-            </span>
-            <span className="text-sm font-semibold">Riscly</span>
-          </Link>
-          <nav className="flex items-center gap-1 text-xs">
-            {NAV.map((n) => (
-              <Link
-                key={n.href}
-                href={n.href}
-                className={cn(
-                  'rounded-md px-2 py-1 transition-colors',
-                  pathname.startsWith(n.href)
-                    ? 'bg-secondary text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
+    <div className="min-h-dvh bg-background pt-16 text-foreground">
+      <Navbar />
+
+      {/* legal section nav */}
+      <div className="border-b border-border">
+        <nav className="mx-auto flex h-11 max-w-3xl items-center gap-1 overflow-x-auto px-4 text-xs">
+          {NAV.map((n) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={cn(
+                'whitespace-nowrap rounded-md px-2 py-1 transition-colors',
+                pathname.startsWith(n.href)
+                  ? 'bg-secondary text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       <main className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-6 flex items-start justify-between gap-4">
@@ -89,6 +85,8 @@ export function LegalShell({
           {children}
         </article>
       </main>
+
+      <Footer />
     </div>
   )
 }

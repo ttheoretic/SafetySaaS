@@ -48,7 +48,7 @@ export function DocsSidebar() {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-2.5 backdrop-blur lg:hidden">
+      <div className="sticky top-16 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-2.5 backdrop-blur lg:hidden">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
             <ShieldCheck className="size-3.5 text-primary" />
@@ -72,7 +72,7 @@ export function DocsSidebar() {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 overflow-y-auto border-r border-border px-3 py-5 lg:block">
+      <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-border px-3 py-5 lg:block">
         <Link href="/" className="mb-6 flex items-center gap-2 px-2">
           <span className="flex size-7 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
             <ShieldCheck className="size-4 text-primary" />

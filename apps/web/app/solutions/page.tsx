@@ -1,15 +1,15 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { LandingNav } from '@/components/landing/landing-nav'
-import { LandingFooter } from '@/components/landing/landing-footer'
+import { Navbar } from '@/components/landing-v2/navbar'
+import { Footer } from '@/components/landing-v2/footer'
 import { SOLUTIONS } from '@/lib/solutions-content'
 
 export const metadata = { title: 'Solutions — Riscly' }
 
 export default function SolutionsPage() {
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <LandingNav />
+    <div className="min-h-dvh bg-background pt-16 text-foreground">
+      <Navbar />
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary">Solutions</p>
         <h1 className="mt-2 text-balance text-4xl font-semibold tracking-tight">Riscly for your team and your goals.</h1>
@@ -31,7 +31,7 @@ export default function SolutionsPage() {
           ))}
         </div>
       </section>
-      <LandingFooter />
+      <Footer />
     </div>
   )
 }

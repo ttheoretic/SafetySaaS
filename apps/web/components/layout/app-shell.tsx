@@ -41,12 +41,17 @@ function matches(routes: string[], pathname: string) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  // Bare routes render without the dashboard sidebar / top nav.
-  if (
-    matches(MARKETING_ROUTES, pathname) ||
-    matches(AUTH_ROUTES, pathname) ||
-    matches(ADMIN_ROUTES, pathname)
-  ) {
+  // Marketing + auth routes render bare, in the landing-v2 look (zinc/cyan
+  // token override) so every page around the app matches the landing design.
+  if (matches(MARKETING_ROUTES, pathname) || matches(AUTH_ROUTES, pathname)) {
+    return (
+      <div className="landing-theme min-h-dvh bg-background text-foreground">
+        {children}
+      </div>
+    )
+  }
+  // Internal admin console keeps the default app theme.
+  if (matches(ADMIN_ROUTES, pathname)) {
     return (
       <div className="min-h-dvh bg-background text-foreground">{children}</div>
     )

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { LandingNav } from '@/components/landing/landing-nav'
-import { LandingFooter } from '@/components/landing/landing-footer'
+import { Navbar } from '@/components/landing-v2/navbar'
+import { Footer } from '@/components/landing-v2/footer'
 import { PricingTable } from '@/components/landing/pricing-table'
 
 export const metadata = {
@@ -13,15 +13,15 @@ export const metadata = {
 export default function PricingPage() {
   return (
     <>
-      <LandingNav />
-      <main>
+      <Navbar />
+      <main className="pt-16">
         <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <Link
-            href="/#pricing"
+            href="/"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Back to plans
+            Back to home
           </Link>
 
           <div className="mt-6 max-w-2xl">
@@ -42,7 +42,7 @@ export default function PricingPage() {
           </div>
         </section>
       </main>
-      <LandingFooter />
+      <Footer />
     </>
   )
 }

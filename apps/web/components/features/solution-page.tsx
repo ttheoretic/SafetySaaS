@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight, AlertTriangle, Quote } from 'lucide-react'
-import { LandingNav } from '@/components/landing/landing-nav'
-import { LandingFooter } from '@/components/landing/landing-footer'
+import { Navbar } from '@/components/landing-v2/navbar'
+import { Footer } from '@/components/landing-v2/footer'
 import { GetStartedButton } from '@/components/landing/get-started-button'
 import { PREVIEWS } from '@/components/features/previews'
 import { SOLUTIONS } from '@/lib/solutions-content'
@@ -16,8 +16,8 @@ export function SolutionPage({ slug }: { slug: string }) {
   const Hero = PREVIEWS[s.hero]
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <LandingNav />
+    <div className="min-h-dvh bg-background pt-16 text-foreground">
+      <Navbar />
 
       {/* hero */}
       <section className="mx-auto max-w-6xl px-4 pb-10 pt-14 sm:px-6">
@@ -127,7 +127,7 @@ export function SolutionPage({ slug }: { slug: string }) {
         </div>
       </section>
 
-      <LandingFooter />
+      <Footer />
     </div>
   )
 }
