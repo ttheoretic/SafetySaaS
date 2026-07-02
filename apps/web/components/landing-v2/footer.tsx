@@ -52,7 +52,7 @@ export function Footer() {
           {/* Logo */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-cyan-400" />
+              <ShieldCheck className="w-5 h-5 text-violet-400" />
               <span className="text-white font-semibold text-sm">Riscly</span>
             </Link>
             <p className="text-zinc-600 text-xs mt-3 leading-relaxed">

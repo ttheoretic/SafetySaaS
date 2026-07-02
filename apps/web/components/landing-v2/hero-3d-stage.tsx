@@ -27,7 +27,7 @@ export function Hero3DStage() {
             transform: "translate(-50%, -30%)",
             width: "1200px",
             height: "800px",
-            background: "radial-gradient(ellipse at center, rgba(99, 102, 241, 0.08) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.14) 0%, transparent 70%)",
           }}
         />
 
@@ -42,7 +42,11 @@ export function Hero3DStage() {
                 transition={{ duration: 0.6 }}
                 className="text-4xl md:text-5xl lg:text-[56px] font-medium text-white leading-[1.1] text-balance"
               >
-                Riscly maps your architecture and eliminates risk before it ships
+                Riscly maps your architecture and{" "}
+                <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+                  eliminates risk
+                </span>{" "}
+                before it ships
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
@@ -70,7 +74,7 @@ export function Hero3DStage() {
                   href="/features/security-posture"
                   className="text-zinc-300 font-medium hover:text-white transition-colors flex items-center gap-2 text-sm"
                 >
-                  <span className="text-zinc-500">New:</span> Cloud posture analysis
+                  <span className="text-violet-400">New:</span> Cloud posture analysis
                   <span aria-hidden="true">&rarr;</span>
                 </Link>
               </motion.div>
@@ -88,7 +92,7 @@ export function Hero3DStage() {
               <div
                 className="relative rounded-xl border border-zinc-800 overflow-hidden"
                 style={{
-                  boxShadow: "0 24px 80px -24px rgba(99, 102, 241, 0.25), 0 12px 48px -16px rgba(0, 0, 0, 0.8)",
+                  boxShadow: "0 24px 80px -24px rgba(139, 92, 246, 0.3), 0 12px 48px -16px rgba(0, 0, 0, 0.8)",
                 }}
               >
                 {/* Browser-style top bar */}

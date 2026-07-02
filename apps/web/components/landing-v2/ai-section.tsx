@@ -32,7 +32,7 @@ export function AISection() {
             transition={{ duration: 0.6 }}
             className="flex items-center gap-2 mb-6"
           >
-            <div className="w-2 h-2 rounded-full bg-cyan-500" />
+            <div className="w-2 h-2 rounded-full bg-violet-500" />
             <span className="text-zinc-400 text-sm">AI-assisted remediation</span>
             <ChevronRight className="w-4 h-4 text-zinc-500" />
           </motion.div>

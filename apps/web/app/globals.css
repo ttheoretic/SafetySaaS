@@ -159,8 +159,8 @@
   --popover: oklch(0.17 0.005 285.9);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.715 0.143 215.22); /* cyan-500 #06B6D4 — calmer on filled CTAs */
-  --primary-foreground: oklch(0.141 0.005 285.82);
+  --primary: oklch(0.606 0.219 292.72); /* violet-500 #8B5CF6 — brand accent */
+  --primary-foreground: oklch(0.985 0 0);
 
   --secondary: oklch(0.274 0.006 286.03); /* zinc-800 */
   --secondary-foreground: oklch(0.985 0 0);
@@ -173,7 +173,7 @@
 
   --border: oklch(0.274 0.006 286.03); /* zinc-800 */
   --input: oklch(0.274 0.006 286.03);
-  --ring: oklch(0.789 0.154 211.53);
+  --ring: oklch(0.606 0.219 292.72);
 
   --sidebar: oklch(0.175 0.005 285.9);
   --sidebar-foreground: oklch(0.92 0 0);

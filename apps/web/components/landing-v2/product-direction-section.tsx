@@ -17,7 +17,7 @@ export function ProductDirectionSection() {
       <div className="max-w-6xl mx-auto">
         {/* Section label */}
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-emerald-500" />
+          <div className="w-3 h-3 rounded-full bg-violet-500" />
           <span className="text-zinc-400 text-sm">Architecture intelligence</span>
           <ChevronRight className="w-4 h-4 text-zinc-500" />
         </div>
@@ -74,7 +74,7 @@ export function ProductDirectionSection() {
             {/* internet entry */}
             <g>
               <rect x="44" y="166" width="106" height="48" rx="10" fill="#18181b" stroke="#3f3f46" />
-              <circle cx="66" cy="190" r="4" fill="#22d3ee" />
+              <circle cx="66" cy="190" r="4" fill="#a78bfa" />
               <text x="80" y="194" fill="#d4d4d8" fontSize="13">Internet</text>
             </g>
 
@@ -271,15 +271,15 @@ export function ProductDirectionSection() {
             </h3>
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full bg-emerald-500" />
+                <div className="w-1 h-5 rounded-full bg-violet-500" />
                 <span className="text-zinc-200 font-medium">Full risk context</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full bg-emerald-500/50" />
+                <div className="w-1 h-5 rounded-full bg-violet-500/50" />
                 <span className="text-zinc-400">Blast-radius analysis</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full bg-emerald-500/30" />
+                <div className="w-1 h-5 rounded-full bg-violet-500/30" />
                 <span className="text-zinc-500">One-click fix to pull request</span>
               </div>
             </div>
@@ -323,8 +323,8 @@ export function ProductDirectionSection() {
                 <p className="text-zinc-400 text-sm leading-relaxed mb-6">
                   Riscly explains the root cause, the affected{" "}
                   <span className="relative inline">
-                    <span className="bg-cyan-500/20 px-0.5">ser</span>
-                    <span className="absolute -bottom-4 left-0 px-1.5 py-0.5 rounded text-[10px] bg-cyan-600 text-white">
+                    <span className="bg-violet-500/20 px-0.5">ser</span>
+                    <span className="absolute -bottom-4 left-0 px-1.5 py-0.5 rounded text-[10px] bg-violet-600 text-white">
                       marco
                     </span>
                   </span>
