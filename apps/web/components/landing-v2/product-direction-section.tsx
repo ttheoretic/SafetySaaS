@@ -24,7 +24,10 @@ export function ProductDirectionSection() {
             lineHeight: 1.1,
           }}
         >
-          See your entire system
+          See your{" "}
+          <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+            entire system
+          </span>
         </h2>
 
         {/* Description */}
@@ -34,7 +37,22 @@ export function ProductDirectionSection() {
         </p>
 
         {/* Architecture map — a flat, live map of services, data and infra */}
-        <div className="relative w-full mb-16 rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden">
+        <div className="relative">
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              width: "900px",
+              height: "480px",
+              background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.14) 0%, transparent 65%)",
+            }}
+          />
+        <div
+          className="relative w-full mb-16 rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden"
+          style={{ boxShadow: "0 16px 64px -16px rgba(139, 92, 246, 0.25)" }}
+        >
           {/* dot grid backdrop */}
           <div
             className="absolute inset-0 pointer-events-none"
@@ -52,7 +70,7 @@ export function ProductDirectionSection() {
 
             {/* edges */}
             <g stroke="#3f3f46" strokeWidth="1.25" fill="none" markerEnd="url(#pd-arrow)">
-              <path d="M150,190 L248,190" />
+              <path d="M150,190 L248,190" stroke="#8b5cf6" strokeOpacity="0.55" />
               <path d="M392,168 C430,130 460,116 506,104" />
               <path d="M392,196 L506,196" />
               <path d="M392,224 C430,262 460,276 506,288" />
@@ -131,6 +149,7 @@ export function ProductDirectionSection() {
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Healthy</span>
             <span className="ml-auto hidden sm:block">Derived from your repos, cloud &amp; IaC — updated on every scan</span>
           </div>
+        </div>
         </div>
 
         {/* Bottom two-column section */}

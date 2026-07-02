@@ -1,7 +1,20 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Triangle } from "lucide-react"
+import { GitBranch, Cloud, Boxes, Database, Server, Zap, Container, KeyRound } from "lucide-react"
+
+// Honest strip: these are the systems Riscly actually connects to and reads —
+// not fake customer logos.
+const CONNECTORS = [
+  { icon: GitBranch, label: "GitHub" },
+  { icon: GitBranch, label: "GitLab" },
+  { icon: Cloud, label: "AWS" },
+  { icon: Zap, label: "Vercel" },
+  { icon: Database, label: "Supabase" },
+  { icon: Boxes, label: "Terraform" },
+  { icon: Container, label: "Kubernetes" },
+  { icon: KeyRound, label: "Stripe" },
+]
 
 export function LogoCloud() {
   return (
@@ -15,16 +28,16 @@ export function LogoCloud() {
             transition={{ duration: 0.6 }}
             className="text-lg text-zinc-300 mb-2"
           >
-            Trusted by security and platform teams.
+            Connects to the stack you already run.
           </motion.p>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-lg text-zinc-500 mb-16"
+            className="text-lg text-zinc-500 mb-14"
           >
-            From fast-scaling startups to regulated enterprises.
+            Read-only wherever possible — your code never leaves the pipeline.
           </motion.p>
 
           <motion.div
@@ -32,25 +45,17 @@ export function LogoCloud() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative group cursor-pointer"
+            className="grid grid-cols-2 md:grid-cols-4 gap-x-14 gap-y-8 items-center justify-items-center"
           >
-            {/* Logo grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-16 gap-y-10 items-center justify-items-center transition-all duration-300 group-hover:blur-[2.5px] group-hover:opacity-50">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="text-white font-semibold text-xl flex items-center gap-2">
-                  <Triangle className="w-5 h-5 fill-white" />
-                  Vercel
-                </div>
-              ))}
-            </div>
-
-            {/* Hover overlay button */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-              <div className="px-5 py-2.5 bg-zinc-800/80 backdrop-blur-sm border border-zinc-700 rounded-full text-sm text-zinc-300 flex items-center gap-2">
-                Read customer stories
-                <span aria-hidden="true">›</span>
+            {CONNECTORS.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 text-zinc-500 transition-colors hover:text-violet-300"
+              >
+                <Icon className="w-5 h-5" />
+                <span className="font-medium text-lg">{label}</span>
               </div>
-            </div>
+            ))}
           </motion.div>
         </div>
       </div>

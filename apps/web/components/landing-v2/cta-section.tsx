@@ -2,11 +2,27 @@ import Link from "next/link"
 
 export function CTASection() {
   return (
-    <section className="py-24 px-6" style={{ backgroundColor: "#09090B" }}>
-      <div className="max-w-6xl mx-auto">
+    <section className="relative py-32 px-6 overflow-hidden" style={{ backgroundColor: "#09090B" }}>
+      {/* violet ambience */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "1000px",
+          height: "480px",
+          background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.16) 0%, transparent 65%)",
+        }}
+      />
+      <div className="relative max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8">
           <h2 className="text-3xl md:text-4xl lg:text-[42px] font-medium text-white tracking-tight">
-            Map the risk. Ship with confidence.
+            Map the risk. Ship with{" "}
+            <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+              confidence
+            </span>
+            .
           </h2>
           <div className="flex items-center gap-3">
             <a
@@ -17,7 +33,7 @@ export function CTASection() {
             </a>
             <Link
               href="/login?mode=signup"
-              className="px-5 py-2.5 bg-white text-zinc-900 font-medium rounded-lg hover:bg-zinc-100 transition-colors text-sm"
+              className="px-5 py-2.5 bg-white text-zinc-900 font-medium rounded-lg hover:bg-zinc-100 transition-all text-sm shadow-[0_8px_32px_-8px_rgba(139,92,246,0.5)]"
             >
               Start scanning
             </Link>

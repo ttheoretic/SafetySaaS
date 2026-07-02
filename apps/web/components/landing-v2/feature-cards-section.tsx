@@ -90,8 +90,20 @@ const featureCards = [
 
 export function FeatureCardsSection() {
   return (
-    <div className="relative z-20 py-40" style={{ backgroundColor: "#09090B" }}>
-      <div className="w-full flex justify-center px-6">
+    <div className="relative z-20 py-40 overflow-hidden" style={{ backgroundColor: "#09090B" }}>
+      {/* soft violet ambience behind the card row */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: "50%",
+          bottom: "-160px",
+          transform: "translateX(-50%)",
+          width: "1100px",
+          height: "560px",
+          background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, transparent 65%)",
+        }}
+      />
+      <div className="relative w-full flex justify-center px-6">
         <div className="w-full max-w-5xl">
           {/* Header row */}
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-8 mb-16">
@@ -108,7 +120,11 @@ export function FeatureCardsSection() {
                 lineHeight: 1.1,
               }}
             >
-              Built for security and platform teams
+              Built for{" "}
+              <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
+                security
+              </span>{" "}
+              and platform teams
             </motion.h2>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -136,7 +152,7 @@ export function FeatureCardsSection() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer group overflow-hidden relative flex flex-col justify-end"
+                className="bg-zinc-900/50 border border-zinc-800 hover:border-violet-500/40 hover:shadow-[0_12px_48px_-12px_rgba(139,92,246,0.35)] transition-all cursor-pointer group overflow-hidden relative flex flex-col justify-end"
                 style={{
                   aspectRatio: "336 / 360",
                   borderRadius: "30px",
@@ -158,7 +174,7 @@ export function FeatureCardsSection() {
                   style={{ padding: "0 24px 40px", gap: "16px" }}
                 >
                   <h3 className="text-white font-medium text-lg leading-tight">{card.title}</h3>
-                  <div className="w-8 h-8 rounded-full border border-zinc-700 flex items-center justify-center text-zinc-500 group-hover:border-zinc-500 group-hover:text-zinc-300 transition-colors flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full border border-zinc-700 flex items-center justify-center text-zinc-500 group-hover:border-violet-500/60 group-hover:text-violet-300 transition-colors flex-shrink-0">
                     <Plus className="w-4 h-4" />
                   </div>
                 </div>
