@@ -27,7 +27,7 @@ export function Hero3DStage() {
             transform: "translate(-50%, -30%)",
             width: "1200px",
             height: "800px",
-            background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.14) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.28) 0%, rgba(139, 92, 246, 0.1) 40%, transparent 70%)",
           }}
         />
 
@@ -92,7 +92,7 @@ export function Hero3DStage() {
               <div
                 className="relative rounded-xl border border-zinc-800 overflow-hidden"
                 style={{
-                  boxShadow: "0 24px 80px -24px rgba(139, 92, 246, 0.3), 0 12px 48px -16px rgba(0, 0, 0, 0.8)",
+                  boxShadow: "0 24px 96px -20px rgba(139, 92, 246, 0.45), 0 12px 48px -16px rgba(0, 0, 0, 0.8)",
                 }}
               >
                 {/* Browser-style top bar */}

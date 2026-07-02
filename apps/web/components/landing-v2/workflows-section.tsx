@@ -230,14 +230,6 @@ export function WorkflowsSection() {
 
   return (
     <section className="relative py-24" style={{ backgroundColor: "#09090B" }}>
-      {/* Top gradient */}
-      <div
-        className="absolute top-0 left-0 right-0 pointer-events-none"
-        style={{
-          height: "20%",
-          background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)",
-        }}
-      />
 
       <div className="max-w-7xl mx-auto px-6">
         {/* Header */}

@@ -5,14 +5,6 @@ import { ChevronRight } from "lucide-react"
 export function ProductDirectionSection() {
   return (
     <section className="relative py-40 px-6 md:px-12 lg:px-24">
-      {/* Gradient overlay at top */}
-      <div
-        className="absolute inset-x-0 top-0 pointer-events-none"
-        style={{
-          height: "20%",
-          background: "linear-gradient(to bottom, rgba(255,255,255,0.05), transparent 100%)",
-        }}
-      />
 
       <div className="max-w-6xl mx-auto">
         {/* Section label */}

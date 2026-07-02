@@ -15,13 +15,6 @@ const agents = [
 export function AISection() {
   return (
     <div className="relative z-20 py-40" style={{ backgroundColor: "#09090B" }}>
-      <div
-        className="absolute top-0 left-0 right-0 pointer-events-none"
-        style={{
-          height: "20%",
-          background: "linear-gradient(to bottom, rgba(255,255,255,0.05) 0%, transparent 100%)",
-        }}
-      />
       <div className="w-full flex justify-center px-6">
         <div className="w-full max-w-5xl">
           {/* Section label */}
