@@ -120,11 +120,7 @@ export function FeatureCardsSection() {
                 lineHeight: 1.1,
               }}
             >
-              Built for{" "}
-              <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-                security
-              </span>{" "}
-              and platform teams
+              Built for security and platform teams
             </motion.h2>
             <motion.div
               initial={{ opacity: 0, y: 20 }}

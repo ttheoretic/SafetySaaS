@@ -24,10 +24,7 @@ export function ProductDirectionSection() {
             lineHeight: 1.1,
           }}
         >
-          See your{" "}
-          <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-            entire system
-          </span>
+          See your entire system
         </h2>
 
         {/* Description */}

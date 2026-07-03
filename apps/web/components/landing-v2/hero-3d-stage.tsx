@@ -17,16 +17,16 @@ export function Hero3DStage() {
       <section className="relative min-h-screen overflow-hidden" style={{ backgroundColor: "#09090B" }}>
         <Navbar />
 
-        {/* Subtle glow */}
+        {/* Subtle glow above the fold */}
         <div
           className="absolute pointer-events-none"
           style={{
-            top: "50%",
+            top: "38%",
             left: "50%",
-            transform: "translate(-50%, -30%)",
-            width: "1200px",
-            height: "800px",
-            background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.28) 0%, rgba(139, 92, 246, 0.1) 40%, transparent 70%)",
+            transform: "translate(-50%, -50%)",
+            width: "1100px",
+            height: "600px",
+            background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, transparent 65%)",
           }}
         />
 
@@ -41,11 +41,7 @@ export function Hero3DStage() {
                 transition={{ duration: 0.6 }}
                 className="text-4xl md:text-5xl lg:text-[56px] font-medium text-white leading-[1.1] text-balance"
               >
-                Riscly maps your architecture and{" "}
-                <span className="bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-                  eliminates risk
-                </span>{" "}
-                before it ships
+                Riscly maps your architecture and eliminates risk before it ships
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
@@ -80,7 +76,7 @@ export function Hero3DStage() {
             </div>
           </div>
 
-          {/* Risk console — flat (top-down), fully visible */}
+          {/* Risk console on a vivid violet gradient stage (MarkIQ-style) */}
           <div className="w-full flex justify-center px-6 mt-16">
             <motion.div
               initial={{ opacity: 0, y: 32 }}
@@ -89,22 +85,52 @@ export function Hero3DStage() {
               className="w-full max-w-6xl"
             >
               <div
-                className="relative rounded-xl border border-zinc-800 overflow-hidden"
+                className="relative overflow-hidden rounded-2xl p-4 pt-10 sm:p-8 sm:pt-14"
                 style={{
-                  boxShadow: "0 24px 96px -20px rgba(139, 92, 246, 0.45), 0 12px 48px -16px rgba(0, 0, 0, 0.8)",
+                  background:
+                    "linear-gradient(165deg, #7c3aed 0%, #6d28d9 22%, #4f46e5 45%, #312e81 68%, #0f0d20 100%)",
                 }}
               >
-                {/* Browser-style top bar */}
-                <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border-b border-zinc-800">
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                  <div className="mx-auto flex items-center gap-1.5 rounded-md bg-zinc-800/70 px-3 py-1 text-[11px] text-zinc-500">
-                    app.riscly.ai
+                {/* soft light blooms on the gradient stage */}
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    top: "-140px",
+                    left: "18%",
+                    width: "560px",
+                    height: "340px",
+                    background: "radial-gradient(ellipse at center, rgba(196, 181, 253, 0.55) 0%, transparent 70%)",
+                    filter: "blur(10px)",
+                  }}
+                />
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    top: "-100px",
+                    right: "8%",
+                    width: "420px",
+                    height: "280px",
+                    background: "radial-gradient(ellipse at center, rgba(99, 102, 241, 0.5) 0%, transparent 70%)",
+                    filter: "blur(14px)",
+                  }}
+                />
+
+                <div
+                  className="relative rounded-xl border border-white/10 overflow-hidden"
+                  style={{ boxShadow: "0 32px 80px -24px rgba(0, 0, 0, 0.7)" }}
+                >
+                  {/* Browser-style top bar */}
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border-b border-zinc-800">
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                    <div className="mx-auto flex items-center gap-1.5 rounded-md bg-zinc-800/70 px-3 py-1 text-[11px] text-zinc-500">
+                      app.riscly.ai
+                    </div>
                   </div>
-                </div>
-                <div className="aspect-[16/9] w-full">
-                  <DashboardMockup />
+                  <div className="aspect-[16/9] w-full">
+                    <DashboardMockup />
+                  </div>
                 </div>
               </div>
             </motion.div>
