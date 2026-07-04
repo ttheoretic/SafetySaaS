@@ -54,35 +54,36 @@
 :root {
   color-scheme: dark;
 
-  /* App theme — LumynAI/Datadog-inspired: near-black surfaces with a subtle
-     blue cast, a darker rail sidebar, crisp borders and a vivid blue primary. */
-  --background: oklch(0.158 0.008 268);
-  --foreground: oklch(0.95 0.003 268);
+  /* App theme — the landing-console look: neutral zinc-gray surfaces (no blue
+     cast), a slightly LIGHTER sidebar panel than the content, hairline borders
+     and a vivid blue primary. */
+  --background: oklch(0.141 0.005 285.82); /* zinc-950 */
+  --foreground: oklch(0.96 0.002 286);
 
-  --panel: oklch(0.192 0.01 268);
-  --panel-2: oklch(0.218 0.011 268);
+  --panel: oklch(0.185 0.006 286);
+  --panel-2: oklch(0.21 0.006 285.88); /* zinc-900 */
 
-  --card: oklch(0.192 0.01 268);
-  --card-foreground: oklch(0.95 0.003 268);
-  --popover: oklch(0.205 0.011 268);
-  --popover-foreground: oklch(0.95 0.003 268);
+  --card: oklch(0.185 0.006 286);
+  --card-foreground: oklch(0.96 0.002 286);
+  --popover: oklch(0.195 0.006 286);
+  --popover-foreground: oklch(0.96 0.002 286);
 
   --primary: oklch(0.546 0.245 262.88); /* blue-600 #2563EB — Lumyn-style blue */
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.248 0.012 268);
-  --secondary-foreground: oklch(0.95 0.003 268);
+  --secondary: oklch(0.245 0.006 286);
+  --secondary-foreground: oklch(0.96 0.002 286);
 
-  --muted: oklch(0.235 0.012 268);
-  --muted-foreground: oklch(0.63 0.014 268);
+  --muted: oklch(0.23 0.006 286);
+  --muted-foreground: oklch(0.63 0.01 286);
 
-  --accent: oklch(0.26 0.013 268);
-  --accent-foreground: oklch(0.97 0.003 268);
+  --accent: oklch(0.255 0.007 286);
+  --accent-foreground: oklch(0.97 0.002 286);
 
   --destructive: oklch(0.58 0.2 25);
 
-  --border: oklch(0.285 0.014 268);
-  --input: oklch(0.285 0.014 268);
+  --border: oklch(0.26 0.007 286); /* zinc-800-ish hairline */
+  --input: oklch(0.26 0.007 286);
   --ring: oklch(0.546 0.245 262.88);
 
   /* Risk severity scale */
@@ -97,10 +98,10 @@
   --ok: oklch(0.7 0.15 155);
   --ok-foreground: oklch(0.16 0.02 155);
 
-  --sidebar: oklch(0.135 0.007 268);
-  --sidebar-foreground: oklch(0.9 0.003 268);
-  --sidebar-border: oklch(0.25 0.012 268);
-  --sidebar-accent: oklch(0.21 0.011 268);
+  --sidebar: oklch(0.178 0.006 286); /* a step LIGHTER than the content */
+  --sidebar-foreground: oklch(0.92 0.002 286);
+  --sidebar-border: oklch(0.25 0.006 286);
+  --sidebar-accent: oklch(0.235 0.006 286);
 }
 
 @layer base {

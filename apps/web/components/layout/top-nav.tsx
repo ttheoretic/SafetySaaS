@@ -163,6 +163,7 @@ export function TopNav() {
       <div className="relative ml-1 hidden max-w-md flex-1 items-center md:flex">
         <Search className="absolute left-2.5 size-4 text-muted-foreground" />
         <input
+          id="global-search"
           placeholder="Search risks, services, files, rules…"
           className="h-8 w-full rounded-md border border-border bg-background pl-8 pr-12 text-sm outline-none placeholder:text-muted-foreground/70 focus:border-primary/50"
         />
