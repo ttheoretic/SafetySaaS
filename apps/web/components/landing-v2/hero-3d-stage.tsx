@@ -14,116 +14,113 @@ import { Footer } from "./footer"
 export function Hero3DStage() {
   return (
     <>
-      <section className="relative min-h-screen overflow-hidden" style={{ backgroundColor: "#09090B" }}>
+      <section className="relative overflow-hidden" style={{ backgroundColor: "#09090B" }}>
         <Navbar />
 
-        {/* Subtle glow above the fold */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            top: "38%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: "1100px",
-            height: "600px",
-            background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12) 0%, transparent 65%)",
-          }}
-        />
+        {/* Hero — full violet gradient stage, rounded card inset on black */}
+        <div className="px-3 pt-20 sm:px-4">
+          <div
+            className="relative overflow-hidden rounded-[28px]"
+            style={{
+              background:
+                "linear-gradient(180deg, #0a0913 0%, #131129 26%, #251d5e 55%, #43349f 78%, #6a55e6 100%)",
+            }}
+          >
+            {/* bottom-center bloom behind the console */}
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: "50%",
+                bottom: "-220px",
+                transform: "translateX(-50%)",
+                width: "1300px",
+                height: "700px",
+                background: "radial-gradient(ellipse at center, rgba(167, 139, 250, 0.5) 0%, transparent 65%)",
+                filter: "blur(12px)",
+              }}
+            />
+            {/* faint dotted texture */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-40"
+              style={{
+                backgroundImage: "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)",
+                backgroundSize: "26px 26px",
+              }}
+            />
 
-        {/* Main content */}
-        <div className="relative z-10 pt-28 flex flex-col">
-          {/* Hero text - contained and centered */}
-          <div className="w-full flex justify-center px-6 mt-16">
-            <div className="w-full max-w-4xl">
+            <div className="relative z-10 flex flex-col items-center px-6 pt-24 text-center sm:pt-28">
+              {/* pill badge */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Link
+                  href="/features/security-posture"
+                  className="inline-flex items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3.5 text-sm text-zinc-200 ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-white/15"
+                >
+                  <span className="rounded-full bg-violet-500 px-2.5 py-0.5 text-xs font-medium text-white">New</span>
+                  Cloud posture analysis
+                  <span aria-hidden="true" className="text-zinc-400">&rarr;</span>
+                </Link>
+              </motion.div>
+
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="text-4xl md:text-5xl lg:text-[56px] font-medium text-white leading-[1.1] text-balance"
+                transition={{ duration: 0.6, delay: 0.08 }}
+                className="mt-7 max-w-4xl text-balance text-4xl font-medium leading-[1.08] text-white md:text-5xl lg:text-[60px]"
               >
-                Riscly maps your architecture and eliminates risk before it ships
+                Map your architecture. Eliminate risk before it ships.
               </motion.h1>
+
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="mt-6 text-lg text-zinc-400"
+                transition={{ duration: 0.6, delay: 0.16 }}
+                className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-zinc-300"
               >
-                Connect your repositories, cloud, and infrastructure.
-                <br />
-                Riscly surfaces security risks, vulnerabilities, and bottlenecks &mdash; with fixes where they live.
+                Connect your repositories, cloud, and infrastructure. Riscly surfaces security
+                risks and bottlenecks &mdash; with fixes where they live.
               </motion.p>
+
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="mt-8 flex items-center gap-6"
+                transition={{ duration: 0.6, delay: 0.24 }}
+                className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
               >
                 <Link
                   href="/login?mode=signup"
-                  className="px-5 py-2.5 bg-white text-zinc-900 font-medium rounded-lg hover:bg-zinc-100 transition-colors text-sm"
+                  className="rounded-full bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100"
                 >
                   Start scanning
                 </Link>
                 <Link
-                  href="/features/security-posture"
-                  className="text-zinc-300 font-medium hover:text-white transition-colors flex items-center gap-2 text-sm"
+                  href="/pricing"
+                  className="rounded-full border border-white/25 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
                 >
-                  <span className="text-violet-400">New:</span> Cloud posture analysis
-                  <span aria-hidden="true">&rarr;</span>
+                  See pricing
                 </Link>
               </motion.div>
-            </div>
-          </div>
 
-          {/* Risk console on a vivid violet gradient stage (MarkIQ-style) */}
-          <div className="w-full flex justify-center px-6 mt-16">
-            <motion.div
-              initial={{ opacity: 0, y: 32 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
-              className="w-full max-w-6xl"
-            >
-              <div
-                className="relative overflow-hidden rounded-2xl p-4 pt-10 sm:p-8 sm:pt-14"
-                style={{
-                  background:
-                    "linear-gradient(165deg, #7c3aed 0%, #6d28d9 22%, #4f46e5 45%, #312e81 68%, #0f0d20 100%)",
-                }}
+              {/* Risk console — cropped by the hero's bottom edge (Flowbyte-style) */}
+              <motion.div
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }}
+                className="relative mt-16 w-full max-w-5xl"
+                style={{ marginBottom: "-90px" }}
               >
-                {/* soft light blooms on the gradient stage */}
                 <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    top: "-140px",
-                    left: "18%",
-                    width: "560px",
-                    height: "340px",
-                    background: "radial-gradient(ellipse at center, rgba(196, 181, 253, 0.55) 0%, transparent 70%)",
-                    filter: "blur(10px)",
-                  }}
-                />
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    top: "-100px",
-                    right: "8%",
-                    width: "420px",
-                    height: "280px",
-                    background: "radial-gradient(ellipse at center, rgba(99, 102, 241, 0.5) 0%, transparent 70%)",
-                    filter: "blur(14px)",
-                  }}
-                />
-
-                <div
-                  className="relative rounded-xl border border-white/10 overflow-hidden"
-                  style={{ boxShadow: "0 32px 80px -24px rgba(0, 0, 0, 0.7)" }}
+                  className="overflow-hidden rounded-xl border border-white/15 text-left"
+                  style={{ boxShadow: "0 40px 100px -20px rgba(0, 0, 0, 0.75)" }}
                 >
                   {/* Browser-style top bar */}
-                  <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border-b border-zinc-800">
-                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700" />
+                  <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-4 py-2.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
                     <div className="mx-auto flex items-center gap-1.5 rounded-md bg-zinc-800/70 px-3 py-1 text-[11px] text-zinc-500">
                       app.riscly.ai
                     </div>
@@ -132,10 +129,13 @@ export function Hero3DStage() {
                     <DashboardMockup />
                   </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            </div>
           </div>
+        </div>
 
+        {/* Rest of the page on black */}
+        <div className="relative z-10 flex flex-col pt-24">
           <LogoCloud />
           <FeatureCardsSection />
           <ProductDirectionSection />

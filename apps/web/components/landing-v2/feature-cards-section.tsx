@@ -1,11 +1,13 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ChevronRight, Plus } from "lucide-react"
+import { ChevronRight, ArrowRight } from "lucide-react"
 
 const featureCards = [
   {
     title: "Automatic architecture mapping",
+    desc: "Connect a repository and get a live map of every service, datastore and dependency.",
+    href: "/features/architecture-map",
     illustration: (
       <div
         className="relative w-full overflow-hidden"
@@ -45,6 +47,8 @@ const featureCards = [
   },
   {
     title: "Continuous risk analysis",
+    desc: "SAST, dependencies, secrets and cloud posture — one continuous scan, confidence-graded.",
+    href: "/features/security-posture",
     illustration: (
       <div className="relative w-full overflow-hidden" style={{ height: "260px" }}>
         <svg viewBox="0 0 336 260" className="w-full h-full" aria-label="Security scanning radar">
@@ -72,6 +76,8 @@ const featureCards = [
   },
   {
     title: "Contextual fixes in your code",
+    desc: "AI fixes generated where the problem lives — review the diff and push in one click.",
+    href: "/features/one-click-fixes",
     illustration: (
       <div className="relative w-full overflow-hidden px-6 pt-8" style={{ height: "260px" }}>
         <div className="rounded-lg border border-zinc-800 bg-zinc-950/90 p-3.5 font-mono text-[10.5px] leading-5" aria-label="Suggested code fix">
@@ -139,42 +145,50 @@ export function FeatureCardsSection() {
             </motion.div>
           </div>
 
-          {/* Feature cards */}
+          {/* Feature cards — text on top, visual below, violet bleed from the
+              bottom edge (LumynAI-style) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {featureCards.map((card, index) => (
-              <motion.div
+              <motion.a
                 key={card.title}
+                href={card.href}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: 0.2 + index * 0.1 }}
-                className="bg-zinc-900/50 border border-zinc-800 hover:border-violet-500/40 hover:shadow-[0_12px_48px_-12px_rgba(139,92,246,0.35)] transition-all cursor-pointer group overflow-hidden relative flex flex-col justify-end"
-                style={{
-                  aspectRatio: "336 / 360",
-                  borderRadius: "30px",
-                  height: "360px",
-                  isolation: "isolate",
-                }}
+                className="group relative flex flex-col overflow-hidden border border-zinc-800 bg-zinc-950 transition-all hover:border-violet-500/40 hover:shadow-[0_16px_56px_-16px_rgba(109,85,230,0.45)]"
+                style={{ borderRadius: "24px", height: "440px", isolation: "isolate" }}
               >
+                {/* text */}
+                <div className="relative z-10 p-6 pb-0">
+                  <h3 className="text-white font-medium text-xl leading-snug">{card.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">{card.desc}</p>
+                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-white">
+                    Learn More
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                </div>
+
+                {/* visual pinned to the bottom */}
                 <div
-                  className="absolute top-0 left-0 w-full flex"
+                  className="absolute inset-x-0 bottom-0 flex items-end"
                   style={{
-                    maskImage: "linear-gradient(#000 70%, transparent 90%)",
-                    WebkitMaskImage: "linear-gradient(#000 70%, transparent 90%)",
+                    maskImage: "linear-gradient(transparent 0%, #000 22%)",
+                    WebkitMaskImage: "linear-gradient(transparent 0%, #000 22%)",
                   }}
                 >
                   {card.illustration}
                 </div>
+
+                {/* violet gradient bleeding up from the bottom edge */}
                 <div
-                  className="relative z-10 flex items-center justify-between w-full"
-                  style={{ padding: "0 24px 40px", gap: "16px" }}
-                >
-                  <h3 className="text-white font-medium text-lg leading-tight">{card.title}</h3>
-                  <div className="w-8 h-8 rounded-full border border-zinc-700 flex items-center justify-center text-zinc-500 group-hover:border-violet-500/60 group-hover:text-violet-300 transition-colors flex-shrink-0">
-                    <Plus className="w-4 h-4" />
-                  </div>
-                </div>
-              </motion.div>
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-48 transition-opacity group-hover:opacity-100 opacity-80"
+                  style={{
+                    background:
+                      "linear-gradient(to top, rgba(106, 85, 230, 0.42) 0%, rgba(79, 70, 229, 0.16) 45%, transparent 100%)",
+                  }}
+                />
+              </motion.a>
             ))}
           </div>
         </div>
