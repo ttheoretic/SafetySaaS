@@ -1,20 +1,22 @@
 import { cn } from '@/lib/utils'
 import type { Severity, HealthStatus } from '@/lib/riscly-data'
 
+// Datadog-style chips: critical/high are solid-filled and unmissable; medium is
+// filled amber; low stays quiet so the loud ones keep their meaning.
 const styles: Record<Severity, { dot: string; chip: string; text: string }> = {
   critical: {
     dot: 'bg-critical',
-    chip: 'bg-critical/15 text-critical border-critical/30',
+    chip: 'bg-critical text-critical-foreground border-transparent',
     text: 'text-critical',
   },
   high: {
     dot: 'bg-high',
-    chip: 'bg-high/15 text-high border-high/30',
+    chip: 'bg-high text-high-foreground border-transparent',
     text: 'text-high',
   },
   medium: {
     dot: 'bg-medium',
-    chip: 'bg-medium/15 text-medium border-medium/30',
+    chip: 'bg-medium text-medium-foreground border-transparent',
     text: 'text-medium',
   },
   low: {
@@ -34,12 +36,11 @@ export function SeverityBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider',
+        'inline-flex items-center rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider',
         styles[severity].chip,
         className,
       )}
     >
-      <span className={cn('size-1.5 rounded-full', styles[severity].dot)} />
       {severity}
     </span>
   )

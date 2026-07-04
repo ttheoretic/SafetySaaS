@@ -10,7 +10,10 @@ export function Panel({
   return (
     <div
       className={cn(
-        'flex flex-col rounded-md border border-border bg-panel',
+        // Soft elevation: hairline top highlight + deep drop shadow, so panels
+        // read as raised cards on the near-black background (LumynAI-style).
+        'flex flex-col rounded-lg border border-border bg-panel',
+        'shadow-[inset_0_1px_0_rgba(255,255,255,0.03),0_10px_28px_-18px_rgba(0,0,0,0.8)]',
         className,
       )}
     >

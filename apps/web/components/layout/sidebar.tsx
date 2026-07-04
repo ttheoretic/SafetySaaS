@@ -168,17 +168,15 @@ function RowLink({
       href={child.href}
       title={locked ? `${child.label} — upgrade to unlock` : child.label}
       className={cn(
+        // Datadog-style: the active item is a solid blue pill, not a tinted row.
         'relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
         active
-          ? 'bg-sidebar-accent text-foreground'
+          ? 'bg-primary font-medium text-primary-foreground'
           : 'text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground',
         locked && !active && 'text-muted-foreground/50',
       )}
     >
-      {active && (
-        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
-      )}
-      <Icon className={cn('size-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+      <Icon className={cn('size-4 shrink-0', active ? 'text-primary-foreground' : 'text-muted-foreground')} />
       <span className="flex-1 whitespace-nowrap opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
         {child.label}
       </span>

@@ -46,42 +46,43 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent: var(--sidebar-accent);
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 11px;
 }
 
 :root {
   color-scheme: dark;
 
-  /* App theme — Datadog-inspired: dark navy-slate surfaces, blue primary. */
-  --background: oklch(0.205 0.018 272);
-  --foreground: oklch(0.93 0.005 272);
+  /* App theme — LumynAI/Datadog-inspired: near-black surfaces with a subtle
+     blue cast, a darker rail sidebar, crisp borders and a vivid blue primary. */
+  --background: oklch(0.158 0.008 268);
+  --foreground: oklch(0.95 0.003 268);
 
-  --panel: oklch(0.235 0.02 272);
-  --panel-2: oklch(0.265 0.022 272);
+  --panel: oklch(0.192 0.01 268);
+  --panel-2: oklch(0.218 0.011 268);
 
-  --card: oklch(0.235 0.02 272);
-  --card-foreground: oklch(0.93 0.005 272);
-  --popover: oklch(0.245 0.021 272);
-  --popover-foreground: oklch(0.93 0.005 272);
+  --card: oklch(0.192 0.01 268);
+  --card-foreground: oklch(0.95 0.003 268);
+  --popover: oklch(0.205 0.011 268);
+  --popover-foreground: oklch(0.95 0.003 268);
 
   --primary: oklch(0.546 0.245 262.88); /* blue-600 #2563EB — Lumyn-style blue */
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.29 0.022 272);
-  --secondary-foreground: oklch(0.93 0.005 272);
+  --secondary: oklch(0.248 0.012 268);
+  --secondary-foreground: oklch(0.95 0.003 268);
 
-  --muted: oklch(0.275 0.021 272);
-  --muted-foreground: oklch(0.65 0.018 272);
+  --muted: oklch(0.235 0.012 268);
+  --muted-foreground: oklch(0.63 0.014 268);
 
-  --accent: oklch(0.30 0.024 272);
-  --accent-foreground: oklch(0.96 0.005 272);
+  --accent: oklch(0.26 0.013 268);
+  --accent-foreground: oklch(0.97 0.003 268);
 
   --destructive: oklch(0.58 0.2 25);
 
-  --border: oklch(0.325 0.025 272);
-  --input: oklch(0.325 0.025 272);
+  --border: oklch(0.285 0.014 268);
+  --input: oklch(0.285 0.014 268);
   --ring: oklch(0.546 0.245 262.88);
 
   /* Risk severity scale */
@@ -96,10 +97,10 @@
   --ok: oklch(0.7 0.15 155);
   --ok-foreground: oklch(0.16 0.02 155);
 
-  --sidebar: oklch(0.185 0.017 272);
-  --sidebar-foreground: oklch(0.89 0.005 272);
-  --sidebar-border: oklch(0.30 0.023 272);
-  --sidebar-accent: oklch(0.265 0.021 272);
+  --sidebar: oklch(0.135 0.007 268);
+  --sidebar-foreground: oklch(0.9 0.003 268);
+  --sidebar-border: oklch(0.25 0.012 268);
+  --sidebar-accent: oklch(0.21 0.011 268);
 }
 
 @layer base {
