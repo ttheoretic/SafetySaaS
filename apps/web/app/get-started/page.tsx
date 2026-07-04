@@ -19,6 +19,7 @@ import { api } from '@/lib/api'
 import { useActiveProjectStore } from '@/lib/active-project'
 import { track } from '@/lib/analytics'
 import type { SystemGraph } from '@riscly/shared'
+import { RisclyMark } from '@/components/brand/logo'
 
 type Step = 'workspace' | 'connect' | 'review' | 'scan' | 'result'
 
@@ -372,7 +373,7 @@ export default function GetStartedPage() {
       <header className="flex h-16 items-center px-6">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
-            <ShieldCheck className="size-4 text-primary" />
+            <RisclyMark className="size-4 text-primary" />
           </div>
           <span className="text-sm font-semibold">Riscly</span>
         </Link>

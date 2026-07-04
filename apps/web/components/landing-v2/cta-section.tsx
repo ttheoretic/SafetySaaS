@@ -3,7 +3,7 @@ import Link from "next/link"
 export function CTASection() {
   return (
     <section className="relative py-32 px-6 overflow-hidden" style={{ backgroundColor: "#09090B" }}>
-      {/* violet ambience */}
+      {/* blue ambience */}
       <div
         className="absolute pointer-events-none"
         style={{
@@ -12,7 +12,7 @@ export function CTASection() {
           transform: "translate(-50%, -50%)",
           width: "1000px",
           height: "480px",
-          background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.16) 0%, transparent 65%)",
+          background: "radial-gradient(ellipse at center, rgba(59, 130, 246, 0.16) 0%, transparent 65%)",
         }}
       />
       <div className="relative max-w-6xl mx-auto">
@@ -29,7 +29,7 @@ export function CTASection() {
             </a>
             <Link
               href="/login?mode=signup"
-              className="px-5 py-2.5 bg-white text-zinc-900 font-medium rounded-lg hover:bg-zinc-100 transition-all text-sm shadow-[0_8px_32px_-8px_rgba(139,92,246,0.5)]"
+              className="px-5 py-2.5 bg-white text-zinc-900 font-medium rounded-lg hover:bg-zinc-100 transition-all text-sm shadow-[0_8px_32px_-8px_rgba(59,130,246,0.5)]"
             >
               Start scanning
             </Link>

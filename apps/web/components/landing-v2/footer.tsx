@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ShieldCheck } from "lucide-react"
+import { RisclyMark } from "@/components/brand/logo"
 
 type FooterLink = { label: string; href: string }
 
@@ -52,7 +53,7 @@ export function Footer() {
           {/* Logo */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-violet-400" />
+              <RisclyMark className="w-5 h-5 text-blue-500" />
               <span className="text-white font-semibold text-sm">Riscly</span>
             </Link>
             <p className="text-zinc-600 text-xs mt-3 leading-relaxed">

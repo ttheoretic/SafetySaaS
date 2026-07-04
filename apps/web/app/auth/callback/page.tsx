@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-store'
 import { api } from '@/lib/api'
 import { getAuthConfig } from '@/lib/auth-config'
 import { getSupabase } from '@/lib/supabase'
+import { RisclyMark } from '@/components/brand/logo'
 
 /**
  * OAuth return target for social login (Google / GitHub). Supabase has placed
@@ -82,7 +83,7 @@ export default function AuthCallbackPage() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-4 text-center text-foreground">
       <div className="flex size-9 items-center justify-center rounded-lg bg-primary/15">
-        <ShieldCheck className="size-5 text-primary" />
+        <RisclyMark className="size-5 text-primary" />
       </div>
       {error ? (
         <>

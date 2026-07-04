@@ -9,7 +9,7 @@ export function ProductDirectionSection() {
       <div className="max-w-6xl mx-auto">
         {/* Section label */}
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-3 h-3 rounded-full bg-violet-500" />
+          <div className="w-3 h-3 rounded-full bg-blue-500" />
           <span className="text-zinc-400 text-sm">Architecture intelligence</span>
           <ChevronRight className="w-4 h-4 text-zinc-500" />
         </div>
@@ -43,12 +43,12 @@ export function ProductDirectionSection() {
               transform: "translate(-50%, -50%)",
               width: "900px",
               height: "480px",
-              background: "radial-gradient(ellipse at center, rgba(139, 92, 246, 0.14) 0%, transparent 65%)",
+              background: "radial-gradient(ellipse at center, rgba(59, 130, 246, 0.14) 0%, transparent 65%)",
             }}
           />
         <div
           className="relative w-full mb-16 rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden"
-          style={{ boxShadow: "0 16px 64px -16px rgba(139, 92, 246, 0.25)" }}
+          style={{ boxShadow: "0 16px 64px -16px rgba(59, 130, 246, 0.25)" }}
         >
           {/* dot grid backdrop */}
           <div
@@ -67,7 +67,7 @@ export function ProductDirectionSection() {
 
             {/* edges */}
             <g stroke="#3f3f46" strokeWidth="1.25" fill="none" markerEnd="url(#pd-arrow)">
-              <path d="M150,190 L248,190" stroke="#8b5cf6" strokeOpacity="0.55" />
+              <path d="M150,190 L248,190" stroke="#3b82f6" strokeOpacity="0.55" />
               <path d="M392,168 C430,130 460,116 506,104" />
               <path d="M392,196 L506,196" />
               <path d="M392,224 C430,262 460,276 506,288" />
@@ -81,7 +81,7 @@ export function ProductDirectionSection() {
             {/* internet entry */}
             <g>
               <rect x="44" y="166" width="106" height="48" rx="10" fill="#18181b" stroke="#3f3f46" />
-              <circle cx="66" cy="190" r="4" fill="#a78bfa" />
+              <circle cx="66" cy="190" r="4" fill="#60a5fa" />
               <text x="80" y="194" fill="#d4d4d8" fontSize="13">Internet</text>
             </g>
 
@@ -279,15 +279,15 @@ export function ProductDirectionSection() {
             </h3>
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full bg-violet-500" />
+                <div className="w-1 h-5 rounded-full bg-blue-500" />
                 <span className="text-zinc-200 font-medium">Full risk context</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full bg-violet-500/50" />
+                <div className="w-1 h-5 rounded-full bg-blue-500/50" />
                 <span className="text-zinc-400">Blast-radius analysis</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-1 h-5 rounded-full bg-violet-500/30" />
+                <div className="w-1 h-5 rounded-full bg-blue-500/30" />
                 <span className="text-zinc-500">One-click fix to pull request</span>
               </div>
             </div>
@@ -331,8 +331,8 @@ export function ProductDirectionSection() {
                 <p className="text-zinc-400 text-sm leading-relaxed mb-6">
                   Riscly explains the root cause, the affected{" "}
                   <span className="relative inline">
-                    <span className="bg-violet-500/20 px-0.5">ser</span>
-                    <span className="absolute -bottom-4 left-0 px-1.5 py-0.5 rounded text-[10px] bg-violet-600 text-white">
+                    <span className="bg-blue-500/20 px-0.5">ser</span>
+                    <span className="absolute -bottom-4 left-0 px-1.5 py-0.5 rounded text-[10px] bg-blue-600 text-white">
                       marco
                     </span>
                   </span>

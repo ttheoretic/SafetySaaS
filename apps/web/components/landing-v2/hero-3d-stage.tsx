@@ -17,13 +17,13 @@ export function Hero3DStage() {
       <section className="relative overflow-hidden" style={{ backgroundColor: "#09090B" }}>
         <Navbar />
 
-        {/* Hero — full violet gradient stage, rounded card inset on black */}
+        {/* Hero — full blue gradient stage, rounded card inset on black */}
         <div className="px-3 pt-20 sm:px-4">
           <div
             className="relative overflow-hidden rounded-[28px]"
             style={{
               background:
-                "linear-gradient(180deg, #0a0913 0%, #131129 26%, #251d5e 55%, #43349f 78%, #6a55e6 100%)",
+                "linear-gradient(180deg, #090a12 0%, #0d1226 26%, #12266b 55%, #1a43c8 78%, #2e63ff 100%)",
             }}
           >
             {/* bottom-center bloom behind the console */}
@@ -35,7 +35,7 @@ export function Hero3DStage() {
                 transform: "translateX(-50%)",
                 width: "1300px",
                 height: "700px",
-                background: "radial-gradient(ellipse at center, rgba(167, 139, 250, 0.5) 0%, transparent 65%)",
+                background: "radial-gradient(ellipse at center, rgba(96, 165, 250, 0.5) 0%, transparent 65%)",
                 filter: "blur(12px)",
               }}
             />
@@ -59,7 +59,7 @@ export function Hero3DStage() {
                   href="/features/security-posture"
                   className="inline-flex items-center gap-2 rounded-full bg-white/10 py-1 pl-1 pr-3.5 text-sm text-zinc-200 ring-1 ring-white/15 backdrop-blur-sm transition-colors hover:bg-white/15"
                 >
-                  <span className="rounded-full bg-violet-500 px-2.5 py-0.5 text-xs font-medium text-white">New</span>
+                  <span className="rounded-full bg-blue-500 px-2.5 py-0.5 text-xs font-medium text-white">New</span>
                   Cloud posture analysis
                   <span aria-hidden="true" className="text-zinc-400">&rarr;</span>
                 </Link>

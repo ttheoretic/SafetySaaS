@@ -237,7 +237,7 @@ export function WorkflowsSection() {
           <div className="lg:max-w-xl">
             {/* Orange indicator */}
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-2 h-2 rounded-full bg-violet-500" />
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
               <span className="text-sm text-zinc-400">Connect your entire stack</span>
               <ChevronRight className="w-4 h-4 text-zinc-600" />
             </div>
@@ -265,7 +265,7 @@ export function WorkflowsSection() {
           >
             {carouselCards.map((card) => (
               <div key={card.id} className="flex-shrink-0 w-[calc(25%-12px)] min-w-[280px]">
-                <div className="bg-zinc-900/50 border border-zinc-800/50 hover:border-violet-500/30 hover:shadow-[0_12px_40px_-12px_rgba(139,92,246,0.3)] transition-all rounded-xl overflow-hidden h-[340px] flex flex-col">
+                <div className="bg-zinc-900/50 border border-zinc-800/50 hover:border-blue-500/30 hover:shadow-[0_12px_40px_-12px_rgba(59,130,246,0.3)] transition-all rounded-xl overflow-hidden h-[340px] flex flex-col">
                   {/* Mockup area */}
                   <div className="flex-1 relative overflow-hidden">
                     <CardMockup type={card.mockup} />

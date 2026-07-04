@@ -99,7 +99,7 @@ export function Endpoint({ method, path }: { method: 'GET' | 'POST' | 'PATCH' | 
     GET: 'bg-sky-500/15 text-sky-400',
     POST: 'bg-emerald-500/15 text-emerald-400',
     PATCH: 'bg-amber-500/15 text-amber-400',
-    PUT: 'bg-violet-500/15 text-violet-400',
+    PUT: 'bg-blue-500/15 text-blue-400',
     DELETE: 'bg-red-500/15 text-red-400',
   }
   return (

@@ -21,6 +21,7 @@ import {
   Wand2,
   Lock,
 } from "lucide-react"
+import { RisclyMark } from "@/components/brand/logo"
 
 export function DashboardMockup() {
   const containerVariants = {
@@ -64,7 +65,7 @@ export function DashboardMockup() {
         {/* Logo */}
         <div className="p-3 border-b border-zinc-800/50">
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <ShieldCheck className="w-5 h-5 text-violet-400" />
+            <RisclyMark className="w-5 h-5 text-blue-500" />
             <span className="text-white font-semibold text-sm">Riscly</span>
             <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto" />
           </div>
@@ -104,7 +105,7 @@ export function DashboardMockup() {
             Connected
           </div>
           <div className="space-y-0.5 mt-1">
-            <NavItem icon={GitBranch} label="acme/payments-api" color="text-violet-400" />
+            <NavItem icon={GitBranch} label="acme/payments-api" color="text-blue-400" />
             <NavItem icon={Cloud} label="AWS Production" color="text-orange-400" />
             <NavItem icon={Boxes} label="Terraform Core" color="text-emerald-400" />
           </div>
@@ -217,7 +218,7 @@ export function DashboardMockup() {
           <div className="flex items-center gap-1.5 text-xs">
             <span className="text-zinc-500">acme/payments-api</span>
             <span className="text-zinc-600">›</span>
-            <span className="text-violet-400">charge.ts</span>
+            <span className="text-blue-400">charge.ts</span>
             <span className="text-zinc-600">›</span>
             <span className="text-zinc-300">SEC-431</span>
           </div>
@@ -262,12 +263,12 @@ export function DashboardMockup() {
           </div>
 
           {/* Contextual fix */}
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-violet-400 mb-2">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-blue-400 mb-2">
             <Wand2 className="w-3 h-3" /> Suggested fix
           </div>
-          <div className="bg-zinc-900/80 rounded-lg p-4 text-[11px] font-mono mb-5 border border-violet-500/20">
+          <div className="bg-zinc-900/80 rounded-lg p-4 text-[11px] font-mono mb-5 border border-blue-500/20">
             <div className="space-y-1">
-              <div className="bg-violet-500/10 -mx-2 px-2 rounded">
+              <div className="bg-blue-500/10 -mx-2 px-2 rounded">
                 <span className="text-purple-400">const</span>
                 <span className="text-zinc-400"> query </span>
                 <span className="text-zinc-500">=</span>
@@ -286,7 +287,7 @@ export function DashboardMockup() {
             </div>
           </div>
 
-          <button className="w-full flex items-center justify-center gap-2 bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 text-sm py-2.5 rounded-md transition-colors mb-5 border border-violet-500/20">
+          <button className="w-full flex items-center justify-center gap-2 bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 text-sm py-2.5 rounded-md transition-colors mb-5 border border-blue-500/20">
             <ShieldCheck className="w-4 h-4" />
             Apply fix &amp; open pull request
           </button>
@@ -341,7 +342,7 @@ function NavItem({
       <Icon className={`w-4 h-4 ${color || ""}`} />
       <span className="flex-1 text-xs truncate">{label}</span>
       {badge && (
-        <span className="bg-violet-500/80 text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-medium px-1">
+        <span className="bg-blue-500/80 text-white text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full font-medium px-1">
           {badge}
         </span>
       )}

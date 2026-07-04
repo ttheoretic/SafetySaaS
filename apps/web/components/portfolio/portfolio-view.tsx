@@ -9,6 +9,7 @@ import { useProjects, useAddRepository } from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
 import type { ScanRecord } from '@/lib/use-project-data'
 import { cn } from '@/lib/utils'
+import { RisclyMark } from '@/components/brand/logo'
 
 /** Risk = inverse of reliability (100 = very risky, 0 = safe). */
 function riskOf(reliability?: number): number | null {
@@ -67,7 +68,7 @@ export function PortfolioView() {
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
         <div className="flex items-center gap-2">
           <div className="flex size-6 items-center justify-center rounded-sm bg-primary text-primary-foreground">
-            <ShieldCheck className="size-4" />
+            <RisclyMark className="size-4" />
           </div>
           <span className="font-semibold tracking-tight">Riscly</span>
         </div>

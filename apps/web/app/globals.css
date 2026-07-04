@@ -54,7 +54,7 @@
 :root {
   color-scheme: dark;
 
-  /* App theme — Datadog-inspired: dark navy-slate surfaces, violet primary. */
+  /* App theme — Datadog-inspired: dark navy-slate surfaces, blue primary. */
   --background: oklch(0.205 0.018 272);
   --foreground: oklch(0.93 0.005 272);
 
@@ -66,7 +66,7 @@
   --popover: oklch(0.245 0.021 272);
   --popover-foreground: oklch(0.93 0.005 272);
 
-  --primary: oklch(0.606 0.219 292.72); /* violet-500 #8B5CF6 */
+  --primary: oklch(0.546 0.245 262.88); /* blue-600 #2563EB — Lumyn-style blue */
   --primary-foreground: oklch(0.985 0 0);
 
   --secondary: oklch(0.29 0.022 272);
@@ -82,7 +82,7 @@
 
   --border: oklch(0.325 0.025 272);
   --input: oklch(0.325 0.025 272);
-  --ring: oklch(0.606 0.219 292.72);
+  --ring: oklch(0.546 0.245 262.88);
 
   /* Risk severity scale */
   --critical: oklch(0.6 0.21 22);
@@ -160,7 +160,7 @@
   --popover: oklch(0.17 0.005 285.9);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.606 0.219 292.72); /* violet-500 #8B5CF6 — brand accent */
+  --primary: oklch(0.546 0.245 262.88); /* blue-600 #2563EB — Lumyn-style blue */
   --primary-foreground: oklch(0.985 0 0);
 
   --secondary: oklch(0.274 0.006 286.03); /* zinc-800 */
@@ -174,7 +174,7 @@
 
   --border: oklch(0.274 0.006 286.03); /* zinc-800 */
   --input: oklch(0.274 0.006 286.03);
-  --ring: oklch(0.606 0.219 292.72);
+  --ring: oklch(0.546 0.245 262.88);
 
   --sidebar: oklch(0.175 0.005 285.9);
   --sidebar-foreground: oklch(0.92 0 0);

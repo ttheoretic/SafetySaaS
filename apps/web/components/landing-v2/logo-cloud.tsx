@@ -50,7 +50,7 @@ export function LogoCloud() {
             {CONNECTORS.map(({ icon: Icon, label }) => (
               <div
                 key={label}
-                className="flex items-center gap-2 text-zinc-500 transition-colors hover:text-violet-300"
+                className="flex items-center gap-2 text-zinc-500 transition-colors hover:text-blue-300"
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium text-lg">{label}</span>

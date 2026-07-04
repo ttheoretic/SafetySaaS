@@ -7,6 +7,7 @@ import { Loader2, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/lib/auth-store'
 import { api } from '@/lib/api'
 import { signInUser, signUpUser, signInWithProvider, requestPasswordReset } from '@/lib/sign-in'
+import { RisclyMark } from '@/components/brand/logo'
 
 type Mode = 'signin' | 'signup'
 
@@ -110,7 +111,7 @@ export default function LoginPage() {
       <header className="flex h-16 items-center px-6">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
-            <ShieldCheck className="size-4 text-primary" />
+            <RisclyMark className="size-4 text-primary" />
           </div>
           <span className="text-sm font-semibold">Riscly</span>
         </Link>

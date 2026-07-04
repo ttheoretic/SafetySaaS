@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { ShieldCheck, Menu, X } from "lucide-react"
 import { MegaMenu, MOBILE_SECTIONS } from "@/components/landing/landing-megamenu"
+import { RisclyMark } from "@/components/brand/logo"
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -14,7 +15,7 @@ export function Navbar() {
         <div className="w-full max-w-5xl flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-violet-400" />
+              <RisclyMark className="w-5 h-5 text-blue-500" />
               <span className="text-white font-semibold">Riscly</span>
             </Link>
             {/* Mega menu: Platform / Solutions / Resources + Docs / Pricing.

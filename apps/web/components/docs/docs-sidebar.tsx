@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ShieldCheck, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DOCS_NAV } from './docs-nav'
+import { RisclyMark } from '@/components/brand/logo'
 
 function NavTree({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
@@ -51,7 +52,7 @@ export function DocsSidebar() {
       <div className="sticky top-16 z-30 flex items-center justify-between border-b border-border bg-background/80 px-4 py-2.5 backdrop-blur lg:hidden">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
-            <ShieldCheck className="size-3.5 text-primary" />
+            <RisclyMark className="size-3.5 text-primary" />
           </span>
           <span className="text-sm font-semibold">Riscly docs</span>
         </Link>
@@ -75,7 +76,7 @@ export function DocsSidebar() {
       <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] w-64 shrink-0 overflow-y-auto border-r border-border px-3 py-5 lg:block">
         <Link href="/" className="mb-6 flex items-center gap-2 px-2">
           <span className="flex size-7 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/30">
-            <ShieldCheck className="size-4 text-primary" />
+            <RisclyMark className="size-4 text-primary" />
           </span>
           <span className="text-[15px] font-semibold tracking-tight">Riscly docs</span>
         </Link>

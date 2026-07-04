@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { usePlan } from '@/lib/use-plan'
+import { RisclyMark } from '@/components/brand/logo'
 
 type Child = { label: string; icon: LucideIcon; href: string; beta?: boolean }
 type Group = { id: string; label: string; children: Child[] }
@@ -105,7 +106,7 @@ export function Sidebar() {
         {/* brand */}
         <div className="flex h-12 shrink-0 items-center gap-2 border-b border-sidebar-border px-3.5">
           <div className="flex size-6 shrink-0 items-center justify-center rounded-sm bg-primary text-primary-foreground">
-            <ShieldCheck className="size-4" />
+            <RisclyMark className="size-4" />
           </div>
           <span className="whitespace-nowrap font-semibold tracking-tight opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
             Riscly

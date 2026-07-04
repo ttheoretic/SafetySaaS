@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, ShieldCheck, Check } from 'lucide-react'
 import { updatePassword } from '@/lib/sign-in'
+import { RisclyMark } from '@/components/brand/logo'
 
 /**
  * Set a new password. Reached from the reset link in the email — Supabase has
@@ -43,7 +44,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
-            <ShieldCheck className="size-4 text-primary" />
+            <RisclyMark className="size-4 text-primary" />
           </div>
           <span className="text-sm font-semibold">Riscly</span>
         </div>
