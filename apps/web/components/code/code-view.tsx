@@ -316,7 +316,7 @@ function IssueCodeView({
         </div>
 
         {/* issue inspector — each issue is generated & pushed on its own */}
-        <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
+        <div className="flex w-[30rem] shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
           <div className="border-b border-border px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Issues in this file
           </div>

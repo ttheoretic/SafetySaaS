@@ -151,7 +151,7 @@ export function RisksView() {
         </div>
 
         {/* inspector */}
-        <div className="hidden w-80 shrink-0 lg:block">
+        <div className="hidden w-[28rem] shrink-0 lg:block">
           {selected && <RiskInspector risk={selected} />}
         </div>
       </div>

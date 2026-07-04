@@ -318,7 +318,7 @@ export function ArchitectureView() {
           )}
         </div>
 
-        <div className="w-80 shrink-0 border-l border-border">
+        <div className="w-[26rem] shrink-0 border-l border-border">
           {selected ? (
             <NodeInspector
               node={selected}

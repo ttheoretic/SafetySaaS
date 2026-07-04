@@ -548,7 +548,7 @@ export function SecurityView() {
 
       {/* finding inspector — slides in over the right edge */}
       {selectedRisk && (
-        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-md border-l border-border bg-panel shadow-2xl">
+        <div className="absolute inset-y-0 right-0 z-20 flex w-full max-w-2xl border-l border-border bg-panel shadow-2xl">
           <RiskInspector risk={selectedRisk} onClose={() => setSelectedId(null)} />
         </div>
       )}

@@ -48,6 +48,14 @@ function Section({
 
 type Fix = { original?: string; fixed: string | null; explanation: string | null; aiEnabled: boolean }
 
+// Datadog-style: the panel carries a colored top edge matching the severity.
+const sevEdge: Record<string, string> = {
+  critical: 'bg-critical',
+  high: 'bg-high',
+  medium: 'bg-medium',
+  low: 'bg-low',
+}
+
 export function RiskInspector({
   risk,
   onClose,
@@ -120,6 +128,7 @@ export function RiskInspector({
   if (view === 'fix') {
     return (
       <div className="flex h-full w-full flex-col bg-panel">
+        <span className={cn('h-[3px] w-full shrink-0', sevEdge[risk.severity] ?? 'bg-border')} />
         <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
           <div className="flex min-w-0 items-start gap-2">
             <button
@@ -268,6 +277,7 @@ export function RiskInspector({
   // ---- Detail view ----
   return (
     <div className="flex h-full w-full flex-col bg-panel">
+      <span className={cn('h-[3px] w-full shrink-0', sevEdge[risk.severity] ?? 'bg-border')} />
       {/* header */}
       <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div className="min-w-0">

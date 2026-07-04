@@ -339,7 +339,7 @@ function QualityDetailView({
         </div>
 
         {/* metrics + located issues + per-issue fix */}
-        <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
+        <div className="flex w-[30rem] shrink-0 flex-col overflow-y-auto border-l border-border bg-panel">
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <span className={cn('font-mono text-2xl font-semibold tabular-nums', bandColor[b])}>
