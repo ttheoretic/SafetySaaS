@@ -57,33 +57,33 @@
   /* App theme — the landing-console look: neutral zinc-gray surfaces (no blue
      cast), a slightly LIGHTER sidebar panel than the content, hairline borders
      and a vivid blue primary. */
-  --background: oklch(0.141 0.005 285.82); /* zinc-950 */
+  --background: oklch(0.165 0.005 286); /* dark gray, a touch above zinc-950 */
   --foreground: oklch(0.96 0.002 286);
 
-  --panel: oklch(0.185 0.006 286);
-  --panel-2: oklch(0.21 0.006 285.88); /* zinc-900 */
+  --panel: oklch(0.205 0.006 286);
+  --panel-2: oklch(0.23 0.006 286);
 
-  --card: oklch(0.185 0.006 286);
+  --card: oklch(0.205 0.006 286);
   --card-foreground: oklch(0.96 0.002 286);
-  --popover: oklch(0.195 0.006 286);
+  --popover: oklch(0.215 0.006 286);
   --popover-foreground: oklch(0.96 0.002 286);
 
   --primary: oklch(0.546 0.245 262.88); /* blue-600 #2563EB — Lumyn-style blue */
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.245 0.006 286);
+  --secondary: oklch(0.265 0.006 286);
   --secondary-foreground: oklch(0.96 0.002 286);
 
-  --muted: oklch(0.23 0.006 286);
+  --muted: oklch(0.25 0.006 286);
   --muted-foreground: oklch(0.63 0.01 286);
 
-  --accent: oklch(0.255 0.007 286);
+  --accent: oklch(0.275 0.007 286);
   --accent-foreground: oklch(0.97 0.002 286);
 
   --destructive: oklch(0.58 0.2 25);
 
-  --border: oklch(0.26 0.007 286); /* zinc-800-ish hairline */
-  --input: oklch(0.26 0.007 286);
+  --border: oklch(0.285 0.007 286); /* hairline gray */
+  --input: oklch(0.285 0.007 286);
   --ring: oklch(0.546 0.245 262.88);
 
   /* Risk severity scale */
@@ -98,10 +98,10 @@
   --ok: oklch(0.7 0.15 155);
   --ok-foreground: oklch(0.16 0.02 155);
 
-  --sidebar: oklch(0.178 0.006 286); /* a step LIGHTER than the content */
+  --sidebar: oklch(0.198 0.006 286); /* a step LIGHTER than the content */
   --sidebar-foreground: oklch(0.92 0.002 286);
-  --sidebar-border: oklch(0.25 0.006 286);
-  --sidebar-accent: oklch(0.235 0.006 286);
+  --sidebar-border: oklch(0.275 0.006 286);
+  --sidebar-accent: oklch(0.255 0.006 286);
 }
 
 @layer base {
