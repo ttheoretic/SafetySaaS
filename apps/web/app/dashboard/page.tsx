@@ -1,12 +1,14 @@
 import { OverviewHeader } from '@/components/overview/overview-header'
 import { OverviewScore } from '@/components/overview/overview-score'
-import { PostureFunnel } from '@/components/overview/posture-funnel'
 import { KpiRow } from '@/components/overview/kpi-row'
+import { RiskTrendPanel } from '@/components/overview/risk-trend-panel'
 import {
   CriticalRisksPanel,
   RecentChangesPanel,
 } from '@/components/overview/overview-panels'
 
+// Dense overview: compact KPI strip, score + risk-over-time chart, then the
+// actionable lists. The severity breakdown lives on /risks (facets), not here.
 export default function OverviewPage() {
   return (
     <div className="flex h-full flex-col">
@@ -17,7 +19,7 @@ export default function OverviewPage() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_1fr]">
             <OverviewScore />
-            <PostureFunnel />
+            <RiskTrendPanel />
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

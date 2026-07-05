@@ -84,12 +84,12 @@ export function KpiRow() {
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 xl:grid-cols-6">
       {tiles.map((t) => (
-        <div key={t.label} className="bg-panel px-4 py-3">
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <t.icon className="size-3.5" />
+        <div key={t.label} className="bg-panel px-3 py-2">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <t.icon className="size-3" />
             {t.label}
           </div>
-          <div className={cn('mt-1 font-mono text-2xl font-semibold tabular-nums', t.tone)}>
+          <div className={cn('mt-0.5 font-mono text-lg font-semibold tabular-nums', t.tone)}>
             {t.value}
           </div>
         </div>
