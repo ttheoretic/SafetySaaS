@@ -43,9 +43,7 @@ export default function ResetPasswordPage() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 text-foreground">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
-            <RisclyMark className="size-4 text-primary" />
-          </div>
+          <RisclyMark className="size-7" />
           <span className="text-sm font-semibold">Riscly</span>
         </div>
         <h1 className="text-2xl font-semibold">Set a new password</h1>

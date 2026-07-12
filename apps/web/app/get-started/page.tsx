@@ -372,9 +372,7 @@ export default function GetStartedPage() {
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="flex h-16 items-center px-6">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary/15">
-            <RisclyMark className="size-4 text-primary" />
-          </div>
+          <RisclyMark className="size-7" />
           <span className="text-sm font-semibold">Riscly</span>
         </Link>
       </header>

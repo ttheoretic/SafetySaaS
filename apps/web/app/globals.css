@@ -68,8 +68,8 @@
   --popover: oklch(0.215 0.006 286);
   --popover-foreground: oklch(0.96 0.002 286);
 
-  --primary: oklch(0.546 0.245 262.88); /* blue-600 #2563EB — Lumyn-style blue */
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.94 0.002 286); /* neutral near-white — no blue accents in the app */
+  --primary-foreground: oklch(0.165 0.005 286);
 
   --secondary: oklch(0.265 0.006 286);
   --secondary-foreground: oklch(0.96 0.002 286);
@@ -84,7 +84,7 @@
 
   --border: oklch(0.285 0.007 286); /* hairline gray */
   --input: oklch(0.285 0.007 286);
-  --ring: oklch(0.546 0.245 262.88);
+  --ring: oklch(0.55 0.005 286);
 
   /* Risk severity scale */
   --critical: oklch(0.6 0.21 22);

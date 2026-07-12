@@ -82,9 +82,7 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background px-4 text-center text-foreground">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-primary/15">
-        <RisclyMark className="size-5 text-primary" />
-      </div>
+      <RisclyMark className="size-8" />
       {error ? (
         <>
           <p className="text-sm text-destructive">{error}</p>

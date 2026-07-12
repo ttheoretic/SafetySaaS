@@ -121,9 +121,7 @@ export function Sidebar() {
             title="Switch repository"
             className="flex items-center gap-2 rounded-md px-1 py-1 transition-colors hover:bg-sidebar-accent/60"
           >
-            <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <RisclyMark className="size-4" />
-            </div>
+            <RisclyMark className="size-6 shrink-0" />
             <span className="whitespace-nowrap font-semibold tracking-tight opacity-0 transition-opacity duration-150 group-hover/sb:opacity-100">
               Riscly
             </span>

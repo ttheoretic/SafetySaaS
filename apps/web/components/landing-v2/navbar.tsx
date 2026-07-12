@@ -15,7 +15,7 @@ export function Navbar() {
         <div className="w-full max-w-5xl flex items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2">
-              <RisclyMark className="w-5 h-5 text-blue-500" />
+              <RisclyMark className="w-5 h-5" />
               <span className="text-white font-semibold">Riscly</span>
             </Link>
             {/* Mega menu: Platform / Solutions / Resources + Docs / Pricing.

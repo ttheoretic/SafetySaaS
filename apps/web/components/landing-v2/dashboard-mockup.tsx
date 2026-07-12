@@ -65,7 +65,7 @@ export function DashboardMockup() {
         {/* Logo */}
         <div className="p-3 border-b border-zinc-800/50">
           <div className="flex items-center gap-2 px-2 py-1.5">
-            <RisclyMark className="w-5 h-5 text-blue-500" />
+            <RisclyMark className="w-5 h-5" />
             <span className="text-white font-semibold text-sm">Riscly</span>
             <ChevronDown className="w-3.5 h-3.5 text-zinc-500 ml-auto" />
           </div>

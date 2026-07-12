@@ -67,9 +67,7 @@ export function PortfolioView() {
       {/* slim launchpad header */}
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
         <div className="flex items-center gap-2">
-          <div className="flex size-6 items-center justify-center rounded-sm bg-primary text-primary-foreground">
-            <RisclyMark className="size-4" />
-          </div>
+          <RisclyMark className="size-6" />
           <span className="font-semibold tracking-tight">Riscly</span>
         </div>
         <div className="flex items-center gap-3">
