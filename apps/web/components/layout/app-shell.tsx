@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { Sidebar } from './sidebar'
 import { TopNav } from './top-nav'
+import { SectionTabs } from './section-tabs'
 import { PlanRouteGate } from './plan-route-gate'
 import { AuthGuard } from '@/components/auth/auth-guard'
 import { useActiveProjectStore } from '@/lib/active-project'
@@ -75,6 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col">
             <TopNav />
+            <SectionTabs />
             <main className="min-h-0 flex-1 overflow-hidden">
               <PlanRouteGate>{children}</PlanRouteGate>
             </main>

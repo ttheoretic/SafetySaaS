@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { ChangeInput, ChangedFile } from '@riscly/shared';
 import { Store } from '../store/store.module';
 import { SecretBox } from '../crypto/secret-box';
 
@@ -126,6 +127,76 @@ export class GithubService {
     }
     out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return out.slice(0, limit);
+  }
+
+  /**
+   * Recent commits enriched with the files each one touched — the input the
+   * Change Intelligence engine reasons over.
+   *
+   * GitHub only returns file lists on the single-commit endpoint, so this costs
+   * one extra request per commit. `limit` is deliberately small and capped by
+   * the caller; commits whose detail request fails degrade to an empty file
+   * list rather than failing the whole response.
+   */
+  async listChanges(
+    projectId: string,
+    orgId: string,
+    limit = 10,
+  ): Promise<ChangeInput[]> {
+    const ctx = await this.context(projectId, orgId);
+    if (!ctx) return [];
+    const commits = await this.listCommits(projectId, orgId, limit);
+    const out: ChangeInput[] = [];
+    for (const c of commits) {
+      out.push({
+        sha: c.sha,
+        message: c.message,
+        author: c.author,
+        repo: c.repo,
+        date: c.date,
+        url: c.url,
+        files: await this.commitFiles(ctx.token, c.repo, c.sha),
+      });
+    }
+    return out;
+  }
+
+  /** Files touched by one commit (empty when the detail request fails). */
+  private async commitFiles(
+    token: string,
+    repo: string,
+    sha: string,
+  ): Promise<ChangedFile[]> {
+    try {
+      const res = await this.fetchImpl(
+        `https://api.github.com/repos/${repo}/commits/${sha}`,
+        { headers: this.headers(token) },
+      );
+      if (!res.ok) return [];
+      const body = (await res.json()) as {
+        files?: Array<{
+          filename?: string;
+          status?: string;
+          additions?: number;
+          deletions?: number;
+          patch?: string;
+        }>;
+      };
+      return (body.files ?? [])
+        .filter((f) => f.filename)
+        .map((f) => ({
+          path: f.filename as string,
+          status: normalizeStatus(f.status),
+          additions: f.additions ?? 0,
+          deletions: f.deletions ?? 0,
+          // Patches are only needed for manifests and migrations; keeping the
+          // rest out keeps the payload small.
+          patch: keepPatch(f.filename as string) ? f.patch : undefined,
+        }));
+    } catch (err) {
+      this.logger.warn(`commitFiles ${repo}@${sha}: ${(err as Error).message}`);
+      return [];
+    }
   }
 
   /** Repos available to the connection (selected, else all discovered). */
@@ -334,4 +405,31 @@ export class GithubService {
       return null;
     }
   }
+}
+
+/** Map GitHub's file statuses onto the engine's smaller set. */
+function normalizeStatus(status?: string): ChangedFile['status'] {
+  switch (status) {
+    case 'added':
+    case 'removed':
+    case 'renamed':
+      return status;
+    case 'modified':
+    case 'changed':
+      return 'modified';
+    default:
+      return undefined;
+  }
+}
+
+/** Only manifests and migrations need their diff hunks kept. */
+function keepPatch(path: string): boolean {
+  const p = path.toLowerCase();
+  return (
+    /(^|\/)(package|composer)\.json$/.test(p) ||
+    /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|poetry\.lock)$/.test(p) ||
+    /(^|\/)(requirements\.txt|pyproject\.toml|go\.mod|gemfile|cargo\.toml)$/.test(p) ||
+    p.endsWith('.sql') ||
+    p.includes('migration')
+  );
 }

@@ -31,6 +31,10 @@ async function bootstrap() {
     .filter(Boolean);
   const app = await NestFactory.create(AppModule, {
     cors: origins.length ? { origin: origins, credentials: true } : true,
+    // Keep the untouched request body around for Stripe webhook signature
+    // verification. Nest wires this into its own parsers, so the parsed body
+    // stays available too.
+    rawBody: true,
   });
 
   // Baseline security headers (JSON API; no helmet dependency needed).
@@ -47,19 +51,6 @@ async function bootstrap() {
     next();
   });
 
-  // Capture the raw body for Stripe webhook signature verification.
-  app.use('/api/billing/webhook', (req: any, _res: any, next: any) => {
-    if (req.method !== 'POST') return next();
-    let data = '';
-    req.setEncoding('utf8');
-    req.on('data', (c: string) => (data += c));
-    req.on('end', () => {
-      req.rawBody = Buffer.from(data, 'utf8');
-      try { req.body = data ? JSON.parse(data) : {}; } catch { req.body = {}; }
-      next();
-    });
-    req.on('error', () => next());
-  });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),

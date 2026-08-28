@@ -484,6 +484,7 @@ model PlatformSetting {
 
 enum TriageStatus {
   open
+  in_progress
   false_positive
   accepted_risk
   resolved

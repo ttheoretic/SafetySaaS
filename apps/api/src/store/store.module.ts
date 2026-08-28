@@ -109,7 +109,12 @@ export interface PlatformSettingRecord {
   updatedAt: string;
 }
 
-export type TriageStatusValue = 'open' | 'false_positive' | 'accepted_risk' | 'resolved';
+export type TriageStatusValue =
+  | 'open'
+  | 'in_progress'
+  | 'false_positive'
+  | 'accepted_risk'
+  | 'resolved';
 
 export interface SuppressionRecord {
   id: string;

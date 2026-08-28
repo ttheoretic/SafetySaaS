@@ -6,22 +6,12 @@ import {
   LayoutDashboard,
   Network,
   FlaskConical,
-  Crosshair,
   ShieldAlert,
-  LockKeyhole,
-  CodeXml,
-  Boxes,
-  KeyRound,
-  Cloud,
-  Database,
-  Server,
-  ClipboardCheck,
+  WandSparkles,
   FileText,
-  ScrollText,
   Bot,
   Settings,
   Lock,
-  Activity,
   Search,
   ChevronDown,
   HelpCircle,
@@ -35,68 +25,55 @@ import { RisclyMark } from '@/components/brand/logo'
 type Child = { label: string; icon: LucideIcon; href: string; beta?: boolean }
 type Group = { id: string; label: string; children: Child[] }
 
-// Fixed section headers with all children always visible — no drilling, no
-// collapsing. Every entry links to a real route.
+/**
+ * The product's spine — deliberately five entries.
+ *
+ * Everything below a section (the inventories, the per-category risk views,
+ * code quality, the compliance pages) is reached through the section tab bar,
+ * so depth is one click away without the sidebar becoming a directory.
+ */
 const GROUPS: Group[] = [
   {
-    id: 'home',
-    label: 'Home',
+    id: 'main',
+    label: 'Workspace',
     children: [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-    ],
-  },
-  {
-    id: 'posture',
-    label: 'Posture',
-    children: [
       { label: 'Architecture', icon: Network, href: '/architecture' },
-      { label: 'Simulation', icon: FlaskConical, href: '/simulation' },
-      { label: 'Attack Paths', icon: Crosshair, href: '/attack-paths' },
+      { label: 'Risk Center', icon: ShieldAlert, href: '/risks' },
+      { label: 'AI Fixes', icon: WandSparkles, href: '/code' },
+      { label: 'Simulations', icon: FlaskConical, href: '/simulation' },
     ],
   },
   {
-    id: 'findings',
-    label: 'Findings',
+    id: 'evidence',
+    label: 'Evidence',
     children: [
-      { label: 'All Findings', icon: ShieldAlert, href: '/risks' },
-      { label: 'Security', icon: LockKeyhole, href: '/security' },
-      { label: 'Code (SAST)', icon: CodeXml, href: '/code' },
-      { label: 'Code Quality', icon: Activity, href: '/quality' },
-      { label: 'Dependencies', icon: Boxes, href: '/dependencies' },
-      { label: 'Secrets', icon: KeyRound, href: '/secrets' },
-    ],
-  },
-  {
-    id: 'inventory',
-    label: 'Inventory',
-    children: [
-      { label: 'Services', icon: Server, href: '/inventory/services' },
-      { label: 'Data Stores', icon: Database, href: '/inventory/data-stores' },
-      { label: 'Dependencies / SBOM', icon: Boxes, href: '/inventory/sbom' },
-      { label: 'Cloud Resources', icon: Cloud, href: '/inventory/cloud' },
-    ],
-  },
-  {
-    id: 'compliance',
-    label: 'Compliance',
-    children: [
-      { label: 'Frameworks', icon: ClipboardCheck, href: '/compliance/frameworks' },
-      { label: 'Reports & Export', icon: FileText, href: '/compliance/reports' },
-      { label: 'Audit Log', icon: ScrollText, href: '/compliance/audit' },
+      { label: 'Reports & Compliance', icon: FileText, href: '/compliance/reports' },
     ],
   },
 ]
 
 const UTILITIES: { label: string; icon: LucideIcon; href: string }[] = [
-  { label: 'AI Assistant', icon: Bot, href: '/assistant' },
+  { label: 'AI Risk Advisor', icon: Bot, href: '/assistant' },
   { label: 'Help & Support', icon: HelpCircle, href: '/docs/faq' },
   { label: 'Settings', icon: Settings, href: '/settings' },
 ]
 
 /**
- * Always-expanded sidebar in the landing-console style: brand + workspace
- * switcher on top, a ⌘K search field, grouped nav with a live findings badge,
- * and pinned utilities (help, settings) at the bottom.
+ * Which routes count as "inside" a section, so the spine entry stays
+ * highlighted while you move through that section's tab bar.
+ */
+const SECTION_PATHS: Record<string, string[]> = {
+  '/architecture': ['/architecture', '/changes', '/inventory'],
+  '/risks': ['/risks', '/security', '/dependencies', '/secrets', '/attack-paths'],
+  '/code': ['/code', '/quality'],
+  '/compliance/reports': ['/compliance'],
+}
+
+/**
+ * Collapsed 56px rail that expands on hover: brand + workspace switcher, a ⌘K
+ * search field, the five-entry product spine with a live findings badge, and
+ * pinned utilities (advisor, help, settings) at the bottom.
  */
 export function Sidebar() {
   const pathname = usePathname()
@@ -105,10 +82,10 @@ export function Sidebar() {
   const scan = useLatestScan(projectId)
   const openFindings = scan.data?.findings?.length ?? 0
 
-  const isActive = (href: string) =>
-    href === '/dashboard'
-      ? pathname === '/dashboard'
-      : pathname === href || pathname.startsWith(`${href}/`)
+  const isActive = (href: string) => {
+    const prefixes = SECTION_PATHS[href] ?? [href]
+    return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  }
 
   return (
     // Collapsed rail reserves 56px; the panel overlays and expands on hover.

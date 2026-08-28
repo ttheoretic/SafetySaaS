@@ -50,7 +50,7 @@ export type Risk = {
   /** Stable identity for triage/suppression (persists across re-scans). */
   fingerprint?: string
   /** Current triage decision, when the finding has been triaged. */
-  triage?: 'open' | 'false_positive' | 'accepted_risk' | 'resolved'
+  triage?: 'open' | 'in_progress' | 'false_positive' | 'accepted_risk' | 'resolved'
 }
 
 export const risks: Risk[] = [

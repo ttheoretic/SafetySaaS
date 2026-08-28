@@ -1,11 +1,19 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   buildRecommendations,
   findingFingerprint,
+  isSuppressed,
+  releaseReadiness,
+  revenueImpact,
+  securitySimulation,
+  simulateFailure,
+  type BusinessContext,
   type CodeIssue,
+  type Finding,
+  type ReadinessResult,
   type SystemGraph,
   type TriageStatus,
 } from '@riscly/shared'
@@ -424,6 +432,127 @@ export function useCommits() {
     queryFn: () => api.listCommits(projectId!),
     enabled: Boolean(token && projectId),
   })
+}
+
+/**
+ * Change Intelligence for the active project: the latest commits already
+ * analysed against the scanned architecture (risk verdict, signals, affected
+ * components, new dependencies).
+ */
+export function useChanges(limit = 10) {
+  const token = useAuth((s) => s.token)
+  const { projectId } = useActiveProject()
+  const q = useQuery({
+    queryKey: ['changes', projectId, limit],
+    queryFn: () => api.listChanges(projectId!, limit),
+    enabled: Boolean(token && projectId),
+    // Each commit costs a GitHub round-trip, so don't refetch on every focus.
+    staleTime: 5 * 60_000,
+  })
+  return {
+    changes: q.data?.changes ?? [],
+    scannedAt: q.data?.scannedAt ?? null,
+    loading: q.isLoading,
+    error: q.error as Error | null,
+  }
+}
+
+/**
+ * Release readiness for the active project — computed in the browser so it
+ * reacts to triage decisions immediately, from the same data the rest of the
+ * app already has loaded.
+ */
+export function useReleaseReadiness(): {
+  readiness: ReadinessResult
+  loading: boolean
+} {
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+  const { statusFor } = useTriage(projectId)
+  const { changes, loading: changesLoading } = useChanges(10)
+
+  const readiness = useMemo(() => {
+    const record = scan.data
+    const findings = (record?.findings ?? []) as unknown as Finding[]
+    const open = findings.filter(
+      (f) => !isSuppressed(statusFor(findingFingerprint(f)) as TriageStatus),
+    )
+    return releaseReadiness({
+      findings: open,
+      graph: record?.graph ?? null,
+      changes,
+      vulnerabilities: record?.graph?.vulnerabilities ?? [],
+      lastScanAt: record?.status === 'succeeded' ? record.createdAt : undefined,
+    })
+  }, [scan.data, statusFor, changes])
+
+  return { readiness, loading: scan.isLoading || changesLoading }
+}
+
+/** The project's business context (revenue, users), when the customer set it. */
+export function useBusiness() {
+  const token = useAuth((s) => s.token)
+  const { projectId } = useActiveProject()
+  const q = useQuery({
+    queryKey: ['business', projectId],
+    queryFn: () => api.getBusiness(projectId!),
+    enabled: Boolean(token && projectId),
+  })
+  return { business: (q.data as BusinessContext | null) ?? null, loading: q.isLoading }
+}
+
+/**
+ * The three headline scores plus the worst-case revenue exposure — everything
+ * the dashboard needs to answer "how healthy is my system?" in one glance.
+ *
+ * Reliability comes from the scan; security and the revenue figure are derived
+ * in the browser from the same graph the engines ran on, so they stay in sync
+ * with what the rest of the app shows.
+ */
+export function useRiskScores(): {
+  risk: number | null
+  security: number | null
+  reliability: number | null
+  /** Worst-case revenue lost in a one-hour outage of the most critical node. */
+  revenueAtRisk: { amount: number; currency: string; nodeName: string } | null
+  loading: boolean
+} {
+  const { projectId } = useActiveProject()
+  const scan = useLatestScan(projectId)
+  const { business } = useBusiness()
+  const graph = scan.data?.graph ?? null
+  const reliability =
+    typeof scan.data?.reliabilityScore === 'number' ? scan.data.reliabilityScore : null
+
+  const security = useMemo(
+    () => (graph && graph.nodes.length > 0 ? securitySimulation(graph).score : null),
+    [graph],
+  )
+
+  const revenueAtRisk = useMemo(() => {
+    if (!graph || !business?.monthlyRevenue) return null
+    // Knock out each component in turn and keep the most damaging one.
+    let worst: { sim: ReturnType<typeof simulateFailure>; node: string } | null = null
+    for (const n of graph.nodes) {
+      const sim = simulateFailure(graph, 'infra_server', { nodeId: n.id })
+      if (!worst || sim.blastRadius > worst.sim.blastRadius) worst = { sim, node: n.name }
+    }
+    if (!worst) return null
+    const impact = revenueImpact(worst.sim, business, 1)
+    return {
+      amount: impact.totalImpact,
+      currency: impact.currency,
+      nodeName: worst.node,
+    }
+  }, [graph, business])
+
+  return {
+    risk: reliability === null ? null : Math.max(0, Math.min(100, Math.round(100 - reliability))),
+    security,
+    reliability: reliability === null ? null : Math.round(reliability),
+    revenueAtRisk,
+    loading: scan.isLoading,
+  }
 }
 
 /** Human "x minutes ago" for a scan timestamp. */

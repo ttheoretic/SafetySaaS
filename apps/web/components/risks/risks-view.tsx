@@ -30,6 +30,13 @@ const sevDot: Record<Severity, string> = {
 /** Datadog-style status chip for one risk: open critical/high alert loudly,
  *  medium warns, low is quiet, suppressed shows its triage label. */
 function StatusChip({ risk }: { risk: Risk & { triage?: TriageStatus } }) {
+  if (risk.triage === 'in_progress') {
+    return (
+      <span className="rounded-[4px] border border-border bg-secondary px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-foreground">
+        In progress
+      </span>
+    )
+  }
   if (risk.triage && isSuppressed(risk.triage)) {
     const ok = risk.triage === 'resolved'
     return (
@@ -144,6 +151,7 @@ export function RisksView() {
     [rawRisks, statusFor],
   )
   const open = useMemo(() => risks.filter((r) => !isSuppressed(r.triage)), [risks])
+  const inProgress = useMemo(() => risks.filter((r) => r.triage === 'in_progress'), [risks])
   const resolved = risks.length - open.length
 
   const sevCounts = useMemo(() => {
@@ -177,6 +185,7 @@ export function RisksView() {
         const suppressed = isSuppressed(r.triage)
         if (statusFilter.size === 0) return !suppressed // default: open only
         if (statusFilter.has('open') && !suppressed) return true
+        if (statusFilter.has('in_progress') && r.triage === 'in_progress') return true
         if (statusFilter.has('triaged') && suppressed) return true
         return false
       })
@@ -205,7 +214,7 @@ export function RisksView() {
   return (
     <div className="flex h-full flex-col">
       <ScreenHeader
-        title="Risks"
+        title="Risk Center"
         subtitle={`${open.length} open · ${sevCounts.critical} critical · ${sevCounts.high} high`}
       />
 
@@ -323,6 +332,12 @@ export function RisksView() {
               count={open.length}
               checked={statusFilter.size === 0 || statusFilter.has('open')}
               onToggle={() => toggle(statusFilter, 'open', setStatusFilter)}
+            />
+            <FacetRow
+              label="In progress"
+              count={inProgress.length}
+              checked={statusFilter.has('in_progress')}
+              onToggle={() => toggle(statusFilter, 'in_progress', setStatusFilter)}
             />
             <FacetRow
               label="Triaged"

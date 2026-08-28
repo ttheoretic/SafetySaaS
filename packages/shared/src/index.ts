@@ -8,6 +8,8 @@ export * from './simulation';
 export * from './revenue';
 export * from './security';
 export * from './recommendations';
+export * from './change';
+export * from './readiness';
 export * from './knowledge';
 export * from './prediction';
 export * from './scenario';

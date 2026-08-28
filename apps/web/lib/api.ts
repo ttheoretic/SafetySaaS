@@ -7,6 +7,7 @@ import type {
   Plan,
   GraphOverlay,
   TriageStatus,
+  ChangeAnalysis,
 } from '@riscly/shared';
 
 import { currentAuth, handleUnauthorized } from './auth-store';
@@ -258,6 +259,11 @@ export const api = {
         url: string
       }>
     >(`/projects/${projectId}/commits?limit=${limit}`),
+  /** Recent commits analysed against the mapped architecture. */
+  listChanges: (projectId: string, limit = 10) =>
+    get<{ scannedAt: string | null; changes: ChangeAnalysis[] }>(
+      `/projects/${projectId}/changes?limit=${limit}`,
+    ),
   /** Repo file tree (blob paths) for the code explorer. */
   listFiles: (projectId: string, repo?: string) =>
     get<{

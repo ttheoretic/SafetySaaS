@@ -462,7 +462,13 @@ export function RiskInspector({
   )
 }
 
-const TRIAGE_OPTIONS: TriageStatus[] = ['open', 'false_positive', 'accepted_risk', 'resolved']
+const TRIAGE_OPTIONS: TriageStatus[] = [
+  'open',
+  'in_progress',
+  'false_positive',
+  'accepted_risk',
+  'resolved',
+]
 
 /** Lets the user triage a finding (false positive / accepted risk / resolved);
  *  the decision persists across re-scans and silences alerts. */

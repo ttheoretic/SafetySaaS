@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { CodeIssue, Finding, Severity, SystemGraph } from '@riscly/shared';
-import { planLimits } from '@riscly/shared';
+import { analyzeChanges, planLimits } from '@riscly/shared';
 import { Store, StoreModule } from '../store/store.module';
 import { Auth, AuthContext, RequirePermission } from '../auth/auth-context';
 import { AuthModule } from '../auth/auth.module';
@@ -380,6 +380,31 @@ class GithubController {
   ) {
     const n = Math.min(Math.max(Number(limit) || 10, 1), 30);
     return this.github.listCommits(projectId, auth.org.id, n);
+  }
+
+  /**
+   * Change Intelligence: the latest commits, analysed against the architecture
+   * from the most recent scan. Answers "is this change safe for the system we
+   * already mapped?" rather than just listing what happened.
+   */
+  @Get('changes')
+  @RequirePermission('project:read')
+  async changes(
+    @Auth() auth: AuthContext,
+    @Param('projectId') projectId: string,
+    @Query('limit') limit?: string,
+  ) {
+    // Each commit costs an extra GitHub request for its file list, so the
+    // window stays small.
+    const n = Math.min(Math.max(Number(limit) || 10, 1), 20);
+    const inputs = await this.github.listChanges(projectId, auth.org.id, n);
+    const scans = await this.store.listScans(projectId);
+    const latest = scans.find((s) => s.status === 'succeeded') ?? scans[0];
+    const graph = (latest?.graph as SystemGraph | undefined) ?? null;
+    return {
+      scannedAt: latest?.createdAt ?? null,
+      changes: analyzeChanges(inputs, graph),
+    };
   }
 
   /** The file tree (blob paths) for a repo, for the code explorer. */

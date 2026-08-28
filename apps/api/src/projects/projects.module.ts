@@ -30,8 +30,8 @@ class BusinessContextDto {
 
 class TriageDto {
   @IsString() @Length(1, 64) fingerprint!: string;
-  @IsIn(['open', 'false_positive', 'accepted_risk', 'resolved'])
-  status!: 'open' | 'false_positive' | 'accepted_risk' | 'resolved';
+  @IsIn(['open', 'in_progress', 'false_positive', 'accepted_risk', 'resolved'])
+  status!: 'open' | 'in_progress' | 'false_positive' | 'accepted_risk' | 'resolved';
   @IsOptional() @IsString() @Length(0, 1000) note?: string;
 }
 
