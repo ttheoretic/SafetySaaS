@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { exampleGraph, Prediction } from '@riscly/shared';
 import { PredictionService } from './prediction.service';
-import { AiProvider, PredictRequest } from './ai-provider';
+import { AiProvider, AnalyzedIssue, PredictRequest } from './ai-provider';
 import { NullAiProvider } from './null.provider';
 
+/** Only the prediction path matters here; the code-analysis members of the
+ *  provider contract are stubbed so the fake stays a valid AiProvider. */
 class FakeAiProvider implements AiProvider {
   readonly name = 'fake';
   readonly enabled = true;
@@ -13,6 +15,15 @@ class FakeAiProvider implements AiProvider {
   }
   async chat(): Promise<string> {
     return 'fake';
+  }
+  async generateCodeFix(): Promise<null> {
+    return null;
+  }
+  async analyzeCode(): Promise<AnalyzedIssue[]> {
+    return [];
+  }
+  async analyzeMaintainability(): Promise<AnalyzedIssue[]> {
+    return [];
   }
 }
 
