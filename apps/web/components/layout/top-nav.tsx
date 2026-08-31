@@ -20,23 +20,21 @@ import { useAuth } from '@/lib/auth-store'
 import {
   useProjects,
   useActiveProject,
-  useReliability,
+  useRiskPosture,
   useAddRepository,
 } from '@/lib/use-project-data'
 import { useActiveProjectStore } from '@/lib/active-project'
+import type { RiskBand } from '@riscly/shared'
 import { cn } from '@/lib/utils'
 
-function RiskScore({ score }: { score: number | null }) {
-  const band =
-    score == null
-      ? 'low'
-      : score >= 75
-        ? 'critical'
-        : score >= 50
-          ? 'high'
-          : score >= 25
-            ? 'medium'
-            : 'low'
+/**
+ * The application's risk posture, always visible.
+ *
+ * Same score and band as the dashboard — the product must never quote two
+ * different numbers for the state of one application.
+ */
+function RiskScore({ score, band }: { score: number | null; band: RiskBand }) {
+  // A posture score is health, so the band (not the number) picks the colour.
   const color = {
     critical: 'text-critical',
     high: 'text-high',
@@ -64,7 +62,7 @@ function RiskScore({ score }: { score: number | null }) {
       </div>
       <div className="leading-none">
         <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-          Risk
+          Posture
         </div>
         <div className={cn('font-mono text-sm font-semibold', color)}>
           {score == null ? '—' : score}
@@ -81,16 +79,11 @@ export function TopNav() {
   const projects = useProjects()
   const { project } = useActiveProject()
   const setActiveProject = useActiveProjectStore((s) => s.setActiveProject)
-  const { score: reliability } = useReliability()
+  const { posture } = useRiskPosture()
 
   const me = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: Boolean(token) })
   const list = projects.data ?? []
 
-  // Top-bar risk = inverse of reliability (higher reliability = lower risk).
-  const riskScore =
-    reliability == null
-      ? null
-      : Math.max(0, Math.min(100, 100 - Math.round(reliability)))
   const activeName = project?.name ?? 'No repository'
 
   return (
@@ -173,7 +166,7 @@ export function TopNav() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <RiskScore score={riskScore} />
+        <RiskScore score={posture.score} band={posture.band} />
 
         {me.data?.platformAdmin && (
           <Link

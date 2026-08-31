@@ -128,6 +128,18 @@ export interface SuppressionRecord {
   updatedAt: string;
 }
 
+/** One validation run: findings re-tested against the live sources. */
+export interface ValidationRunRecord {
+  id: string;
+  orgId: string;
+  projectId: string;
+  startedAt: string;
+  finishedAt?: string;
+  /** ValidationCheck[] from @riscly/shared — stored as JSON. */
+  checks: unknown[];
+  actorUserId?: string;
+}
+
 export interface OrganizationRecord {
   id: string;
   name: string;
@@ -283,6 +295,16 @@ export abstract class Store {
   abstract setSuppression(
     input: Omit<SuppressionRecord, 'id' | 'createdAt' | 'updatedAt'>,
   ): Promise<SuppressionRecord>;
+
+  // --- Validation runs (test history) --------------------------------------
+  /** Runs for a project, newest first. */
+  abstract listValidationRuns(
+    projectId: string,
+    limit?: number,
+  ): Promise<ValidationRunRecord[]>;
+  abstract createValidationRun(
+    input: Omit<ValidationRunRecord, 'id'>,
+  ): Promise<ValidationRunRecord>;
 }
 
 @Injectable()
@@ -579,6 +601,20 @@ export class InMemoryStore extends Store {
   }
   async listSettings() {
     return [...this.settings.values()];
+  }
+
+  private validationRuns = new Map<string, ValidationRunRecord>();
+
+  async listValidationRuns(projectId: string, limit = 20) {
+    return [...this.validationRuns.values()]
+      .filter((r) => r.projectId === projectId)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .slice(0, limit);
+  }
+  async createValidationRun(input: Omit<ValidationRunRecord, 'id'>) {
+    const record: ValidationRunRecord = { id: randomUUID(), ...input };
+    this.validationRuns.set(record.id, record);
+    return record;
   }
 
   async listSuppressions(projectId: string) {

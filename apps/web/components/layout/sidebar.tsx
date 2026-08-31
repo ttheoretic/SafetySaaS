@@ -8,13 +8,16 @@ import {
   FlaskConical,
   ShieldAlert,
   WandSparkles,
+  GitCommitHorizontal,
+  ClipboardCheck,
+  Rocket,
   FileText,
+  Plug,
   Bot,
   Settings,
   Lock,
   Search,
   ChevronDown,
-  HelpCircle,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -34,28 +37,43 @@ type Group = { id: string; label: string; children: Child[] }
  */
 const GROUPS: Group[] = [
   {
-    id: 'main',
-    label: 'Workspace',
+    id: 'overview',
+    label: 'Overview',
     children: [
       { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
       { label: 'Architecture', icon: Network, href: '/architecture' },
-      { label: 'Risk Center', icon: ShieldAlert, href: '/risks' },
-      { label: 'AI Fixes', icon: WandSparkles, href: '/code' },
-      { label: 'Simulations', icon: FlaskConical, href: '/simulation' },
+      { label: 'Risks', icon: ShieldAlert, href: '/risks' },
     ],
   },
   {
-    id: 'evidence',
-    label: 'Evidence',
+    id: 'development',
+    label: 'Development',
     children: [
-      { label: 'Reports & Compliance', icon: FileText, href: '/compliance/reports' },
+      { label: 'Changes', icon: GitCommitHorizontal, href: '/changes' },
+      { label: 'AI Fixes', icon: WandSparkles, href: '/code' },
+    ],
+  },
+  {
+    id: 'validation',
+    label: 'Validation',
+    children: [
+      { label: 'Simulations', icon: FlaskConical, href: '/simulation' },
+      { label: 'Tests', icon: ClipboardCheck, href: '/tests' },
+    ],
+  },
+  {
+    id: 'release',
+    label: 'Release',
+    children: [
+      { label: 'Release Readiness', icon: Rocket, href: '/release' },
     ],
   },
 ]
 
 const UTILITIES: { label: string; icon: LucideIcon; href: string }[] = [
-  { label: 'AI Risk Advisor', icon: Bot, href: '/assistant' },
-  { label: 'Help & Support', icon: HelpCircle, href: '/docs/faq' },
+  { label: 'AI Advisor', icon: Bot, href: '/assistant' },
+  { label: 'Reports', icon: FileText, href: '/compliance/reports' },
+  { label: 'Integrations', icon: Plug, href: '/integrations' },
   { label: 'Settings', icon: Settings, href: '/settings' },
 ]
 
@@ -64,16 +82,21 @@ const UTILITIES: { label: string; icon: LucideIcon; href: string }[] = [
  * highlighted while you move through that section's tab bar.
  */
 const SECTION_PATHS: Record<string, string[]> = {
-  '/architecture': ['/architecture', '/changes', '/inventory'],
-  '/risks': ['/risks', '/security', '/dependencies', '/secrets', '/attack-paths'],
+  '/architecture': ['/architecture', '/inventory', '/attack-paths'],
+  '/risks': ['/risks', '/security', '/dependencies', '/secrets'],
   '/code': ['/code', '/quality'],
   '/compliance/reports': ['/compliance'],
+  '/integrations': ['/integrations'],
 }
 
 /**
- * Collapsed 56px rail that expands on hover: brand + workspace switcher, a ⌘K
- * search field, the five-entry product spine with a live findings badge, and
- * pinned utilities (advisor, help, settings) at the bottom.
+ * Collapsed 56px rail that expands on hover.
+ *
+ * The groups follow the product lifecycle rather than the feature list:
+ * understand the application (Overview), watch it change (Development),
+ * validate assumptions (Validation), then decide whether to ship (Release).
+ * Everything category-specific — security, AI security, reliability — is a
+ * dimension inside Risks, not a page of its own.
  */
 export function Sidebar() {
   const pathname = usePathname()

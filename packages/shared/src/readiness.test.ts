@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { releaseReadiness, type ReadinessInput } from './readiness';
 import { analyzeChange } from './change';
+import { riskPosture } from './posture';
 import { exampleGraph } from './fixtures';
 import type { Finding } from './findings';
 
@@ -159,5 +160,72 @@ describe('releaseReadiness', () => {
     );
     expect(r.score).toBeGreaterThanOrEqual(0);
     expect(r.blockers[0].severity).toBe('critical');
+  });
+});
+
+describe('release gates', () => {
+  const posture = riskPosture({
+    findings: [
+      { category: 'security', severity: 'critical', title: 'Leaked key', description: '', weight: 20 },
+      { category: 'spof', severity: 'high', title: 'No replica', description: '', weight: 14 },
+    ],
+    graph: exampleGraph,
+    quality: { filesAnalyzed: 10, avgScore: 20, hotspotCount: 1, totalTodos: 2 },
+  });
+
+  it('fails the dimension that holds a critical risk and warns on high', () => {
+    const r = releaseReadiness(input({ findings: [finding()], posture }));
+    const security = r.gates.find((g) => g.dimension === 'security')!;
+    const reliability = r.gates.find((g) => g.dimension === 'reliability')!;
+    expect(security.status).toBe('fail');
+    expect(reliability.status).toBe('warning');
+  });
+
+  it('passes a clean, measured dimension', () => {
+    const r = releaseReadiness(input({ posture }));
+    expect(r.gates.find((g) => g.dimension === 'architecture')!.status).toBe('pass');
+  });
+
+  it('warns rather than passes when a dimension was never measured', () => {
+    const r = releaseReadiness(input({ posture }));
+    const ai = r.gates.find((g) => g.dimension === 'ai_security')!;
+    expect(ai.status).toBe('warning');
+    expect(ai.detail).toContain('No AI components');
+  });
+
+  it('always reports the critical-risk and change gates', () => {
+    const r = releaseReadiness(input({ posture }));
+    expect(r.gates.map((g) => g.dimension)).toContain('critical_risks');
+    expect(r.gates.map((g) => g.dimension)).toContain('changes');
+  });
+
+  it('returns no gates before the first scan', () => {
+    expect(releaseReadiness(input({ lastScanAt: undefined })).gates).toEqual([]);
+  });
+});
+
+describe('gate/verdict coherence', () => {
+  it('blocks when any dimension holds a critical risk, not just security', () => {
+    const backupGap = finding({
+      category: 'backup',
+      severity: 'critical',
+      title: 'PostgreSQL has no backups configured',
+    });
+    const r = releaseReadiness(input({ findings: [backupGap] }));
+    expect(r.verdict).toBe('blocked');
+    expect(r.blockers.some((b) => b.severity === 'critical')).toBe(true);
+  });
+
+  it('never reports a FAIL gate while claiming nothing is blocking', () => {
+    const posture = riskPosture({
+      findings: [finding({ category: 'spof', severity: 'critical', title: 'No replica' })],
+      graph: exampleGraph,
+    });
+    const r = releaseReadiness(input({
+      findings: [finding({ category: 'spof', severity: 'critical', title: 'No replica' })],
+      posture,
+    }));
+    const failing = r.gates.filter((g) => g.status === 'fail');
+    if (failing.length > 0) expect(r.blockers.length).toBeGreaterThan(0);
   });
 });

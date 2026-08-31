@@ -16,9 +16,19 @@ export type NodeKind =
   | 'external_api'
   | 'cdn'
   | 'dns'
-  | 'storage';
+  | 'storage'
+  /** An LLM/model endpoint the application calls (OpenAI, Anthropic, …). */
+  | 'ai_model'
+  /** Application code that lets a model act: tool calling, autonomous loops. */
+  | 'ai_agent'
+  /** Embedding/vector store backing retrieval for a model. */
+  | 'vector_store';
 
 export type ProviderId =
+  | 'anthropic'
+  | 'google_ai'
+  | 'mistral'
+  | 'cohere'
   | 'github'
   | 'gitlab'
   | 'bitbucket'

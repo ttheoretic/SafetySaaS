@@ -26,7 +26,7 @@ const PLATFORM: Item[] = [
 const SOLUTIONS: Item[] = [
   { icon: Code2, title: 'For Engineering teams', desc: 'Ship faster without flying blind — see your whole system at a glance.', href: '/solutions/engineering' },
   { icon: Lock, title: 'For Security teams', desc: 'Find, prioritize and remediate real, reachable risk — not noise.', href: '/solutions/security-teams' },
-  { icon: Building2, title: 'For Founders & CTOs', desc: 'Reliability and revenue-at-risk in plain business terms.', href: '/solutions/founders' },
+  { icon: Building2, title: 'For Founders & CTOs', desc: 'Risk posture and fragile paths in plain business terms.', href: '/solutions/founders' },
   { icon: ClipboardCheck, title: 'Compliance & Audit', desc: 'A full activity trail and exportable posture for reviews.', href: '/solutions/compliance' },
   { icon: AlertTriangle, title: 'Incident prevention', desc: 'Surface fragile, complex code before it turns into an outage.', href: '/solutions/incident-prevention' },
 ]

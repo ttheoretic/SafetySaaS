@@ -6,6 +6,7 @@ import type {
   CodeIssue,
   ProviderId,
   QualityHotspot,
+  AiComponentSignal,
 } from '@riscly/shared';
 import type { ConnectionRecord } from '../../store/store.module';
 import { ProviderCollector, CollectorContext, resilientFetch, filterByEntitlements } from './collector';
@@ -259,6 +260,7 @@ export class GithubCollector implements ProviderCollector {
     let codeFindings: Finding[] | undefined;
     let codeIssues: CodeIssue[] | undefined;
     let qualityHotspots: QualityHotspot[] | undefined;
+    let aiComponents: AiComponentSignal[] | undefined;
     if (ctx.token) {
       // Deep analysis is plan-gated: SCA and code/secret analysis unlock on
       // growth+. Undefined entitlements default to enabled (tests / public path).
@@ -291,6 +293,8 @@ export class GithubCollector implements ProviderCollector {
         ctx.entitlements,
       );
       qualityHotspots = code?.hotspots?.map((h) => ({ ...h, repo }));
+      // Drop the evidence files — the graph only needs the component itself.
+      aiComponents = code?.aiComponents?.map(({ files: _files, ...c }) => c);
     }
 
     // Skip a repo only when there's genuinely nothing to say about it.
@@ -313,6 +317,7 @@ export class GithubCollector implements ProviderCollector {
       ...(components && components.length ? { components } : {}),
       ...(codeFindings && codeFindings.length ? { codeFindings } : {}),
       ...(qualityHotspots && qualityHotspots.length ? { qualityHotspots } : {}),
+      ...(aiComponents && aiComponents.length ? { aiComponents } : {}),
     };
   }
 

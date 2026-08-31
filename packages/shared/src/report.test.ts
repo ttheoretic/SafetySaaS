@@ -5,12 +5,15 @@ import { exampleGraph, exampleBusiness } from './fixtures';
 const NOW = '2026-06-14T00:00:00.000Z';
 
 describe('report engine', () => {
-  it('builds an executive report with scores and worst-case exposure', () => {
+  it('builds an executive report with scores and the worst-case blast radius', () => {
     const r = buildReport(exampleGraph, exampleBusiness, 'executive', { now: NOW });
     expect(r.title).toContain('Executive');
     expect(r.reliabilityScore).toBeGreaterThanOrEqual(0);
     const summary = r.sections.find((s) => s.heading === 'Executive Summary');
-    expect(summary?.lines.some((l) => l.label === 'Worst-case 1h revenue exposure')).toBe(true);
+    // Impact is expressed as blast radius, never as a money estimate: an outage
+    // cost derived from a dependency graph would be a guess dressed as a fact.
+    expect(summary?.lines.some((l) => l.label === 'Worst-case blast radius')).toBe(true);
+    expect(summary?.lines.some((l) => /revenue|€|\$/i.test(l.label + l.text))).toBe(false);
   });
 
   it('a CTO report includes architecture and predictions', () => {

@@ -28,6 +28,8 @@ export type Risk = {
   id: string
   title: string
   category: RiskCategory
+  /** Which risk dimension this rolls up into (security, ai_security, …). */
+  dimension?: import('@riscly/shared').RiskDimension
   severity: Severity
   description: string
   impact: string
@@ -215,7 +217,7 @@ export const risks: Risk[] = [
 export type ServiceNode = {
   id: string
   label: string
-  type: 'service' | 'database' | 'queue' | 'gateway' | 'external'
+  type: 'service' | 'database' | 'queue' | 'gateway' | 'external' | 'ai'
   x: number
   y: number
   severity: Severity | 'ok'

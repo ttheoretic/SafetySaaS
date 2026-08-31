@@ -38,6 +38,18 @@ export interface RepoSignals {
   codeIssues?: import('../findings').CodeIssue[];
   /** Maintainability hotspots (future-problem signals). */
   qualityHotspots?: import('../model').QualityHotspot[];
+  /** AI dependencies found in the code: models the app calls, agents that can
+   *  act on its behalf, and the vector stores backing retrieval. */
+  aiComponents?: AiComponentSignal[];
+}
+
+/** An AI dependency discovered by reading a repo's source. */
+export interface AiComponentSignal {
+  /** Stable id, e.g. 'ai-openai' — shared across repos so it merges. */
+  id: string;
+  kind: 'ai_model' | 'ai_agent' | 'vector_store';
+  name: string;
+  provider?: ProviderId;
 }
 
 /** A cloud/hosting account and its notable resources. */

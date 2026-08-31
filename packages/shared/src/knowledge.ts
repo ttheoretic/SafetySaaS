@@ -46,6 +46,18 @@ export const KNOWLEDGE: Record<FindingCategory, KnowledgeRef[]> = {
   vendor_lock_in: [
     { title: 'Avoiding vendor lock-in', source: 'CNCF', url: 'https://www.cncf.io/blog/2022/04/13/avoiding-vendor-lock-in/' },
   ],
+  ai_security: [
+    { title: 'OWASP Top 10 for LLM Applications', source: 'OWASP', url: 'https://owasp.org/www-project-top-10-for-large-language-model-applications/' },
+    { title: 'Prompt injection & excessive agency', source: 'OWASP LLM01 / LLM06', url: 'https://genai.owasp.org/llmrisk/llm01-prompt-injection/' },
+  ],
+  architecture: [
+    { title: 'Loose coupling between components', source: 'AWS Well-Architected', url: 'https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_prevent_interaction_failure_loosely_coupled_system.html' },
+    { title: 'Cascading failure', source: 'Google SRE Book', url: 'https://sre.google/sre-book/addressing-cascading-failures/' },
+  ],
+  quality: [
+    { title: 'Refactoring complex code safely', source: 'Martin Fowler', url: 'https://refactoring.com/' },
+    { title: 'Managing technical debt', source: 'Google Engineering Practices', url: 'https://google.github.io/eng-practices/' },
+  ],
 };
 
 export function referencesFor(category: FindingCategory): KnowledgeRef[] {

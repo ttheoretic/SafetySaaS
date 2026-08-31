@@ -55,6 +55,29 @@ const VERIFIERS: Record<string, Verifier> = {
   },
 };
 
+/**
+ * Re-test a single line for a live credential.
+ *
+ * Returns `true` when the provider accepts it, `false` when a token is present
+ * but rejected, and `null` when the line no longer contains a token we can
+ * recognise — the three states a validation run needs to tell apart.
+ */
+export async function verifySecretToken(
+  rule: string,
+  line: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean | null> {
+  const v = VERIFIERS[rule];
+  if (!v) return null;
+  const m = line.match(v.extract);
+  if (!m) return null;
+  try {
+    return await v.check(m[1], fetchImpl);
+  } catch {
+    return false;
+  }
+}
+
 /** Verify any secret issues in place, upgrading confirmed-live ones to critical
  *  `verified`. Mutates the passed issues. */
 export async function verifySecrets(

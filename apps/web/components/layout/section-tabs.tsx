@@ -12,10 +12,9 @@ type Section = { id: string; tabs: Tab[] }
 /**
  * The second navigation level.
  *
- * The sidebar carries only the product's spine (Dashboard, Architecture, Risk
- * Center, AI Fixes, Simulations). Everything underneath a section lives here,
- * so depth is reachable without turning the sidebar into a directory: you go
- * to Architecture, and the graph, the changes and the inventories are tabs.
+ * The sidebar carries the lifecycle; this carries the depth underneath each
+ * step, so the rail never becomes a directory. Go to Architecture and the
+ * graph, the inventories and the attack paths are tabs of the same place.
  *
  * Order matters — the first tab whose prefix matches the current path decides
  * which section is shown, and longer prefixes are checked first.
@@ -25,21 +24,23 @@ const SECTIONS: Section[] = [
     id: 'architecture',
     tabs: [
       { label: 'Graph', href: '/architecture' },
-      { label: 'Changes', href: '/changes' },
       { label: 'Services', href: '/inventory/services' },
       { label: 'Data stores', href: '/inventory/data-stores' },
       { label: 'Cloud', href: '/inventory/cloud' },
+      { label: 'Attack paths', href: '/attack-paths' },
       { label: 'SBOM', href: '/inventory/sbom' },
     ],
   },
   {
+    // Risk categories are dimensions *inside* the Risk Center; these tabs are
+    // the views that genuinely do more than filter — grouped vulnerabilities,
+    // advisory detail, live secret verification.
     id: 'risk',
     tabs: [
       { label: 'All risks', href: '/risks' },
-      { label: 'Security', href: '/security' },
+      { label: 'Security posture', href: '/security' },
       { label: 'Dependencies', href: '/dependencies' },
       { label: 'Secrets', href: '/secrets' },
-      { label: 'Attack paths', href: '/attack-paths' },
     ],
   },
   {
@@ -50,7 +51,7 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    id: 'compliance',
+    id: 'reports',
     tabs: [
       { label: 'Reports & export', href: '/compliance/reports' },
       { label: 'Frameworks', href: '/compliance/frameworks' },

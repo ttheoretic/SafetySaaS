@@ -17,6 +17,8 @@ import { AuditService } from '../auth/audit.service';
 import { BillingService } from '../billing/billing.service';
 import { ScanProcessor } from './scan.processor';
 import { MonitoringService } from './monitoring.service';
+import { GithubModule } from '../github/github.module';
+import { ValidationService } from './validation.service';
 
 class StartScanDto {
   /** Optional pre-built graph (skips the scanner entirely). */
@@ -220,9 +222,31 @@ class ScansController {
   }
 }
 
+/**
+ * Validation runs — re-testing open findings against the live sources so the
+ * risk posture reflects what is still true, not what a scan once saw.
+ */
+@Controller('projects/:projectId/validations')
+class ValidationController {
+  constructor(private readonly validation: ValidationService) {}
+
+  @Get()
+  @RequirePermission('project:read')
+  async list(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
+    await this.validation.assertAccess(projectId, auth.org.id);
+    return this.validation.history(projectId);
+  }
+
+  @Post()
+  @RequirePermission('scan:run')
+  async run(@Auth() auth: AuthContext, @Param('projectId') projectId: string) {
+    return this.validation.run(projectId, auth.org.id, auth.user.id);
+  }
+}
+
 @Module({
-  imports: [StoreModule, AnalyzeModule, AiModule, ScannerModule],
-  controllers: [ScansController],
-  providers: [ScanProcessor, MonitoringService],
+  imports: [StoreModule, AnalyzeModule, AiModule, ScannerModule, GithubModule],
+  controllers: [ScansController, ValidationController],
+  providers: [ScanProcessor, MonitoringService, ValidationService],
 })
 export class ScansModule {}

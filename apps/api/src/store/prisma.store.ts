@@ -4,7 +4,7 @@ import {
   Store, ProjectRecord, ScanRecord, ConnectionRecord, UserRecord,
   OrganizationRecord, SubscriptionRecord, MembershipRecord, AuditLogRecord,
   ScenarioRecord, InvitationRecord, FeedbackRecord, AiUsageRecord,
-  AdminLogRecord, PlatformSettingRecord, SuppressionRecord,
+  AdminLogRecord, PlatformSettingRecord, SuppressionRecord, ValidationRunRecord,
 } from './store.module';
 
 /**
@@ -572,6 +572,38 @@ export class PrismaStore extends Store {
       id: r.id, orgId: r.orgId, projectId: r.projectId, fingerprint: r.fingerprint,
       status: r.status, note: r.note ?? undefined, actorUserId: r.actorUserId ?? undefined,
       createdAt: r.createdAt.toISOString(), updatedAt: r.updatedAt.toISOString(),
+    };
+  }
+
+  // --- Validation runs ---
+  async listValidationRuns(projectId: string, limit = 20) {
+    const rows = await this.prisma.validationRun.findMany({
+      where: { projectId },
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+    });
+    return rows.map((r) => this.toValidationRun(r));
+  }
+  async createValidationRun(input: Omit<ValidationRunRecord, 'id'>) {
+    const row = await this.prisma.validationRun.create({
+      data: {
+        orgId: input.orgId,
+        projectId: input.projectId,
+        startedAt: new Date(input.startedAt),
+        finishedAt: input.finishedAt ? new Date(input.finishedAt) : null,
+        checks: input.checks as any,
+        actorUserId: input.actorUserId,
+      },
+    });
+    return this.toValidationRun(row);
+  }
+  private toValidationRun(r: any): ValidationRunRecord {
+    return {
+      id: r.id, orgId: r.orgId, projectId: r.projectId,
+      startedAt: r.startedAt.toISOString(),
+      finishedAt: r.finishedAt ? r.finishedAt.toISOString() : undefined,
+      checks: (r.checks ?? []) as unknown[],
+      actorUserId: r.actorUserId ?? undefined,
     };
   }
 }

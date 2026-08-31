@@ -54,8 +54,9 @@ export default function ProjectsApi() {
 
       <H2 id="business">Business context</H2>
       <P>
-        Revenue and usage that drive money-denominated impact (see{' '}
-        <A href="/docs/guides/reliability">Reliability &amp; simulation</A>).
+        Optional business context for API consumers that want to compute their own impact estimates
+        (see <A href="/docs/guides/reliability">Reliability &amp; simulation</A>). Not surfaced in the
+        Riscly UI.
       </P>
       <Endpoint method="GET" path="/api/projects/{projectId}/business" />
       <Endpoint method="PUT" path="/api/projects/{projectId}/business" />
@@ -64,7 +65,7 @@ export default function ProjectsApi() {
           { name: 'monthlyRevenue', type: 'number', required: true, desc: 'Monthly recurring revenue.' },
           { name: 'activeUsers', type: 'number', required: true, desc: 'Active users in the period.' },
           { name: 'currency', type: 'string', desc: 'ISO currency code, e.g. EUR.' },
-          { name: 'peakCheckoutShare', type: 'number', desc: 'Share of revenue at peak (0–1), for sharper outage math.' },
+          { name: 'peakCheckoutShare', type: 'number', desc: 'Share of throughput at peak (0–1).' },
         ]}
       />
 

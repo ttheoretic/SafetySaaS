@@ -7,6 +7,7 @@ import {
   Workflow,
   Cloud,
   Lock,
+  Sparkles,
   Plus,
   Minus,
   Maximize,
@@ -24,6 +25,9 @@ const nodeIcon = {
   queue: Workflow,
   gateway: Lock,
   external: Cloud,
+  // Models, agents and vector stores are components of the system, not
+  // decoration — they get their own mark in the graph.
+  ai: Sparkles,
 }
 
 const sevStroke: Record<Severity | 'ok', string> = {

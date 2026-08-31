@@ -14,6 +14,7 @@ import { Finding, SEVERITY_ORDER, Severity } from './findings';
 import { SystemGraph } from './model';
 import { ChangeAnalysis } from './change';
 import { DependencyVulnerability } from './vulnerabilities';
+import { DIMENSION_ORDER, RiskPosture, RiskDimension, DIMENSION_LABEL } from './posture';
 
 export type ReadinessVerdict = 'ready' | 'review' | 'blocked';
 
@@ -37,6 +38,17 @@ export interface ReadinessItem {
   href: string;
 }
 
+/** PASS / WARNING / FAIL for one risk dimension of the release decision. */
+export type GateStatus = 'pass' | 'warning' | 'fail';
+
+export interface ReadinessGate {
+  dimension: RiskDimension | 'critical_risks' | 'changes';
+  label: string;
+  status: GateStatus;
+  /** What decided it, in one line. */
+  detail: string;
+}
+
 export interface ReadinessInput {
   /** Open findings only — callers filter out triaged/suppressed ones first. */
   findings: Finding[];
@@ -48,6 +60,8 @@ export interface ReadinessInput {
   lastScanAt?: string;
   /** Injected for deterministic tests. */
   now?: Date;
+  /** The current risk posture, when available — drives the per-dimension gates. */
+  posture?: RiskPosture | null;
 }
 
 export interface ReadinessResult {
@@ -62,6 +76,8 @@ export interface ReadinessResult {
   warnings: ReadinessItem[];
   /** Checks that came back clean — reassurance, and proof of what was checked. */
   passed: string[];
+  /** Per-dimension gates, so a team can see which area blocks the release. */
+  gates: ReadinessGate[];
 }
 
 /** A scan older than this no longer describes what you are about to ship. */
@@ -102,6 +118,7 @@ export function releaseReadiness(input: ReadinessInput): ReadinessResult {
         },
       ],
       passed: [],
+      gates: [],
     };
   }
 
@@ -155,6 +172,24 @@ export function releaseReadiness(input: ReadinessInput): ReadinessResult {
     });
   } else if (vulns.length === 0) {
     passed.push('No known vulnerabilities in the resolved dependency tree');
+  }
+
+  // ---- 3b. Any other open critical risk ----------------------------------
+  // A critical finding is a release blocker whichever dimension it sits in;
+  // otherwise a dimension could report FAIL while the verdict says nothing is
+  // in the way. Security criticals are already covered above.
+  const otherCriticals = findings.filter(
+    (f) => f.severity === 'critical' && f.category !== 'security',
+  );
+  if (otherCriticals.length > 0) {
+    blockers.push({
+      area: 'reliability',
+      severity: 'critical',
+      title: `${plural(otherCriticals.length, 'critical risk')} open`,
+      detail: `${otherCriticals[0].title}${otherCriticals.length > 1 ? ` and ${otherCriticals.length - 1} more` : ''}. Critical risks are resolved before a release, not after it.`,
+      count: otherCriticals.length,
+      href: '/risks?severity=critical',
+    });
   }
 
   // ---- 4. Reliability of the paths this release runs on -------------------
@@ -275,7 +310,95 @@ export function releaseReadiness(input: ReadinessInput): ReadinessResult {
     blockers: sortItems(blockers),
     warnings: sortItems(warnings),
     passed,
+    gates: buildGates(input.posture ?? null, blockers, warnings, changes),
   };
+}
+
+/**
+ * Turn the posture plus this release's blockers into a PASS / WARNING / FAIL
+ * per dimension. A dimension fails when something blocks the release in it,
+ * warns when it merely has open risk, and passes when it is clean — an
+ * unmeasured dimension warns rather than passing, because unknown is not safe.
+ */
+function buildGates(
+  posture: RiskPosture | null,
+  blockers: ReadinessItem[],
+  warnings: ReadinessItem[],
+  changes: ChangeAnalysis[],
+): ReadinessGate[] {
+  const gates: ReadinessGate[] = [];
+
+  for (const dimension of DIMENSION_ORDER) {
+    const dim = posture?.dimensions.find((d) => d.dimension === dimension);
+    const label = DIMENSION_LABEL[dimension];
+
+    if (!dim || !dim.analyzed) {
+      gates.push({
+        dimension,
+        label,
+        status: 'warning',
+        detail: dim?.note ?? 'Not analysed yet',
+      });
+      continue;
+    }
+    if (dim.critical > 0) {
+      gates.push({
+        dimension,
+        label,
+        status: 'fail',
+        detail: `${dim.critical} critical ${dim.critical === 1 ? 'risk' : 'risks'} open`,
+      });
+      continue;
+    }
+    if (dim.high > 0) {
+      gates.push({
+        dimension,
+        label,
+        status: 'warning',
+        detail: `${dim.high} high-severity ${dim.high === 1 ? 'risk' : 'risks'} open`,
+      });
+      continue;
+    }
+    gates.push({
+      dimension,
+      label,
+      status: 'pass',
+      detail: dim.findings === 0 ? 'No open risks' : `${dim.findings} low/medium risks`,
+    });
+  }
+
+  // Two gates that are about this release rather than the standing posture.
+  const criticalBlockers = blockers.filter((b) => b.severity === 'critical');
+  gates.push({
+    dimension: 'critical_risks',
+    label: 'Critical risks',
+    status: criticalBlockers.length > 0 ? 'fail' : blockers.length > 0 ? 'warning' : 'pass',
+    detail:
+      criticalBlockers.length > 0
+        ? `${criticalBlockers.length} must be resolved first`
+        : blockers.length > 0
+          ? `${blockers.length} blocking ${blockers.length === 1 ? 'item' : 'items'}`
+          : 'Nothing blocking',
+  });
+
+  const risky = changes.filter((c) => c.risk === 'critical' || c.risk === 'high');
+  gates.push({
+    dimension: 'changes',
+    label: 'Recent changes',
+    status: changes.some((c) => c.risk === 'critical')
+      ? 'fail'
+      : risky.length > 0
+        ? 'warning'
+        : 'pass',
+    detail:
+      changes.length === 0
+        ? 'No changes analysed'
+        : risky.length === 0
+          ? `${changes.length} analysed, none high-impact`
+          : `${risky.length} of ${changes.length} touch sensitive paths`,
+  });
+
+  return gates;
 }
 
 function headlineFor(

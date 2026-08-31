@@ -32,15 +32,19 @@ import {
   useSystemGraph,
   useScanHistory,
   useReleaseReadiness,
-  useRiskScores,
+  useRiskPosture,
   useChanges,
   relativeTime,
 } from '@/lib/use-project-data'
 import {
+  BAND_LABEL,
   isSuppressed,
   READINESS_LABEL,
+  type DimensionScore,
   type ReadinessResult,
   type ReadinessVerdict,
+  type RiskBand,
+  type RiskPosture,
   type TriageStatus,
 } from '@riscly/shared'
 import { SeverityBadge } from '@/components/ui/severity'
@@ -64,7 +68,7 @@ export function DashboardView() {
   const { graph } = useSystemGraph()
   const { points } = useScanHistory()
   const { readiness } = useReleaseReadiness()
-  const scores = useRiskScores()
+  const { posture } = useRiskPosture()
   const { changes } = useChanges(5)
 
   const open = useMemo(
@@ -130,36 +134,9 @@ export function DashboardView() {
           </div>
         </div>
 
-        <ReadinessCard readiness={readiness} />
+        <PostureCard posture={posture} />
 
-        {/* the four numbers that describe system health */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <ScoreCard
-            label="Risk score"
-            value={scores.risk}
-            suffix="/100"
-            hint="0 is safe, 100 is dangerous"
-            tone={bandForRisk(scores.risk)}
-            href="/risks"
-          />
-          <ScoreCard
-            label="Security score"
-            value={scores.security}
-            suffix="/100"
-            hint="Exposure across code, config and access"
-            tone={bandForHealth(scores.security)}
-            href="/security"
-          />
-          <ScoreCard
-            label="Reliability score"
-            value={scores.reliability}
-            suffix="/100"
-            hint="Redundancy, backups and failure paths"
-            tone={bandForHealth(scores.reliability)}
-            href="/architecture"
-          />
-          <RevenueCard revenue={scores.revenueAtRisk} />
-        </div>
+        <ReadinessCard readiness={readiness} />
 
         {/* trend + the risks behind it */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_1fr]">
@@ -169,7 +146,7 @@ export function DashboardView() {
                 <div className="text-sm font-medium">Risk over time</div>
                 <div className="mt-1 flex items-baseline gap-2">
                   <span className="font-mono text-3xl font-semibold tabular-nums">
-                    {scores.risk ?? '—'}
+                    {points.length ? points[points.length - 1].risk : '—'}
                   </span>
                   {delta !== null && (
                     <span
@@ -363,6 +340,153 @@ export function DashboardView() {
   )
 }
 
+// --- Risk posture ------------------------------------------------------------
+
+const BAND_STYLE: Record<RiskBand, { chip: string; edge: string; text: string }> = {
+  low: { chip: 'bg-ok text-ok-foreground', edge: 'border-ok/40', text: 'text-ok' },
+  medium: { chip: 'bg-medium text-medium-foreground', edge: 'border-medium/40', text: 'text-medium' },
+  high: { chip: 'bg-high text-high-foreground', edge: 'border-high/50', text: 'text-high' },
+  critical: { chip: 'bg-critical text-critical-foreground', edge: 'border-critical/50', text: 'text-critical' },
+}
+
+/** Health colour for a single dimension, on the same scale as the band. */
+function dimensionTone(score: number | null): string {
+  if (score === null) return 'text-muted-foreground'
+  if (score >= 85) return 'text-ok'
+  if (score >= 70) return 'text-medium'
+  if (score >= 50) return 'text-high'
+  return 'text-critical'
+}
+function dimensionBar(score: number | null): string {
+  if (score === null) return 'bg-muted-foreground/25'
+  if (score >= 85) return 'bg-ok'
+  if (score >= 70) return 'bg-medium'
+  if (score >= 50) return 'bg-high'
+  return 'bg-critical'
+}
+
+/**
+ * The application's risk posture — the one block that answers "what state is my
+ * application in?". Overall health and band on the left, the five dimensions
+ * that produced it on the right, each linking into the risks behind it.
+ */
+function PostureCard({ posture }: { posture: RiskPosture }) {
+  const style = BAND_STYLE[posture.band]
+  return (
+    <div className={cn('rounded-xl border bg-panel', style.edge)}>
+      <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-stretch">
+        {/* overall */}
+        <div className="flex shrink-0 flex-col justify-between lg:w-64">
+          <div>
+            <div className="text-xs text-muted-foreground">Application risk posture</div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className={cn('font-mono text-5xl font-semibold tabular-nums', style.text)}>
+                {posture.score ?? '—'}
+              </span>
+              <span className="font-mono text-sm text-muted-foreground">/100</span>
+            </div>
+            <span
+              className={cn(
+                'mt-2 inline-block rounded-[4px] px-2 py-0.5 font-mono text-[11px] font-bold tracking-wider',
+                style.chip,
+              )}
+            >
+              {BAND_LABEL[posture.band]}
+            </span>
+            <p className="mt-2.5 text-xs leading-relaxed text-foreground/90">{posture.headline}</p>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            <CountChip label="Critical" value={posture.counts.critical} tone="critical" />
+            <CountChip label="High" value={posture.counts.high} tone="high" />
+            <CountChip label="Medium" value={posture.counts.medium} tone="medium" />
+          </div>
+        </div>
+
+        {/* dimensions */}
+        <div className="min-w-0 flex-1 lg:border-l lg:border-border lg:pl-5">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Dimensions
+          </div>
+          <div className="flex flex-col gap-2">
+            {posture.dimensions.map((d: DimensionScore) => (
+              <DimensionRow key={d.dimension} dim={d} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DimensionRow({ dim }: { dim: DimensionScore }) {
+  return (
+    <Link
+      href={`/risks?dimension=${dim.dimension}`}
+      className="group flex items-center gap-3 rounded-md px-1.5 py-1 transition-colors hover:bg-accent/40"
+    >
+      <span className="w-32 shrink-0 truncate text-xs">{dim.label}</span>
+      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-secondary">
+        <span
+          className={cn('block h-full rounded-full transition-all', dimensionBar(dim.score))}
+          style={{ width: `${dim.score ?? 0}%` }}
+        />
+      </span>
+      {dim.score === null ? (
+        <span className="w-40 shrink-0 text-right text-[11px] text-muted-foreground">
+          {dim.note}
+        </span>
+      ) : (
+        <>
+          <span
+            className={cn(
+              'w-10 shrink-0 text-right font-mono text-sm tabular-nums',
+              dimensionTone(dim.score),
+            )}
+          >
+            {dim.score}
+          </span>
+          <span className="w-28 shrink-0 text-right font-mono text-[11px] text-muted-foreground">
+            {dim.findings === 0
+              ? 'no findings'
+              : `${dim.findings} ${dim.findings === 1 ? 'risk' : 'risks'}${dim.critical > 0 ? ` · ${dim.critical} crit` : ''}`}
+          </span>
+        </>
+      )}
+    </Link>
+  )
+}
+
+function CountChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'critical' | 'high' | 'medium'
+}) {
+  const filled =
+    tone === 'critical'
+      ? 'bg-critical text-critical-foreground'
+      : tone === 'high'
+        ? 'bg-high text-high-foreground'
+        : 'bg-medium text-medium-foreground'
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1">
+      <span
+        className={cn(
+          'rounded-[3px] px-1 font-mono text-[10px] font-bold tabular-nums',
+          value > 0 ? filled : 'bg-muted text-muted-foreground',
+        )}
+      >
+        {value}
+      </span>
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+    </span>
+  )
+}
+
 // --- Release readiness -------------------------------------------------------
 
 const VERDICT_STYLE: Record<
@@ -396,18 +520,29 @@ function ReadinessCard({ readiness }: { readiness: ReadinessResult }) {
             >
               {READINESS_LABEL[readiness.verdict]}
             </span>
-            <span className="text-sm font-medium">Release readiness</span>
+            <Link href="/release" className="text-sm font-medium hover:underline">
+              Release readiness
+            </Link>
             <span className="font-mono text-xs text-muted-foreground">{readiness.score}/100</span>
           </div>
           <p className="mt-1.5 text-sm leading-relaxed text-foreground/90">{readiness.headline}</p>
         </div>
-        <Link
-          href="/assistant"
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:border-muted-foreground/40"
-        >
-          <Bot className="size-3.5" />
-          Ask the advisor
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/assistant"
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:border-muted-foreground/40"
+          >
+            <Bot className="size-3.5" />
+            Ask the advisor
+          </Link>
+          <Link
+            href="/release"
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:border-muted-foreground/40"
+          >
+            Details
+            <ArrowUpRight className="size-3.5" />
+          </Link>
+        </div>
       </div>
 
       {items.length > 0 && (
@@ -460,101 +595,6 @@ const TONE_BAR: Record<Tone, string> = {
   warn: 'bg-medium',
   bad: 'bg-critical',
   muted: 'bg-muted-foreground/40',
-}
-
-/** Higher risk is worse. */
-function bandForRisk(v: number | null): Tone {
-  if (v === null) return 'muted'
-  return v >= 60 ? 'bad' : v >= 30 ? 'warn' : 'ok'
-}
-/** Higher health score is better. */
-function bandForHealth(v: number | null): Tone {
-  if (v === null) return 'muted'
-  return v < 50 ? 'bad' : v < 75 ? 'warn' : 'ok'
-}
-
-function ScoreCard({
-  label,
-  value,
-  suffix,
-  hint,
-  tone,
-  href,
-}: {
-  label: string
-  value: number | null
-  suffix: string
-  hint: string
-  tone: Tone
-  href: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex flex-col rounded-xl border border-border bg-panel p-4 transition-colors hover:border-muted-foreground/40"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <ArrowUpRight className="size-3.5 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60" />
-      </div>
-      <div className="mt-1 flex items-baseline gap-1">
-        <span className={cn('font-mono text-3xl font-semibold tabular-nums', TONE_TEXT[tone])}>
-          {value ?? '—'}
-        </span>
-        <span className="font-mono text-xs text-muted-foreground">{suffix}</span>
-      </div>
-      <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-secondary">
-        <div
-          className={cn('h-full rounded-full transition-all', TONE_BAR[tone])}
-          style={{ width: `${value ?? 0}%` }}
-        />
-      </div>
-      <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{hint}</p>
-    </Link>
-  )
-}
-
-/** Revenue exposure, or a prompt to supply the context that makes it possible. */
-function RevenueCard({
-  revenue,
-}: {
-  revenue: { amount: number; currency: string; nodeName: string } | null
-}) {
-  if (!revenue) {
-    return (
-      <Link
-        href="/settings?tab=scanning"
-        className="group flex flex-col rounded-xl border border-dashed border-border bg-panel p-4 transition-colors hover:border-muted-foreground/40"
-      >
-        <span className="text-xs text-muted-foreground">Revenue at risk</span>
-        <div className="mt-1 font-mono text-3xl font-semibold tabular-nums text-muted-foreground">—</div>
-        <p className="mt-auto pt-2.5 text-[11px] leading-snug text-muted-foreground">
-          Add your monthly revenue and Riscly quantifies outages in money, not abstractions.
-        </p>
-      </Link>
-    )
-  }
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: revenue.currency,
-    maximumFractionDigits: 0,
-  }).format(revenue.amount)
-
-  return (
-    <Link
-      href="/simulation"
-      className="group flex flex-col rounded-xl border border-border bg-panel p-4 transition-colors hover:border-muted-foreground/40"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">Revenue at risk</span>
-        <ArrowUpRight className="size-3.5 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/60" />
-      </div>
-      <div className="mt-1 font-mono text-3xl font-semibold tabular-nums text-high">{formatted}</div>
-      <p className="mt-auto pt-2.5 text-[11px] leading-snug text-muted-foreground">
-        If {revenue.nodeName} were down for an hour.
-      </p>
-    </Link>
-  )
 }
 
 // --- small building blocks ---------------------------------------------------

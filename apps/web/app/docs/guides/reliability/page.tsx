@@ -35,8 +35,10 @@ for (const r of report.recommendations) {
 
       <H2 id="business">Business context</H2>
       <P>
-        Provide revenue and usage so impact is expressed in money, not abstractions. This sharpens
-        both the security report and simulations.
+        Optional context about the size of the business behind the system. The Riscly UI does not
+        show money estimates — an outage cost derived from a graph would be a guess presented as a
+        fact — but the <Code>/analyze</Code> endpoints will return an impact estimate if you supply
+        this and want to compute your own.
       </P>
       <CodeBlock
         tabs={[
@@ -60,8 +62,8 @@ for (const r of report.recommendations) {
 
       <H2 id="simulate">Failure simulation</H2>
       <P>
-        Simulate an outage of a component or dependency over a time window to estimate downtime and
-        revenue impact.
+        Simulate an outage of a component or dependency over a time window to see the blast radius,
+        the affected components and the estimated downtime.
       </P>
       <CodeBlock
         tabs={[

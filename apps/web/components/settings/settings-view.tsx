@@ -1052,7 +1052,7 @@ const NAME_TO_PROVIDER: Record<string, string> = {
 // Providers connected via an OAuth redirect rather than a pasted token.
 const OAUTH_PROVIDERS = new Set(['github'])
 
-function IntegrationsPanel() {
+export function IntegrationsPanel() {
   const { projectId } = useActiveProject()
   const token = useAuth((s) => s.token)
   const qc = useQueryClient()

@@ -89,7 +89,7 @@ type SimResult = {
   narrative: string
   mitigations: string[]
 }
-type SimResponse = { result?: SimResult; revenue?: { currency?: string; totalImpact?: number } }
+type SimResponse = { result?: SimResult }
 
 const IMPACT_LABEL: Record<string, string> = {
   none: 'No impact',
@@ -104,13 +104,6 @@ const IMPACT_TONE: Record<string, { chip: string; text: string; banner: string }
   full_outage: { chip: 'bg-critical/15 text-critical', text: 'text-critical', banner: 'bg-critical/10' },
 }
 
-function formatMoney(amount: number, currency?: string): string {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency ?? 'EUR', maximumFractionDigits: 0 }).format(amount)
-  } catch {
-    return `${Math.round(amount)} ${currency ?? 'EUR'}`
-  }
-}
 
 export function SimulationView() {
   const { graph } = useSystemGraph()
@@ -189,10 +182,6 @@ export function SimulationView() {
   const impact = result?.impact ?? 'none'
   const tone = IMPACT_TONE[impact]
   const affectedSet = new Set(affected.slice(0, reveal))
-  const revenue =
-    typeof res?.revenue?.totalImpact === 'number'
-      ? formatMoney(res.revenue.totalImpact, res.revenue.currency)
-      : null
   const nameById = new Map(graph.nodes.map((n) => [n.id, n.name]))
 
   return (
@@ -281,7 +270,7 @@ export function SimulationView() {
               <div className="grid grid-cols-3 gap-px border-b border-border bg-border">
                 <Metric label="Blast radius" value={`${Math.round((result?.blastRadius ?? 0) * 100)}%`} tone={tone.text} />
                 <Metric label="Services affected" value={String(affected.length)} tone={tone.text} />
-                <Metric label="Revenue impact / h" value={revenue ?? '—'} tone={revenue ? tone.text : 'text-muted-foreground'} />
+                <Metric label="Entrypoints down" value={result?.fullOutage ? 'All' : 'Partial'} tone={tone.text} />
               </div>
 
               {/* blast-radius bar */}

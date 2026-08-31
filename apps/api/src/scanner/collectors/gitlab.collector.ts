@@ -80,6 +80,7 @@ export class GitlabCollector implements ProviderCollector {
     if (codeFindings.length === 0 && codeIssues.length === 0) return undefined;
 
     const qualityHotspots = code?.hotspots?.map((h) => ({ ...h, repo }));
+    const aiComponents = code?.aiComponents?.map(({ files: _files, ...c }) => c);
 
     return {
       provider: 'gitlab',
@@ -88,6 +89,7 @@ export class GitlabCollector implements ProviderCollector {
       ...(codeIssues.length ? { codeIssues } : {}),
       ...(codeFindings.length ? { codeFindings } : {}),
       ...(qualityHotspots && qualityHotspots.length ? { qualityHotspots } : {}),
+      ...(aiComponents && aiComponents.length ? { aiComponents } : {}),
     };
   }
 

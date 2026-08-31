@@ -13,7 +13,6 @@ import { securitySimulation } from './security';
 import { buildRecommendations } from './recommendations';
 import { predictFailures } from './prediction';
 import { simulateFailure, SimulationType } from './simulation';
-import { revenueImpact } from './revenue';
 
 export type ReportType =
   | 'executive'
@@ -122,17 +121,19 @@ function executiveSummary(
     { label: 'Security score', text: `${securityScoreValue} / 100` },
   ];
   if (business) {
-    // Worst-case single-event revenue exposure across the headline scenarios.
+    // Blast radius of the worst headline scenario — how much of the system a
+    // single failure takes with it. Deliberately not expressed in money: a
+    // revenue estimate would be a guess presented as a fact.
     const scenarios: SimulationType[] = ['dns', 'db_lock', 'stripe_down', 'infra_region'];
     let worst = 0;
     for (const type of scenarios) {
       const sim = simulateFailure(graph, type);
-      worst = Math.max(worst, revenueImpact(sim, business, 1).totalImpact);
+      worst = Math.max(worst, sim.blastRadius);
     }
     lines.push({
-      label: 'Worst-case 1h revenue exposure',
-      text: formatMoney(worst, business.currency ?? 'EUR'),
-      severity: 'high',
+      label: 'Worst-case blast radius',
+      text: `${Math.round(worst * 100)}% of the system`,
+      severity: worst >= 0.5 ? 'high' : 'medium',
     });
   }
   return { heading: 'Executive Summary', lines };
@@ -220,13 +221,6 @@ function securitySection(security: ReturnType<typeof securitySimulation>): Repor
   return { heading: 'Security Analysis', lines };
 }
 
-function formatMoney(n: number, currency: string): string {
-  return new Intl.NumberFormat('en', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
 
 /** Flat rows shared by the CSV / Excel exporters. */
 function reportRows(report: Report): string[][] {

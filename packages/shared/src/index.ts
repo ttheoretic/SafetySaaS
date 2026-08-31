@@ -10,6 +10,8 @@ export * from './security';
 export * from './recommendations';
 export * from './change';
 export * from './readiness';
+export * from './posture';
+export * from './validation';
 export * from './knowledge';
 export * from './prediction';
 export * from './scenario';

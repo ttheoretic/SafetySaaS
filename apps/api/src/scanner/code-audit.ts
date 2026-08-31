@@ -4,6 +4,7 @@ import { resilientFetch, mapWithConcurrency, CollectorContext } from './collecto
 import { analyzeJsAst, isJsLike, AST_OWNED_RULES } from './ast-audit';
 import { verifySecrets } from './secret-verify';
 import { analyzeQuality } from './code-quality';
+import { analyzeAi, type AiComponent } from './ai-audit';
 
 /** Max source files read in parallel — bounds the request fan-out on big repos. */
 const READ_CONCURRENCY = 8;
@@ -131,9 +132,20 @@ function issue(opts: {
 }
 
 /** Derive the topology Finding from a located code issue. */
+/**
+ * Which risk dimension a located issue rolls up into. Rule ids are namespaced
+ * (`ai/…`, `quality/…`), so the prefix decides — otherwise every code issue,
+ * including a TODO marker, would count against the security score.
+ */
+function categoryOfRule(rule: string): Finding['category'] {
+  if (rule.startsWith('ai/')) return 'ai_security';
+  if (rule.startsWith('quality/')) return 'quality';
+  return 'security';
+}
+
 function findingFromIssue(i: CodeIssue): Finding {
   return {
-    category: 'security',
+    category: categoryOfRule(i.rule),
     severity: i.severity,
     title: i.title,
     description: i.description,
@@ -247,6 +259,8 @@ function auditFileContent(file: string, content: string, skipRules?: Set<string>
 export interface CodeAuditResult {
   findings: Finding[];
   issues: CodeIssue[];
+  /** AI models, agents and vector stores discovered in the source. */
+  aiComponents?: AiComponent[];
   /** Maintainability hotspots (future-problem signals). */
   hotspots?: QualityHotspot[];
   qualitySummary?: QualitySummary;
@@ -319,11 +333,18 @@ export function analyzeContents(
     .filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)))
     .map((i) => (i.confidence ? i : { ...i, confidence: 'heuristic' as const }));
   const { hotspots, summary } = analyzeQuality(contents);
+
+  // AI usage and AI-specific risks, read from the same contents (no extra I/O).
+  const ai = analyzeAi(contents);
+  const aiIssues = ai.issues.filter((i) => !seen.has(i.id));
+  const all = [...deduped, ...aiIssues];
+
   return {
-    issues: deduped,
-    findings: deduped.map(findingFromIssue),
+    issues: all,
+    findings: all.map(findingFromIssue),
     hotspots,
     qualitySummary: summary,
+    ...(ai.components.length ? { aiComponents: ai.components } : {}),
   };
 }
 

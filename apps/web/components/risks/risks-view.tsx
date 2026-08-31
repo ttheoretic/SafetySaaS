@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Search,
   FileCode,
@@ -15,7 +16,14 @@ import { ConfidenceBadge } from '@/components/ui/severity'
 import { RiskInspector } from '@/components/shared/risk-inspector'
 import { severityOrder, type Severity, type Risk } from '@/lib/riscly-data'
 import { useRisks, useTriage, useActiveProject } from '@/lib/use-project-data'
-import { isSuppressed, TRIAGE_LABEL, type TriageStatus } from '@riscly/shared'
+import {
+  DIMENSION_LABEL,
+  DIMENSION_ORDER,
+  isSuppressed,
+  TRIAGE_LABEL,
+  type RiskDimension,
+  type TriageStatus,
+} from '@riscly/shared'
 import { cn } from '@/lib/utils'
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']
@@ -65,6 +73,34 @@ function StatusChip({ risk }: { risk: Risk & { triage?: TriageStatus } }) {
     )
   }
   return <span className="font-mono text-[11px] text-muted-foreground/50">—</span>
+}
+
+/** A risk dimension as a filter chip — the Risk Center's primary cut. */
+function DimensionChip({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string
+  count: number
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors',
+        active
+          ? 'border-transparent bg-secondary font-medium text-foreground'
+          : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {label}
+      <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{count}</span>
+    </button>
+  )
 }
 
 /** One facet checkbox row: box, label, count. */
@@ -127,6 +163,10 @@ function FacetGroup({
 
 export function RisksView() {
   const { risks: rawRisks } = useRisks()
+  const searchParams = useSearchParams()
+  const [dimFilter, setDimFilter] = useState<RiskDimension | null>(
+    (searchParams.get('dimension') as RiskDimension | null) ?? null,
+  )
   const { projectId } = useActiveProject()
   const { statusFor } = useTriage(projectId)
   const [query, setQuery] = useState('')
@@ -166,6 +206,15 @@ export function RisksView() {
     return [...c.entries()].sort((a, b) => b[1] - a[1])
   }, [open])
 
+  const dimCounts = useMemo(() => {
+    const c = new Map<RiskDimension, number>()
+    for (const r of open) {
+      if (!r.dimension) continue
+      c.set(r.dimension, (c.get(r.dimension) ?? 0) + 1)
+    }
+    return c
+  }, [open])
+
   const autoFixable = useMemo(() => open.filter((r) => r.file && r.rule), [open])
 
   // Top auto-fixable rules for the recommendations strip.
@@ -189,6 +238,7 @@ export function RisksView() {
         if (statusFilter.has('triaged') && suppressed) return true
         return false
       })
+      .filter((r) => (dimFilter ? r.dimension === dimFilter : true))
       .filter((r) => (sevFilter.size === 0 ? true : sevFilter.has(r.severity)))
       .filter((r) => (catFilter.size === 0 ? true : catFilter.has(r.category)))
       .filter((r) => {
@@ -204,7 +254,7 @@ export function RisksView() {
           : true,
       )
       .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
-  }, [risks, sevFilter, catFilter, fixFilter, statusFilter, query])
+  }, [risks, dimFilter, sevFilter, catFilter, fixFilter, statusFilter, query])
 
   const selected =
     risks.find((r) => r.id === selectedId) ?? filtered[0] ?? risks[0]
@@ -217,6 +267,26 @@ export function RisksView() {
         title="Risk Center"
         subtitle={`${open.length} open · ${sevCounts.critical} critical · ${sevCounts.high} high`}
       />
+
+      {/* dimensions — security, AI security, reliability … are cuts of the same
+          risk list, not separate pages */}
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-3 py-2">
+        <DimensionChip
+          label="All"
+          count={open.length}
+          active={dimFilter === null}
+          onClick={() => setDimFilter(null)}
+        />
+        {DIMENSION_ORDER.map((d) => (
+          <DimensionChip
+            key={d}
+            label={DIMENSION_LABEL[d]}
+            count={dimCounts.get(d) ?? 0}
+            active={dimFilter === d}
+            onClick={() => setDimFilter(dimFilter === d ? null : d)}
+          />
+        ))}
+      </div>
 
       {/* summary chips (monitor-style) */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2.5">

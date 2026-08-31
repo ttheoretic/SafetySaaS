@@ -32,7 +32,7 @@ const PLAYBOOK: Record<
 > = {
   spof: {
     fix: 'Introduce redundancy: add a replica/second instance and automatic failover.',
-    impact: 'Eliminates a total-outage path; protects revenue during component failure.',
+    impact: 'Eliminates a total-outage path so one component failing cannot take the product down.',
     reduction: 37,
     probability: 0.4,
   },
@@ -71,6 +71,24 @@ const PLAYBOOK: Record<
     impact: 'Reduces breach likelihood and the blast radius of an attack.',
     reduction: 35,
     probability: 0.45,
+  },
+  ai_security: {
+    fix: 'Constrain the model boundary: validate what goes into the prompt, never trust what comes out, and give agents the narrowest tools and permissions that still work.',
+    impact: 'Closes the paths where untrusted text becomes an instruction, or a model gets to act with more authority than the user who asked.',
+    reduction: 45,
+    probability: 0.5,
+  },
+  architecture: {
+    fix: 'Break the coupling: put an interface, queue or cache between the components so one failing does not immediately take the other with it.',
+    impact: 'Shrinks the blast radius of a single component and makes the system safe to change in pieces.',
+    reduction: 28,
+    probability: 0.35,
+  },
+  quality: {
+    fix: 'Refactor the hotspot into smaller units with tests around the behaviour you keep.',
+    impact: 'Reduces the chance that the next change to this code introduces an outage or a vulnerability.',
+    reduction: 20,
+    probability: 0.4,
   },
   vendor_lock_in: {
     fix: 'Abstract the dependency behind an interface and document a fallback.',

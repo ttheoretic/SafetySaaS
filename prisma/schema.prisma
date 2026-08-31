@@ -482,6 +482,21 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 }
 
+/// A validation run: open findings re-tested against the live sources, so the
+/// risk posture reflects what is still true rather than what a scan once saw.
+model ValidationRun {
+  id           String    @id @default(uuid())
+  orgId        String
+  projectId    String
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  /// ValidationCheck[] — one entry per re-tested finding.
+  checks       Json      @default("[]")
+  actorUserId  String?
+
+  @@index([projectId, startedAt])
+}
+
 enum TriageStatus {
   open
   in_progress

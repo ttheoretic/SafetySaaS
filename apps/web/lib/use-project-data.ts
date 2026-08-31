@@ -6,14 +6,14 @@ import {
   buildRecommendations,
   findingFingerprint,
   isSuppressed,
+  dimensionFor,
   releaseReadiness,
-  revenueImpact,
-  securitySimulation,
-  simulateFailure,
-  type BusinessContext,
+  riskPosture,
   type CodeIssue,
   type Finding,
+  type FindingCategory,
   type ReadinessResult,
+  type RiskPosture,
   type SystemGraph,
   type TriageStatus,
 } from '@riscly/shared'
@@ -483,75 +483,82 @@ export function useReleaseReadiness(): {
       changes,
       vulnerabilities: record?.graph?.vulnerabilities ?? [],
       lastScanAt: record?.status === 'succeeded' ? record.createdAt : undefined,
+      // The per-dimension gates read from the same posture the dashboard shows,
+      // so the release decision and the risk model can never disagree.
+      posture: riskPosture({
+        findings: open,
+        graph: record?.graph ?? null,
+        quality: record?.graph?.qualitySummary ?? null,
+        analyzed: record?.status === 'succeeded',
+      }),
     })
   }, [scan.data, statusFor, changes])
 
   return { readiness, loading: scan.isLoading || changesLoading }
 }
 
-/** The project's business context (revenue, users), when the customer set it. */
-export function useBusiness() {
-  const token = useAuth((s) => s.token)
+/**
+ * The application's Risk Posture — the product's central concept.
+ *
+ * One health score, a risk band and five dimensions (Security, AI Security,
+ * Reliability, Architecture, Maintainability), derived in the browser from the
+ * latest scan plus the customer's triage decisions, so it updates the moment a
+ * risk is accepted or resolved.
+ */
+export function useRiskPosture(): { posture: RiskPosture; loading: boolean } {
   const { projectId } = useActiveProject()
-  const q = useQuery({
-    queryKey: ['business', projectId],
-    queryFn: () => api.getBusiness(projectId!),
-    enabled: Boolean(token && projectId),
-  })
-  return { business: (q.data as BusinessContext | null) ?? null, loading: q.isLoading }
+  const scan = useLatestScan(projectId)
+  const { statusFor } = useTriage(projectId)
+
+  const posture = useMemo(() => {
+    const record = scan.data
+    const findings = (record?.findings ?? []) as unknown as Finding[]
+    const open = findings.filter(
+      (f) => !isSuppressed(statusFor(findingFingerprint(f)) as TriageStatus),
+    )
+    return riskPosture({
+      findings: open,
+      graph: record?.graph ?? null,
+      quality: record?.graph?.qualitySummary ?? null,
+      analyzed: Boolean(projectId) && record?.status === 'succeeded',
+    })
+  }, [scan.data, statusFor, projectId])
+
+  return { posture, loading: scan.isLoading }
 }
 
 /**
- * The three headline scores plus the worst-case revenue exposure — everything
- * the dashboard needs to answer "how healthy is my system?" in one glance.
+ * Validation runs for the active project, plus the action that starts one.
  *
- * Reliability comes from the scan; security and the revenue figure are derived
- * in the browser from the same graph the engines ran on, so they stay in sync
- * with what the rest of the app shows.
+ * A run re-tests the open findings against the live sources; the results feed
+ * straight back into what the rest of the app shows.
  */
-export function useRiskScores(): {
-  risk: number | null
-  security: number | null
-  reliability: number | null
-  /** Worst-case revenue lost in a one-hour outage of the most critical node. */
-  revenueAtRisk: { amount: number; currency: string; nodeName: string } | null
-  loading: boolean
-} {
+export function useValidation() {
+  const qc = useQueryClient()
+  const token = useAuth((s) => s.token)
   const { projectId } = useActiveProject()
-  const scan = useLatestScan(projectId)
-  const { business } = useBusiness()
-  const graph = scan.data?.graph ?? null
-  const reliability =
-    typeof scan.data?.reliabilityScore === 'number' ? scan.data.reliabilityScore : null
 
-  const security = useMemo(
-    () => (graph && graph.nodes.length > 0 ? securitySimulation(graph).score : null),
-    [graph],
-  )
+  const runs = useQuery({
+    queryKey: ['validations', projectId],
+    queryFn: () => api.listValidationRuns(projectId!),
+    enabled: Boolean(token && projectId),
+  })
 
-  const revenueAtRisk = useMemo(() => {
-    if (!graph || !business?.monthlyRevenue) return null
-    // Knock out each component in turn and keep the most damaging one.
-    let worst: { sim: ReturnType<typeof simulateFailure>; node: string } | null = null
-    for (const n of graph.nodes) {
-      const sim = simulateFailure(graph, 'infra_server', { nodeId: n.id })
-      if (!worst || sim.blastRadius > worst.sim.blastRadius) worst = { sim, node: n.name }
-    }
-    if (!worst) return null
-    const impact = revenueImpact(worst.sim, business, 1)
-    return {
-      amount: impact.totalImpact,
-      currency: impact.currency,
-      nodeName: worst.node,
-    }
-  }, [graph, business])
+  const start = useMutation({
+    mutationFn: () => api.runValidation(projectId!),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['validations', projectId] })
+    },
+  })
 
   return {
-    risk: reliability === null ? null : Math.max(0, Math.min(100, Math.round(100 - reliability))),
-    security,
-    reliability: reliability === null ? null : Math.round(reliability),
-    revenueAtRisk,
-    loading: scan.isLoading,
+    runs: runs.data ?? [],
+    latest: runs.data?.[0] ?? null,
+    loading: runs.isLoading,
+    error: (runs.error ?? start.error) as Error | null,
+    start: () => start.mutate(),
+    isRunning: start.isPending,
+    canRun: Boolean(projectId),
   }
 }
 
@@ -739,6 +746,9 @@ export function findingToRisk(f: ApiFinding, id: string): Risk {
     id,
     title: f.title,
     category: coerceCategory(f.category),
+    // The dimension is what the Risk Center filters on — derived from the raw
+    // finding category, not the display label.
+    dimension: dimensionFor(f.category as FindingCategory),
     severity: coerceSeverity(f.severity),
     description: f.description ?? '',
     impact: rec?.businessImpact ?? '',

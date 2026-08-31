@@ -16,6 +16,9 @@ export type FindingCategory =
   | 'rate_limit'
   | 'redundancy'
   | 'security'
+  | 'ai_security'
+  | 'architecture'
+  | 'quality'
   | 'vendor_lock_in';
 
 export interface Finding {

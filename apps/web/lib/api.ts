@@ -8,6 +8,7 @@ import type {
   GraphOverlay,
   TriageStatus,
   ChangeAnalysis,
+  ValidationCheck,
 } from '@riscly/shared';
 
 import { currentAuth, handleUnauthorized } from './auth-store';
@@ -141,6 +142,14 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ValidationRunResponse {
+  id: string;
+  projectId: string;
+  startedAt: string;
+  finishedAt?: string;
+  checks: ValidationCheck[];
+}
+
 export interface BusinessInput {
   monthlyRevenue: number;
   activeUsers: number;
@@ -259,6 +268,12 @@ export const api = {
         url: string
       }>
     >(`/projects/${projectId}/commits?limit=${limit}`),
+  /** Validation runs (test history) for a project, newest first. */
+  listValidationRuns: (projectId: string) =>
+    get<ValidationRunResponse[]>(`/projects/${projectId}/validations`),
+  /** Re-test the open findings against the live sources. */
+  runValidation: (projectId: string) =>
+    post<ValidationRunResponse>(`/projects/${projectId}/validations`, {}),
   /** Recent commits analysed against the mapped architecture. */
   listChanges: (projectId: string, limit = 10) =>
     get<{ scannedAt: string | null; changes: ChangeAnalysis[] }>(

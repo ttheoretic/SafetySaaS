@@ -39,6 +39,9 @@ const KIND_MAP: Record<
   cdn: { type: 'external', tech: 'CDN' },
   dns: { type: 'external', tech: 'DNS' },
   storage: { type: 'database', tech: 'Storage' },
+  ai_model: { type: 'ai', tech: 'AI model' },
+  ai_agent: { type: 'ai', tech: 'AI agent' },
+  vector_store: { type: 'ai', tech: 'Vector store' },
 }
 
 /** Which layout column a kind belongs to: 0=edge/clients, 1=services,
@@ -56,6 +59,11 @@ const KIND_COLUMN: Record<NodeKind, number> = {
   // External third-party APIs (Stripe, Anthropic, …) are dependencies the
   // services call — place them with the data tier, not next to the API node.
   external_api: 2,
+  // Agents sit in the service tier (they run your code); models and vector
+  // stores are dependencies those agents call.
+  ai_agent: 1,
+  ai_model: 2,
+  vector_store: 2,
 }
 
 const SEV_RANK: Record<Severity, number> = {

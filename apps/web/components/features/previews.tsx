@@ -219,7 +219,7 @@ export function SimulationShot() {
       <div className="h-72 p-4">
         <div className="mb-2 flex items-center gap-2 text-[12px] font-medium"><span className="size-2 rounded-full bg-critical" /> Database outage · 2h</div>
         <div className="grid grid-cols-2 gap-2">
-          {[['Revenue at risk', '€4,200'], ['Affected users', '8,140'], ['Downtime', '2h 00m'], ['Worst impact', 'Checkout down']].map(([l, v]) => (
+          {[['Blast radius', '62%'], ['Services down', '4 / 9'], ['Downtime', '2h 00m'], ['Worst impact', 'Checkout down']].map(([l, v]) => (
             <div key={l} className="rounded-md border border-border bg-background p-2.5">
               <div className="font-mono text-base font-semibold">{v}</div>
               <div className="text-[10px] text-muted-foreground">{l}</div>
@@ -227,7 +227,7 @@ export function SimulationShot() {
           ))}
         </div>
         <div className="mt-3 rounded-md border border-ok/30 bg-ok/5 px-2.5 py-2 text-[11px] text-foreground/90">
-          Mitigation: add a read replica → −30% revenue at risk
+          Mitigation: add a read replica → −30% blast radius
         </div>
       </div>
     </Screenshot>

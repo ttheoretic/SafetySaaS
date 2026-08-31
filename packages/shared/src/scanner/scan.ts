@@ -8,7 +8,7 @@
 
 import { SystemGraph, SystemNode } from '../model';
 import { GraphFragment, mergeFragments } from './fragment';
-import { ScanCollection } from './signals';
+import { AiComponentSignal, ScanCollection } from './signals';
 import {
   repoFragment,
   cloudFragment,
@@ -17,6 +17,66 @@ import {
 } from './adapters';
 
 const BACKING_KINDS = new Set(['database', 'cache', 'queue', 'storage', 'external_api']);
+
+/**
+ * Fold discovered AI components into the graph as first-class nodes.
+ *
+ * Models and agents are part of the application's architecture, not a footnote:
+ * an agent can reach a database, and a model is an external dependency that can
+ * fail, rate-limit or leak. Wiring them in means every downstream analysis —
+ * blast radius, attack paths, simulations — sees them too.
+ *
+ * Callers are the service tier (an agent runs your code); when no agent exists
+ * the services talk to the model directly.
+ */
+export function attachAiComponents(
+  graph: SystemGraph,
+  components: AiComponentSignal[],
+): SystemGraph {
+  if (components.length === 0) return graph;
+
+  // Merge duplicates discovered across several repos.
+  const unique = new Map<string, AiComponentSignal>();
+  for (const c of components) if (!unique.has(c.id)) unique.set(c.id, c);
+  const fresh = [...unique.values()].filter(
+    (c) => !graph.nodes.some((n) => n.id === c.id),
+  );
+  if (fresh.length === 0) return graph;
+
+  const callers = graph.nodes
+    .filter((n) => n.kind === 'api' || n.kind === 'service')
+    .map((n) => n.id);
+  // With no service tier yet, hang the AI components off the entrypoints so
+  // they are still reachable in the graph rather than floating.
+  const from = callers.length
+    ? callers
+    : graph.nodes.filter((n) => n.kind === 'frontend').map((n) => n.id);
+
+  const nodes: SystemNode[] = fresh.map((c) => ({
+    id: c.id,
+    kind: c.kind,
+    name: c.name,
+    ...(c.provider ? { provider: c.provider } : {}),
+    // Inferred from code, not read from a provider inventory.
+    estimated: true,
+    ...(c.kind === 'ai_model' ? { hasAuth: true, hasRateLimit: true } : {}),
+  }));
+
+  const agent = fresh.find((c) => c.kind === 'ai_agent');
+  const edges = [...graph.edges];
+  if (agent) {
+    for (const f of from) edges.push({ from: f, to: agent.id, criticality: 0.5 });
+    for (const c of fresh) {
+      if (c.id !== agent.id) edges.push({ from: agent.id, to: c.id, criticality: 0.8 });
+    }
+  } else {
+    for (const f of from) {
+      for (const c of fresh) edges.push({ from: f, to: c.id, criticality: 0.5 });
+    }
+  }
+
+  return { ...graph, nodes: [...graph.nodes, ...nodes], edges };
+}
 
 export function buildSystemGraph(collection: ScanCollection): SystemGraph {
   const fragments: GraphFragment[] = [];
@@ -68,8 +128,13 @@ export function buildSystemGraph(collection: ScanCollection): SystemGraph {
         worstFile: qualityHotspots[0]?.file,
       }
     : undefined;
+  const withAi = attachAiComponents(
+    graph,
+    repos.flatMap((r) => r.aiComponents ?? []),
+  );
+
   return {
-    ...graph,
+    ...withAi,
     ...(vulnerabilities.length ? { vulnerabilities } : {}),
     ...(components.length ? { components } : {}),
     ...(codeFindings.length ? { codeFindings } : {}),
