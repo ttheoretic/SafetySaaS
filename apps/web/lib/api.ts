@@ -142,6 +142,15 @@ export interface ChatMessage {
   content: string;
 }
 
+/** What the public preview returns: topology plus locked risk counts. */
+export interface PreviewResult {
+  repo: string
+  graph: SystemGraph
+  locked: { total: number; critical: number; high: number; medium: number; low: number }
+  detected: string[]
+  scannedAt: string
+}
+
 export interface ValidationRunResponse {
   id: string;
   projectId: string;
@@ -268,6 +277,9 @@ export const api = {
         url: string
       }>
     >(`/projects/${projectId}/commits?limit=${limit}`),
+  /** Public architecture preview — no account, public GitHub repos only. */
+  previewScan: (repo: string) =>
+    post<PreviewResult>('/preview/scan', { repo }),
   /** Validation runs (test history) for a project, newest first. */
   listValidationRuns: (projectId: string) =>
     get<ValidationRunResponse[]>(`/projects/${projectId}/validations`),

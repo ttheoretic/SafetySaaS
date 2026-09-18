@@ -18,6 +18,7 @@ import { ScenariosModule } from './scenarios/scenarios.module';
 import { ReportsModule } from './reports/reports.module';
 import { BillingModule } from './billing/billing.module';
 import { AdminModule } from './admin/admin.module';
+import { PreviewModule } from './preview/preview.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AdminModule } from './admin/admin.module';
     ScenariosModule,
     ReportsModule,
     AdminModule,
+    PreviewModule,
   ],
 })
 export class AppModule {}

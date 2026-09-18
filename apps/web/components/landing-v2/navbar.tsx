@@ -27,7 +27,7 @@ export function Navbar() {
               Log in
             </Link>
             <Link
-              href="/login?mode=signup"
+              href="/preview"
               className="text-sm text-white bg-zinc-800 hover:bg-zinc-700 px-3.5 py-1.5 rounded-md border border-zinc-700 transition-colors"
             >
               Start scanning

@@ -91,7 +91,7 @@ export function Hero3DStage() {
                 className="mt-9 flex flex-col items-center gap-3 sm:flex-row"
               >
                 <Link
-                  href="/login?mode=signup"
+                  href="/preview"
                   className="rounded-full bg-white px-6 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100"
                 >
                   Start scanning

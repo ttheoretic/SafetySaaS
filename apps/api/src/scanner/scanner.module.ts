@@ -38,6 +38,6 @@ const COLLECTORS = [
       inject: COLLECTORS,
     },
   ],
-  exports: [ScannerService],
+  exports: [ScannerService, GithubCollector],
 })
 export class ScannerModule {}

@@ -14,6 +14,8 @@ import { useActiveProjectStore } from '@/lib/active-project'
 // '/' is the marketing landing page; the dashboard lives under /dashboard.
 const MARKETING_ROUTES = [
   '/',
+  // The public architecture preview: no account, no paywall, landing chrome.
+  '/preview',
   '/pricing',
   '/legal',
   '/docs',

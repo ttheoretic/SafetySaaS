@@ -28,7 +28,7 @@ export function CTASection() {
               Contact sales
             </a>
             <Link
-              href="/login?mode=signup"
+              href="/preview"
               className="px-5 py-2.5 bg-white text-zinc-900 font-medium rounded-lg hover:bg-zinc-100 transition-all text-sm shadow-[0_8px_32px_-8px_rgba(59,130,246,0.5)]"
             >
               Start scanning
