@@ -15,7 +15,10 @@ import type { Request } from 'express';
 import {
   buildSystemGraph,
   reliabilityScore,
-  type Severity,
+  riskPosture,
+  securitySimulation,
+  type Finding,
+  type RiskPosture,
   type SystemGraph,
 } from '@riscly/shared';
 import { Public } from '../auth/auth-context';
@@ -27,6 +30,14 @@ import { parseRepoRef } from './repo-ref';
 /** How many previews one IP may start, and over what window. */
 const MAX_PER_WINDOW = Number(process.env.PREVIEW_LIMIT_PER_HOUR ?? 8);
 const WINDOW_MS = 60 * 60_000;
+/**
+ * Optional scopeless GitHub token, used only to raise the preview's rate limit.
+ * It must have no scopes: that keeps private repositories unreachable even if
+ * the value leaks, and the preview's promise ("public repositories only") is
+ * then enforced by GitHub rather than by us.
+ */
+const PREVIEW_TOKEN = process.env.PREVIEW_GITHUB_TOKEN?.trim() || undefined;
+
 /** Repeat visits to the same repo are served from memory rather than re-fetched. */
 const CACHE_TTL_MS = 10 * 60_000;
 const CACHE_MAX = 200;
@@ -36,14 +47,12 @@ export interface PreviewResult {
   repo: string;
   /** Topology only — no findings, no code, no dependency detail. */
   graph: SystemGraph;
-  /** Counts only: how much risk is waiting behind sign-up. */
-  locked: {
-    total: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-  };
+  /**
+   * The risk posture we can honestly derive from architecture alone: scores and
+   * counts, never a finding's title. Two of the five dimensions come back
+   * unmeasured, which is the point — they need the repository connected.
+   */
+  posture: RiskPosture;
   /** Frameworks/providers detected, for the "what we found" strip. */
   detected: string[];
   scannedAt: string;
@@ -59,8 +68,11 @@ export interface PreviewResult {
  *
  * Constraints that make an unauthenticated scanner safe to expose:
  *  - the only input is a strict `owner/name` on github.com (see repo-ref.ts);
- *  - it runs with no token, so GitHub itself enforces "public repositories only"
- *    and the collector skips the deep code analysis entirely;
+ *  - deep analysis (SCA/SAST) is switched off explicitly, so a preview is
+ *    topology-only whether or not a token is configured;
+ *  - the optional PREVIEW_GITHUB_TOKEN must be a *scopeless* token: GitHub then
+ *    still refuses every private repository, so "public repositories only" is
+ *    enforced by GitHub rather than by our code;
  *  - results are capped per IP and cached, so it cannot be used as a free
  *    scanning proxy or to burn our GitHub rate limit;
  *  - the response is rebuilt field by field, never spread from the scan.
@@ -116,7 +128,18 @@ export class PreviewService {
 
     let collected;
     try {
-      collected = await this.github.collect(connection, { fetchImpl: fetch });
+      collected = await this.github.collect(connection, {
+        fetchImpl: fetch,
+        // Unauthenticated GitHub allows 60 requests an hour for the whole
+        // server, which one busy afternoon would exhaust for everybody. A
+        // scopeless read-only token raises that to 5,000 without granting
+        // access to anything private. Optional: without it the preview still
+        // works, just against the shared anonymous budget.
+        ...(PREVIEW_TOKEN ? { token: PREVIEW_TOKEN } : {}),
+        // A preview maps the architecture and stops there — never run the
+        // dependency or code analysis, whose results it would discard anyway.
+        entitlements: { sca: false, codeAudit: false, secrets: false, iac: false, maxRepos: 1 },
+      });
     } catch (err) {
       this.logger.warn(`Preview scan of ${ref.full} failed: ${(err as Error).message}`);
       throw new BadRequestException('Could not read that repository.');
@@ -139,7 +162,7 @@ export class PreviewService {
     const result: PreviewResult = {
       repo: ref.full,
       graph: publicGraph(graph),
-      locked: lockedCounts(graph),
+      posture: previewPosture(graph),
       detected: (repos[0].frameworks ?? []).slice(0, 8),
       scannedAt: new Date().toISOString(),
     };
@@ -183,19 +206,41 @@ function publicGraph(graph: SystemGraph): SystemGraph {
   };
 }
 
-/** How many risks the architecture already implies — counts only, no detail. */
-function lockedCounts(graph: SystemGraph): PreviewResult['locked'] {
-  const counts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-  let total = 0;
+/**
+ * The posture a preview is entitled to claim.
+ *
+ * Reliability, security and architecture are genuinely derivable from topology,
+ * so they are scored for real. AI security and maintainability are not: a
+ * tokenless scan never reads the source, so they come back unmeasured with a
+ * note that says why. That split is honest and it is also the argument — two
+ * fifths of the picture is missing until the repository is connected.
+ *
+ * Only scores, bands and counts cross the wire. No finding titles, no evidence.
+ */
+function previewPosture(graph: SystemGraph): RiskPosture {
+  let findings: Finding[] = [];
   try {
-    for (const f of reliabilityScore(graph).findings) {
-      counts[f.severity] += 1;
-      total += 1;
-    }
+    findings = [...reliabilityScore(graph).findings, ...securitySimulation(graph).findings];
   } catch {
-    /* a partial graph simply yields no teaser */
+    /* a partial graph simply yields a thinner posture */
   }
-  return { total, ...counts };
+
+  const posture = riskPosture({ findings, graph, quality: null, analyzed: true });
+
+  return {
+    ...posture,
+    dimensions: posture.dimensions.map((d) =>
+      d.analyzed
+        ? d
+        : {
+            ...d,
+            // The engine's default note ("No AI components detected") would be a
+            // claim we did not earn: we never read the code here, we only read
+            // the dependency manifests.
+            note: 'Needs your repository',
+          },
+    ),
+  };
 }
 
 class PreviewScanDto {

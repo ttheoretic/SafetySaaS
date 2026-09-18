@@ -77,14 +77,36 @@ describe('PreviewService.scan', () => {
     expect(serialized).not.toContain('GHSA-1');
   });
 
-  it('teases how much risk is waiting without naming any of it', async () => {
+  it('scores the posture it can derive from architecture alone', async () => {
     const r = await service.scan('acme/app', '1.1.1.1');
-    expect(r.locked.total).toBeGreaterThan(0);
-    expect(r.locked.total).toBe(
-      r.locked.critical + r.locked.high + r.locked.medium + r.locked.low,
+    expect(r.posture.score).not.toBeNull();
+    expect(r.posture.total).toBeGreaterThan(0);
+    expect(r.posture.total).toBe(
+      r.posture.counts.critical +
+        r.posture.counts.high +
+        r.posture.counts.medium +
+        r.posture.counts.low,
     );
-    // Counts only — no titles, no descriptions.
-    expect(JSON.stringify(r.locked)).not.toMatch(/[a-z]{4,} [a-z]{4,}/i);
+    const scored = r.posture.dimensions.filter((d) => d.analyzed).map((d) => d.dimension);
+    expect(scored).toContain('reliability');
+    expect(scored).toContain('architecture');
+  });
+
+  it('leaves the dimensions it never measured unmeasured, and says why', async () => {
+    const r = await service.scan('acme/app', '1.1.1.1');
+    for (const key of ['ai_security', 'maintainability'] as const) {
+      const d = r.posture.dimensions.find((x) => x.dimension === key)!;
+      expect(d.analyzed).toBe(false);
+      expect(d.score).toBeNull();
+      // A tokenless scan never read the source, so it must not claim it looked.
+      expect(d.note).toBe('Needs your repository');
+    }
+  });
+
+  it('sends scores and counts but never a finding title', async () => {
+    const r = await service.scan('acme/app', '1.1.1.1');
+    const serialized = JSON.stringify(r.posture.dimensions);
+    expect(serialized).not.toMatch(/single point of failure|backup|rate limit/i);
   });
 
   it('refuses a repository it could not read', async () => {

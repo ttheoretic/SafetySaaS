@@ -8,6 +8,7 @@ import type {
   GraphOverlay,
   TriageStatus,
   ChangeAnalysis,
+  RiskPosture,
   ValidationCheck,
 } from '@riscly/shared';
 
@@ -146,7 +147,7 @@ export interface ChatMessage {
 export interface PreviewResult {
   repo: string
   graph: SystemGraph
-  locked: { total: number; critical: number; high: number; medium: number; low: number }
+  posture: RiskPosture
   detected: string[]
   scannedAt: string
 }

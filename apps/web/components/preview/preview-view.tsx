@@ -15,6 +15,7 @@ import {
   Network,
 } from 'lucide-react'
 import { api, type PreviewResult } from '@/lib/api'
+import { BAND_LABEL, type DimensionScore, type RiskBand } from '@riscly/shared'
 import { ArchitectureGraph } from '@/components/architecture/architecture-graph'
 import { buildGraphData } from '@/lib/graph-layout'
 import type { ServiceNode } from '@/lib/riscly-data'
@@ -147,7 +148,9 @@ export function PreviewView() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <PostureBanner posture={result.posture} />
+
+          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
             {/* the real thing, same renderer as the app */}
             <div className="h-[28rem] overflow-hidden rounded-xl border border-white/10 bg-[#0b0d14]">
               <ArchitectureGraph
@@ -203,21 +206,14 @@ export function PreviewView() {
                   <Lock className="mt-0.5 size-4 shrink-0 text-blue-400" />
                   <div className="min-w-0">
                     <h3 className="text-sm font-medium text-white">
-                      {result.locked.total > 0
-                        ? `${result.locked.total} risks already visible in this architecture`
+                      {result.posture.total > 0
+                        ? `${result.posture.total} risks behind this score`
                         : 'Risk analysis is the next step'}
                     </h3>
-                    {result.locked.total > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <Count label="critical" value={result.locked.critical} tone="text-red-400 border-red-500/30" />
-                        <Count label="high" value={result.locked.high} tone="text-orange-400 border-orange-500/30" />
-                        <Count label="medium" value={result.locked.medium} tone="text-amber-400 border-amber-500/30" />
-                        <Count label="low" value={result.locked.low} tone="text-blue-400 border-blue-500/30" />
-                      </div>
-                    )}
-                    <p className="mt-2.5 text-xs leading-relaxed text-zinc-400">
-                      This preview reads public code only, and stops at the map. Connect your
-                      repository to see what each risk is, why it matters and how to fix it.
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                      This preview reads public dependency manifests only, and stops at the map.
+                      Connect your repository to see what each risk is, why it matters and how
+                      to fix it — and to score the two dimensions still missing above.
                     </p>
                     <Link
                       href="/login?mode=signup"
@@ -259,16 +255,103 @@ export function PreviewView() {
   )
 }
 
-function Count({ label, value, tone }: { label: string; value: number; tone: string }) {
-  if (value === 0) return null
+const BAND: Record<RiskBand, { chip: string; text: string; edge: string; bar: string }> = {
+  low: { chip: 'bg-emerald-500 text-emerald-950', text: 'text-emerald-400', edge: 'border-emerald-500/30', bar: 'bg-emerald-500' },
+  medium: { chip: 'bg-amber-500 text-amber-950', text: 'text-amber-400', edge: 'border-amber-500/30', bar: 'bg-amber-500' },
+  high: { chip: 'bg-orange-500 text-orange-950', text: 'text-orange-400', edge: 'border-orange-500/40', bar: 'bg-orange-500' },
+  critical: { chip: 'bg-red-500 text-red-50', text: 'text-red-400', edge: 'border-red-500/40', bar: 'bg-red-500' },
+}
+
+function dimTone(score: number | null): string {
+  if (score === null) return 'bg-zinc-700'
+  if (score >= 85) return 'bg-emerald-500'
+  if (score >= 70) return 'bg-amber-500'
+  if (score >= 50) return 'bg-orange-500'
+  return 'bg-red-500'
+}
+
+/**
+ * The number that makes the case.
+ *
+ * It is a real score over the dimensions architecture can actually answer, and
+ * it says so: the two dimensions it cannot reach are shown greyed out with what
+ * they need. An incomplete score that admits what is missing argues for the
+ * product better than a confident one that quietly guessed.
+ */
+function PostureBanner({ posture }: { posture: PreviewResult['posture'] }) {
+  const band = BAND[posture.band]
+  const measured = posture.dimensions.filter((d) => d.analyzed).length
+
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px]',
-        tone,
-      )}
-    >
-      {value} {label}
-    </span>
+    <div className={cn('rounded-xl border bg-white/[0.03] p-5', band.edge)}>
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch">
+        <div className="flex shrink-0 flex-col justify-center lg:w-72">
+          <div className="text-xs text-zinc-400">Preliminary risk posture</div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className={cn('font-mono text-5xl font-semibold tabular-nums', band.text)}>
+              {posture.score ?? '—'}
+            </span>
+            <span className="font-mono text-sm text-zinc-500">/100</span>
+            <span
+              className={cn(
+                'ml-1 rounded-[4px] px-2 py-0.5 font-mono text-[11px] font-bold tracking-wider',
+                band.chip,
+              )}
+            >
+              {BAND_LABEL[posture.band]}
+            </span>
+          </div>
+          <p className="mt-2.5 text-xs leading-relaxed text-zinc-300">{posture.headline}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
+            Scored from {measured} of {posture.dimensions.length} dimensions — architecture only,
+            from declared dependencies.
+          </p>
+        </div>
+
+        <div className="min-w-0 flex-1 lg:border-l lg:border-white/10 lg:pl-5">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            Dimensions
+          </div>
+          <div className="flex flex-col gap-2">
+            {posture.dimensions.map((d) => (
+              <DimensionRow key={d.dimension} dim={d} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
+
+function DimensionRow({ dim }: { dim: DimensionScore }) {
+  const locked = !dim.analyzed
+  return (
+    <div className={cn('flex items-center gap-3', locked && 'opacity-60')}>
+      <span className="flex w-32 shrink-0 items-center gap-1.5 truncate text-xs text-zinc-300">
+        {locked && <Lock className="size-3 shrink-0 text-zinc-500" />}
+        {dim.label}
+      </span>
+      <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-white/10">
+        <span
+          className={cn('block h-full rounded-full', dimTone(dim.score))}
+          style={{ width: `${dim.score ?? 0}%` }}
+        />
+      </span>
+      {locked ? (
+        <span className="w-44 shrink-0 text-right text-[11px] text-zinc-500">{dim.note}</span>
+      ) : (
+        <>
+          <span className="w-9 shrink-0 text-right font-mono text-sm tabular-nums text-zinc-200">
+            {dim.score}
+          </span>
+          <span className="w-32 shrink-0 text-right font-mono text-[11px] text-zinc-500">
+            {dim.findings === 0
+              ? 'no risks'
+              : `${dim.findings} ${dim.findings === 1 ? 'risk' : 'risks'}${dim.critical > 0 ? ` · ${dim.critical} crit` : ''}`}
+          </span>
+        </>
+      )}
+    </div>
+  )
+}
+
